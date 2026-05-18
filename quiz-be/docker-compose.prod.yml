@@ -1,0 +1,36 @@
+services:
+  app:
+    # Lấy image trực tiếp từ Docker Hub (đã được build bởi Github Actions)
+    image: ${DOCKERHUB_USERNAME}/laravel-api:latest
+    container_name: quiz-api-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "8080:8080" # For Reverb
+    env_file:
+      - .env
+    depends_on:
+      - mysql
+      - redis
+
+  mysql:
+    image: mysql:8
+    container_name: quiz-mysql-prod
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: quiz_prod
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-...}
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:alpine
+    container_name: quiz-redis-prod
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+volumes:
+  mysql_data:
+  redis_data:

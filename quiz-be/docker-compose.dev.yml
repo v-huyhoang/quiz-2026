@@ -1,0 +1,33 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: quiz-api-dev
+    ports:
+      - "8000:80"
+      - "8080:8080"
+    volumes:
+      - .:/var/www/html
+    env_file:
+      - .env
+    depends_on:
+      - mysql
+      - redis
+
+  mysql:
+    image: mysql:8
+    container_name: quiz-mysql-dev
+    environment:
+      MYSQL_DATABASE: quiz
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: quiz_user
+      MYSQL_PASSWORD: THK@admin123
+    ports:
+      - "3306:3306"
+
+  redis:
+    image: redis:alpine
+    container_name: quiz-redis-dev
+    ports:
+      - "6379:6379"

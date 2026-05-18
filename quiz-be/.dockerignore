@@ -1,0 +1,50 @@
+# Git
+.git
+.github
+.gitignore
+.gitattributes
+
+# IDEs & OS Files
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+
+# Dependencies
+# (Cực kỳ quan trọng: Bỏ qua thư mục này để tránh copy thư viện tương thích Windows vào Linux image)
+/vendor
+/node_modules
+
+# Build Caches & Logs
+npm-debug.log
+yarn-error.log
+/public/build
+/public/hot
+
+# Environment Variables
+# (Không bao giờ copy file .env chứa mật khẩu thật vào Docker Image)
+.env
+.env.*
+!.env.example
+
+# Laravel Storage & Cache
+/storage/*.key
+/storage/logs/*
+!/storage/logs/.gitignore
+/storage/framework/cache/data/*
+!/storage/framework/cache/data/.gitignore
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+/storage/framework/testing/*
+!/storage/framework/testing/.gitignore
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
+
+# Testing
+.phpunit.result.cache
+
+# Docker Files (Không cần thiết phải copy ngược vào mã nguồn bên trong container)
+docker-compose*.yml
+Dockerfile
+.dockerignore
+README.md
