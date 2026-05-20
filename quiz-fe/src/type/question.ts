@@ -6,7 +6,6 @@ export interface Question {
   timeRemaining?: number;
   totalTime: number;
   options: Option[];
-  category?: string;
 }
 
 export interface Option {

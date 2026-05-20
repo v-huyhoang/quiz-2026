@@ -1,10 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { Shield, Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import {
+  Shield,
+  Mail,
+  Lock,
+  Loader2,
+  AlertCircle,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
-// TODO Phase 5: uncomment when BE is ready
-// import { adminLogin } from "../../services/authService";
+import { adminLogin } from "../../services/authService";
 
 function validateEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -21,9 +28,10 @@ export default function AdminLogin() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
 
-  // Inline validation
-  const emailError = touched.email && !validateEmail(email) ? "Email không hợp lệ" : "";
-  const passwordError = touched.password && password.length < 6 ? "Mật khẩu tối thiểu 6 ký tự" : "";
+  const emailError =
+    touched.email && !validateEmail(email) ? "Email không hợp lệ" : "";
+  const passwordError =
+    touched.password && password.length < 6 ? "Mật khẩu tối thiểu 6 ký tự" : "";
   const canSubmit = validateEmail(email) && password.length >= 6 && !loading;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,25 +42,20 @@ export default function AdminLogin() {
     setError("");
 
     try {
-      // ── TODO Phase 5: replace mock with real API call ────────────────
-      // const res = await adminLogin(email, password);
-      // setAuth({
-      //   token: res.data.token,
-      //   role: "admin",
-      // });
-      // ─────────────────────────────────────────────────────────────
-
-      // ── MOCK (remove when BE is ready) ──────────────────────────────────────
-      await new Promise((r) => setTimeout(r, 1000));
+      // ── Real API call ────────────────
+      const res = await adminLogin(email, password);
       setAuth({
-        token: "admin-mock-token-" + Date.now(),
+        token: res.data.token,
         role: "admin",
       });
+      console.log(res);
       // ─────────────────────────────────────────────────────────────
 
       navigate("/admin/dashboard");
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { status: number; data?: { message?: string } } };
+      const axiosErr = err as {
+        response?: { status: number; data?: { message?: string } };
+      };
       const msg = axiosErr?.response?.data?.message;
       setError(msg ?? "Email hoặc mật khẩu không đúng.");
     } finally {
@@ -92,7 +95,6 @@ export default function AdminLogin() {
         {/* Card */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-
             {/* Email */}
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
@@ -106,7 +108,10 @@ export default function AdminLogin() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setError("");
+                  }}
                   onBlur={() => setTouched((t) => ({ ...t, email: true }))}
                   placeholder="admin@quiz.com"
                   disabled={loading}
@@ -142,7 +147,10 @@ export default function AdminLogin() {
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError("");
+                  }}
                   onBlur={() => setTouched((t) => ({ ...t, password: true }))}
                   placeholder="••••••••"
                   disabled={loading}

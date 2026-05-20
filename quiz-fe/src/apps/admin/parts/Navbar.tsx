@@ -4,7 +4,6 @@ import { Bell, LogOut, ChevronDown, Gamepad2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuthStore } from "../../../store/authStore";
 // TODO Phase 5: uncomment when BE is ready
-// import { adminLogout } from "../../../services/authService";
 
 export function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);

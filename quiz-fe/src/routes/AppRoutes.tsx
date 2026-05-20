@@ -25,6 +25,7 @@ import AdminLogin from "../apps/admin/AdminLogin";
 import AdminDashboard from "../apps/admin/AdminDashboard";
 import AdminGameControl from "../apps/admin/AdminGameControl";
 import { AdminQuestion } from "../apps/admin/AdminQuestion";
+import { AdminRoom } from "../apps/admin/AdminRoom";
 
 export default function AppRoutes() {
   return (
@@ -53,6 +54,7 @@ export default function AppRoutes() {
         <Route element={<AdminGuard />}>
           <Route element={<AdminLayout />}>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/rooms" element={<AdminRoom />} />
             <Route path="/admin/game-control" element={<AdminGameControl />} />
             <Route path="/admin/question" element={<AdminQuestion />} />
             <Route path="/admin/leaderboard" element={<StageLeaderBoard />} />
