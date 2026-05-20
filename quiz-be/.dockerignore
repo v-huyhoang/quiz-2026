@@ -11,7 +11,6 @@
 Thumbs.db
 
 # Dependencies
-# (Cực kỳ quan trọng: Bỏ qua thư mục này để tránh copy thư viện tương thích Windows vào Linux image)
 /vendor
 /node_modules
 
@@ -22,7 +21,6 @@ yarn-error.log
 /public/hot
 
 # Environment Variables
-# (Không bao giờ copy file .env chứa mật khẩu thật vào Docker Image)
 .env
 .env.*
 !.env.example
@@ -43,7 +41,6 @@ yarn-error.log
 # Testing
 .phpunit.result.cache
 
-# Docker Files (Không cần thiết phải copy ngược vào mã nguồn bên trong container)
 docker-compose*.yml
 Dockerfile
 .dockerignore
