@@ -1,8 +1,7 @@
 services:
   app:
-    # Lấy image trực tiếp từ Docker Hub (đã được build bởi Github Actions)
-    image: ${DOCKERHUB_USERNAME}/laravel-api:latest
-    container_name: quiz-api-prod
+    image: ${DOCKERHUB_USERNAME}/quiz-be:latest
+    container_name: quiz-be-prod
     restart: unless-stopped
     ports:
       - "80:80"

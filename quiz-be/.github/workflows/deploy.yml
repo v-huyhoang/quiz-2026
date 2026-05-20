@@ -3,15 +3,16 @@ name: Deploy Laravel API
 on:
   push:
     branches:
+      - develop
       - main
 
 jobs:
-  build-and-deploy:
+  deploy-dev:
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Login Docker Hub
         uses: docker/login-action@v3
@@ -19,33 +20,57 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push image
+      - name: Build and push dev image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/laravel-api:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/laravel-api:${{ github.sha }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-api:dev
 
-      - name: Deploy to server
+      - name: Deploy dev
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
+          host: ${{ secrets.DEV_SERVER_HOST }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SERVER_SSH_KEY }}
+          port: ${{ secrets.DEV_SERVER_PORT }}
           script: |
-            cd /var/www/quiz-be
-            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            cd /var/www/quiz-api-dev
+            docker compose -f docker-compose.dev.yml pull
+            docker compose -f docker-compose.dev.yml up -d
+            docker exec quiz-api-dev php artisan migrate --force
+            docker exec quiz-api-dev php artisan optimize:clear
+
+  deploy-prod:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-api:latest
+
+      - name: Deploy production
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SERVER_SSH_KEY }}
+          port: ${{ secrets.PROD_SERVER_PORT }}
+          script: |
+            cd /var/www/quiz-api-prod
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d
-
-            docker compose -f docker-compose.prod.yml exec -T app php artisan migrate --force
-
-            docker compose -f docker-compose.prod.yml exec -T app php artisan optimize:clear
-            docker compose -f docker-compose.prod.yml exec -T app php artisan optimize
-
-            docker image prune -f
+            docker exec quiz-api-prod php artisan migrate --force
+            docker exec quiz-api-prod php artisan optimize

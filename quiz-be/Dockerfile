@@ -14,7 +14,6 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     libicu-dev \
-    libpq-dev \
     default-mysql-client \
     && docker-php-ext-install \
         pdo \
@@ -24,6 +23,8 @@ RUN apt-get update && apt-get install -y \
         exif \
         pcntl \
         bcmath \
+        intl \
+        opcache \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apt-get clean \
@@ -31,17 +32,19 @@ RUN apt-get update && apt-get install -y \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Tối ưu hóa build cache bằng cách cài thư viện trước khi copy mã nguồn
 COPY composer.json composer.lock ./
-RUN composer install --no-scripts --no-autoloader
+
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --optimize-autoloader \
+    --no-scripts
 
 COPY . .
 
-RUN composer dump-autoload --optimize
-
-RUN chown -R www-data:www-data \
-    storage \
-    bootstrap/cache
+RUN composer dump-autoload --optimize \
+    && chown -R www-data:www-data storage bootstrap/cache
 
 COPY nginx/default.conf /etc/nginx/sites-available/default
 COPY docker/supervisor/*.conf /etc/supervisor/conf.d/
