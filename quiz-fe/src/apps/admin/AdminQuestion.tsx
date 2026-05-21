@@ -163,6 +163,10 @@ export const AdminQuestion = () => {
         })),
       });
       await fetchQuestions(1);
+       setImportNotice({
+        type: "success",
+        message: `Create questions successfully.`,
+      });
       setIsSubmitting(false);
       handleCloseForm();
     } catch (error) {
