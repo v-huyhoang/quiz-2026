@@ -53,7 +53,7 @@ export default function AppRoutes() {
 
         <Route element={<AdminGuard />}>
           <Route element={<AdminLayout />}>
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/rooms" element={<AdminRoom />} />
             <Route path="/admin/game-control" element={<AdminGameControl />} />
             <Route path="/admin/question" element={<AdminQuestion />} />

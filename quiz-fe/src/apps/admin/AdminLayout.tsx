@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Navbar } from "./parts/Navbar";
-import { LayoutDashboard, BookOpen, Layers, Play, Users, HelpCircle, Trophy } from "lucide-react";
+import { LayoutDashboard, BookOpen, Layers, Play } from "lucide-react";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -15,24 +15,24 @@ export default function AdminLayout() {
         <aside className="w-64 bg-white border-r border-gray-200 p-6 hidden lg:flex flex-col gap-8">
           <div>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
-              Command Center
+              Trung tâm điều khiển
             </p>
             <nav className="flex flex-col gap-2">
               <SidebarItem
                 icon={<LayoutDashboard size={20} />}
-                label="Overview"
-                active={location.pathname === "/admin/dashboard"}
-                onClick={() => navigate("/admin/dashboard")}
+                label="Tổng quan"
+                active={location.pathname === "/admin/"}
+                onClick={() => navigate("/admin/")}
               />
               <SidebarItem
                 icon={<BookOpen size={20} />}
-                label="Question Bank"
+                label="Ngân hàng câu hỏi"
                 active={location.pathname === "/admin/question"}
                 onClick={() => navigate("/admin/question")}
               />
               <SidebarItem
                 icon={<Layers size={20} />}
-                label="Room Config"
+                label="Quản lý phòng"
                 active={location.pathname === "/admin/rooms"}
                 onClick={() => navigate("/admin/rooms")}
               />
@@ -46,7 +46,7 @@ export default function AdminLayout() {
               className="flex items-center gap-2 w-full bg-primary text-white px-4 py-3 rounded-xl font-bold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
             >
               <Play size={16} />
-              Game Control
+              Điều khiển trò chơi
             </button>
 
             <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">

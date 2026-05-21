@@ -1,7 +1,6 @@
 import { motion } from "motion/react";
 import { Layers, Users, HelpCircle, Trophy } from "lucide-react";
 
-// Mock stats cho Overview (Phase 5)
 const MOCK_STATS = [
   { label: "Phòng đang hoạt động", value: "1", icon: <Layers size={20} />, color: "bg-blue-50 text-blue-500" },
   { label: "Teams đã đăng ký", value: "8", icon: <Users size={20} />, color: "bg-green-50 text-green-600" },

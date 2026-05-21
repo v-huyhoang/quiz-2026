@@ -42,16 +42,15 @@ export default function AdminLogin() {
     setError("");
 
     try {
-      // ── Real API call ────────────────
       const res = await adminLogin(email, password);
       setAuth({
-        token: res.data.token,
+        token: res.data.data.token,
         role: "admin",
       });
       console.log(res);
       // ─────────────────────────────────────────────────────────────
 
-      navigate("/admin/dashboard");
+      navigate("/admin/");
     } catch (err: unknown) {
       const axiosErr = err as {
         response?: { status: number; data?: { message?: string } };

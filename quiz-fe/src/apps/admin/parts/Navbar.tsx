@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, LogOut, ChevronDown, Gamepad2 } from "lucide-react";
+import { LogOut, ChevronDown, Gamepad2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuthStore } from "../../../store/authStore";
 // TODO Phase 5: uncomment when BE is ready
@@ -54,13 +54,6 @@ export function Navbar() {
 
       {/* Right side */}
       <div className="flex items-center gap-4">
-        <button
-          className="text-gray-400 hover:text-primary transition-colors relative"
-          title="Thông báo"
-        >
-          <Bell size={20} />
-        </button>
-
         {/* Avatar dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button

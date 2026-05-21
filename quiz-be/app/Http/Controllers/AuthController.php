@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Admin;
+use App\Traits\ApiResponseTrait;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    use ApiResponseTrait;
+
     public function adminLogin(Request $request)
     {
         $request->validate([
@@ -26,18 +29,16 @@ class AuthController extends Controller
 
         $token = $admin->createToken('admin-token')->plainTextToken;
 
-        return response()->json([
+        return $this->successResponse([
             'admin' => $admin,
             'token' => $token,
-        ]);
+        ], 'Logged in successfully');
     }
 
     public function adminLogout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json([
-            'message' => 'Logged out successfully'
-        ]);
+        return $this->successResponse(null, 'Logged out successfully');
     }
 }

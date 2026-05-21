@@ -3,35 +3,33 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CreateQuestionRequest;
-use App\Models\Question;
+use App\Http\Requests\ImportQuestionsRequest;
+use App\Services\QuestionImportService;
+use App\Services\QuestionService;
+use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class QuestionController extends Controller
 {
+    use ApiResponseTrait;
+
+    private const QUESTIONS_PER_PAGE = 20;
+
+    public function __construct(
+        private readonly QuestionService $questionService,
+        private readonly QuestionImportService $questionImportService
+    ) {
+    }
+
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $questions = Question::with('answers')->orderBy('created_at', 'desc')->get();
-        
-        $formattedQuestions = $questions->map(function ($q) {
-            return [
-                'id' => (string) $q->id,
-                'text' => $q->content,
-                'totalTime' => $q->time_limit_seconds,
-                'options' => $q->answers->map(function ($a) {
-                    return [
-                        'id' => (string) $a->id,
-                        'text' => $a->content,
-                        'isCorrect' => (bool) $a->is_correct,
-                    ];
-                }),
-            ];
-        });
-
-        return response()->json($formattedQuestions);
+        return $this->successResponse(
+            $this->questionService->paginate(self::QUESTIONS_PER_PAGE),
+            'Questions retrieved successfully'
+        );
     }
 
     /**
@@ -48,44 +46,26 @@ class QuestionController extends Controller
     public function store(CreateQuestionRequest $request)
     {
         try {
-            DB::beginTransaction();
-
-            $validated = $request->validated();
-
-            $question = Question::create([
-                'content' => $validated['text'],
-                'time_limit_seconds' => $validated['totalTime'],
-                'type' => 'single_choice', // UI only supports single choice (radio buttons) for now
-            ]);
-
-            foreach ($validated['options'] as $option) {
-                $question->answers()->create([
-                    'content' => $option['text'],
-                    'is_correct' => $option['isCorrect'],
-                ]);
-            }
-
-            DB::commit();
-
-            $question->load('answers');
-
-            $formattedQuestion = [
-                'id' => (string) $question->id,
-                'text' => $question->content,
-                'totalTime' => $question->time_limit_seconds,
-                'options' => $question->answers->map(function ($a) {
-                    return [
-                        'id' => (string) $a->id,
-                        'text' => $a->content,
-                        'isCorrect' => (bool) $a->is_correct,
-                    ];
-                }),
-            ];
-
-            return response()->json($formattedQuestion, 201);
+            return $this->successResponse(
+                $this->questionService->create($request->validated()),
+                'Question created successfully',
+                201
+            );
         } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Failed to create question: ' . $e->getMessage()], 500);
+            return $this->errorResponse('Failed to create question: ' . $e->getMessage());
+        }
+    }
+
+    public function import(ImportQuestionsRequest $request)
+    {
+        try {
+            return $this->successResponse(
+                $this->questionImportService->importFromFile($request->file('file')),
+                'Questions imported successfully',
+                201
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to import questions: ' . $e->getMessage());
         }
     }
 
@@ -119,12 +99,11 @@ class QuestionController extends Controller
     public function destroy(string $id)
     {
         try {
-            $question = Question::findOrFail($id);
-            $question->delete(); // Cascades answers because of the DB foreign key constraint
-            
-            return response()->json(['message' => 'Deleted successfully']);
+            $this->questionService->delete($id);
+
+            return $this->successResponse(null, 'Question deleted successfully');
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Failed to delete question'], 500);
+            return $this->errorResponse('Failed to delete question');
         }
     }
 }
