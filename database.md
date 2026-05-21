@@ -104,15 +104,30 @@ INDEX(status)
 
 ## questions
 
-Thông tin câu hỏi.
+Thông tin câu hỏi (Ngân hàng câu hỏi).
+
+| Column | Type | Note |
+|---|---|---|
+| id | bigint | PK |
+| content | text | |
+| type | enum | single_choice / multiple_choice |
+| time_limit_seconds | integer | |
+| created_at | timestamp | |
+| updated_at | timestamp | |
+
+---
+
+## round_questions
+
+Câu hỏi được gán vào round cụ thể.
 
 | Column | Type | Note |
 |---|---|---|
 | id | bigint | PK |
 | round_id | bigint | FK -> rounds.id |
-| content | text | |
-| type | enum | single_choice / multiple_choice |
-| time_limit_seconds | integer | |
+| question_id | bigint | FK -> questions.id |
+| order_number | integer | |
+| status | enum | pending / open / closed |
 | opened_at | timestamp nullable | |
 | closed_at | timestamp nullable | |
 | created_at | timestamp | |
@@ -122,12 +137,14 @@ Thông tin câu hỏi.
 
 ```sql
 UNIQUE(round_id, order_number)
+UNIQUE(round_id, question_id)
 ```
 
 ### Indexes
 
 ```sql
 INDEX(round_id)
+INDEX(question_id)
 INDEX(status)
 ```
 
@@ -162,7 +179,7 @@ Lưu câu trả lời của team.
 | Column | Type | Note |
 |---|---|---|
 | id | bigint | PK |
-| question_id | bigint | FK -> questions.id |
+| round_question_id | bigint | FK -> round_questions.id |
 | team_id | bigint | FK -> teams.id |
 | answer_id | bigint | FK -> answers.id |
 | is_correct | boolean | |
@@ -177,7 +194,7 @@ Lưu câu trả lời của team.
 Đây là constraint quan trọng nhất để chống duplicate.
 
 ```sql
-UNIQUE(team_id, question_id)
+UNIQUE(team_id, round_question_id)
 ```
 
 ---
@@ -185,7 +202,7 @@ UNIQUE(team_id, question_id)
 ## Indexes
 
 ```sql
-INDEX(question_id)
+INDEX(round_question_id)
 INDEX(team_id)
 INDEX(is_correct)
 INDEX(created_at)
@@ -277,7 +294,7 @@ DB::transaction(function () {
 Sử dụng unique constraint để chống race condition.
 
 ```sql
-UNIQUE(team_id, question_id)
+UNIQUE(team_id, round_question_id)
 ```
 
 ---
