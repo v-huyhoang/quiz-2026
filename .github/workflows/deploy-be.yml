@@ -46,7 +46,18 @@ jobs:
             cd /var/www/quiz-be-dev
             docker compose --env-file .env.dev -f docker-compose.dev.yml pull
             docker compose --env-file .env.dev -f docker-compose.dev.yml up -d --remove-orphans
-            docker exec quiz-be-dev php artisan migrate --force
+            for i in $(seq 1 30); do
+              if docker exec quiz-be-dev php artisan migrate --force; then
+                break
+              fi
+
+              if [ "$i" -eq 30 ]; then
+                exit 1
+              fi
+
+              echo "Waiting for MySQL before migration... attempt $i/30"
+              sleep 5
+            done
             docker exec quiz-be-dev php artisan optimize:clear
 
   deploy-prod:
@@ -84,5 +95,16 @@ jobs:
             cd /var/www/quiz-be-prod
             docker compose --env-file .env -f docker-compose.prod.yml pull
             docker compose --env-file .env -f docker-compose.prod.yml up -d --remove-orphans
-            docker exec quiz-be-prod php artisan migrate --force
+            for i in $(seq 1 30); do
+              if docker exec quiz-be-prod php artisan migrate --force; then
+                break
+              fi
+
+              if [ "$i" -eq 30 ]; then
+                exit 1
+              fi
+
+              echo "Waiting for MySQL before migration... attempt $i/30"
+              sleep 5
+            done
             docker exec quiz-be-prod php artisan optimize
