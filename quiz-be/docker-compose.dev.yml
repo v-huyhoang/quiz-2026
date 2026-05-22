@@ -1,6 +1,6 @@
 services:
   app:
-    image: yourname/quiz-be:dev
+    image: ${DOCKERHUB_USERNAME}/quiz-be:dev
     container_name: quiz-be-dev
     ports:
       - "8000:80"
@@ -16,10 +16,10 @@ services:
     image: mysql:8
     container_name: quiz-mysql-dev
     environment:
-      MYSQL_DATABASE: quiz_dev
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_USER: quiz_user
-      MYSQL_PASSWORD: change_dev_password
+      MYSQL_DATABASE: ${DB_DATABASE:-quiz_dev}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_USER: ${DB_USERNAME:-quiz_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - mysql_data_dev:/var/lib/mysql
     restart: unless-stopped

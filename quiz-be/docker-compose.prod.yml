@@ -17,8 +17,10 @@ services:
     container_name: quiz-mysql-prod
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: quiz_prod
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-...}
+      MYSQL_DATABASE: ${DB_DATABASE:-quiz_prod}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-${DB_PASSWORD}}
+      MYSQL_USER: ${DB_USERNAME:-quiz_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
 

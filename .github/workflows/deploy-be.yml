@@ -1,10 +1,14 @@
-name: Deploy Laravel API
+name: Deploy Backend
 
 on:
   push:
     branches:
       - develop
       - main
+    paths:
+      - "quiz-be/**"
+      - ".github/workflows/deploy-be.yml"
+  workflow_dispatch:
 
 jobs:
   deploy-dev:
@@ -23,9 +27,10 @@ jobs:
       - name: Build and push dev image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./quiz-be
+          file: ./quiz-be/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-api:dev
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-be:dev
 
       - name: Deploy dev
         uses: appleboy/ssh-action@v1.2.0
@@ -35,11 +40,12 @@ jobs:
           key: ${{ secrets.DEV_SERVER_SSH_KEY }}
           port: ${{ secrets.DEV_SERVER_PORT }}
           script: |
-            cd /var/www/quiz-api-dev
-            docker compose -f docker-compose.dev.yml pull
-            docker compose -f docker-compose.dev.yml up -d
-            docker exec quiz-api-dev php artisan migrate --force
-            docker exec quiz-api-dev php artisan optimize:clear
+            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            cd /var/www/quiz-be-dev
+            docker compose --env-file .env.dev -f docker-compose.dev.yml pull
+            docker compose --env-file .env.dev -f docker-compose.dev.yml up -d --remove-orphans
+            docker exec quiz-be-dev php artisan migrate --force
+            docker exec quiz-be-dev php artisan optimize:clear
 
   deploy-prod:
     if: github.ref == 'refs/heads/main'
@@ -57,9 +63,10 @@ jobs:
       - name: Build and push production image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./quiz-be
+          file: ./quiz-be/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-api:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-be:latest
 
       - name: Deploy production
         uses: appleboy/ssh-action@v1.2.0
@@ -69,8 +76,9 @@ jobs:
           key: ${{ secrets.PROD_SERVER_SSH_KEY }}
           port: ${{ secrets.PROD_SERVER_PORT }}
           script: |
-            cd /var/www/quiz-api-prod
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d
-            docker exec quiz-api-prod php artisan migrate --force
-            docker exec quiz-api-prod php artisan optimize
+            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            cd /var/www/quiz-be-prod
+            docker compose --env-file .env -f docker-compose.prod.yml pull
+            docker compose --env-file .env -f docker-compose.prod.yml up -d --remove-orphans
+            docker exec quiz-be-prod php artisan migrate --force
+            docker exec quiz-be-prod php artisan optimize
