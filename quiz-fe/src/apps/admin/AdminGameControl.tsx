@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Navbar } from "./parts/Navbar";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { Play, Pause, SkipForward, Trophy, Clock, Users, CheckCircle, XCircle, ChevronRight, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 

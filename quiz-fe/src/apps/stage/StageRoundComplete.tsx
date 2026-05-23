@@ -1,7 +1,6 @@
 import { Award, Timer, Target, ArrowRight, Medal, Trophy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
-import { cn } from "../../libs/utils";
 
 // Mock data
 const ROUND_STATS = {
