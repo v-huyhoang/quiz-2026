@@ -1,0 +1,7 @@
+services:
+  frontend:
+    image: ${DOCKERHUB_USERNAME}/quiz-fe:latest
+    container_name: quiz-fe-prod
+    ports:
+      - "80:80"
+    restart: always
