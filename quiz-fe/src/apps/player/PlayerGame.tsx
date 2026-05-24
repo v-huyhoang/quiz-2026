@@ -1,11 +1,45 @@
 import { Timer, CheckCircle, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useGameStore } from "../../store/gameStore";
+import { useAuthStore } from "../../store/authStore";
+import echo from "../../sockets/echo";
 
 export default function PlayerGame() {
+  const { gameId } = useAuthStore();
+  const { currentQuestion, updateQuestion, markSubmitted, hasSubmitted } = useGameStore();
   const [selected, setSelected] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(42);
+
+  useEffect(() => {
+    // Listen for question.started event
+    const handleQuestionStarted = (data: any) => {
+      updateQuestion({
+        currentQuestion: {
+          id: data.question.id,
+          content: data.question.content,
+          options: data.question.answers.map((a: any) => ({
+            id: a.id,
+            content: a.content,
+          })),
+          openedAt: new Date().toISOString(),
+          timeLimit: data.time_limit_seconds,
+        },
+        questionStatus: "open",
+      });
+      setTimeLeft(data.time_limit_seconds);
+      setSelected(null);
+      setSubmitted(false);
+    };
+
+    const channel = echo.channel(`game.${gameId || 1}`);
+    channel.listen("question.started", handleQuestionStarted);
+
+    return () => {
+      channel.stopListening("question.started");
+    };
+  }, [gameId, updateQuestion]);
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -13,12 +47,10 @@ export default function PlayerGame() {
     return () => clearInterval(timer);
   }, [timeLeft]);
 
-  const options = [
-    { id: "a", text: "Application Programming Interface" },
-    { id: "b", text: "Automated Process Integration" },
-    { id: "c", text: "Advanced Protocol Interaction" },
-    { id: "d", text: "Algorithmic Performance Index" },
-  ];
+  const options = currentQuestion?.options.map((opt, idx) => ({
+    id: String.fromCharCode(97 + idx),
+    text: opt.content,
+  })) || [];
 
   const handleSubmit = () => {
     if (!selected || submitted) return;
@@ -55,7 +87,7 @@ export default function PlayerGame() {
           className="mb-12"
         >
           <h2 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight">
-            In computing, what does the acronym "API" stand for?
+            {currentQuestion?.content || "Waiting for question..."}
           </h2>
         </motion.div>
 

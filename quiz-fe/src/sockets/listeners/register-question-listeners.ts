@@ -1,11 +1,11 @@
 import { useGameStore } from '../../store/gameStore';
-import { getQuestionChannel } from '../channels/question-channel';
+import { getGameChannel } from '../channels/game-channel';
 
-export function registerQuestionListeners(questionId: string) {
+export function registerQuestionListeners(gameId: string) {
   const updateQuestion = useGameStore.getState().updateQuestion;
-  const channel = getQuestionChannel(questionId);
-  channel.listen('QuestionOpened', (data: any) => {
-    updateQuestion({ status: 'opened', ...data });
+  const channel = getGameChannel(gameId);
+  channel.listen('question.started', (data: any) => {
+    updateQuestion({ status: 'open', ...data });
   });
   channel.listen('QuestionClosed', (data: any) => {
     updateQuestion({ status: 'closed', ...data });

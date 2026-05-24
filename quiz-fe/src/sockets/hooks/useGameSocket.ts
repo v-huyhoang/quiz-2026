@@ -4,9 +4,6 @@ import { registerGameListeners } from '../listeners/register-game-listeners';
 export function useGameSocket(gameId: string) {
   useEffect(() => {
     if (!gameId) return;
-    const channel = registerGameListeners(gameId);
-    return () => {
-      channel.stopListening();
-    };
+    registerGameListeners(gameId);
   }, [gameId]);
 }

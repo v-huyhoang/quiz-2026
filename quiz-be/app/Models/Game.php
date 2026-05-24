@@ -10,5 +10,24 @@ class Game extends Model
     /** @use HasFactory<\Database\Factories\GameFactory> */
     use HasFactory;
 
-    protected $fillable = ['name', 'status', 'started_at', 'ended_at'];
+    protected $fillable = [
+        'name',
+        'status',
+        'started_at',
+        'ended_at',
+        'access_code',
+        'rounds',
+        'questions_per_round',
+        'question_mode',
+    ];
+
+    protected $casts = [
+        'started_at' => 'datetime',
+        'ended_at' => 'datetime',
+    ];
+
+    public function rounds()
+    {
+        return $this->hasMany(Round::class);
+    }
 }

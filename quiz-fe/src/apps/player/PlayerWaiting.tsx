@@ -2,6 +2,9 @@ import { useEffect } from "react";
 import { Group, UserPlus, Clock } from "lucide-react";
 import { motion } from "motion/react";
 import { useAuthStore } from "../../store/authStore";
+import { useNavigate } from "react-router-dom";
+import { useGameSocket } from "../../sockets/hooks/useGameSocket";
+import echo from "../../sockets/echo";
 
 // Mock teams for Phase 2 (Phase 6 will use Reverb presence channel)
 const MOCK_TEAMS = [
@@ -13,17 +16,28 @@ const MOCK_TEAMS = [
 const MAX_TEAMS = 16;
 
 export default function PlayerWaiting() {
-  const { teamName, teamId } = useAuthStore();
+  const { teamName, teamId, gameId } = useAuthStore();
+  const navigate = useNavigate();
 
-  // TODO Phase 6: subscribe to presence channel to get real team list
-  // usePresenceChannel(gameId) → set teams realtime
+  // Listen for game started event
+  useGameSocket(gameId?.toString() || "1");
 
-  // TODO Phase 6: listen to game.started event → navigate("/player/game")
   useEffect(() => {
-    // echo.channel(`game.${gameId}`).listen("GameStarted", () => {
-    //   navigate("/player/game");
-    // });
-  }, []);
+    const handleGameStarted = (data: any) => {
+      console.log("Player: Received game.started event", data);
+      navigate("/player/game");
+    };
+
+    // Listen to game.started event from the game channel
+    const channelName = `game.${gameId || 1}`;
+    console.log("Player: Subscribing to channel", channelName, "gameId:", gameId);
+    const channel = echo.channel(channelName);
+    channel.listen("game.started", handleGameStarted);
+
+    return () => {
+      channel.stopListening("game.started");
+    };
+  }, [gameId, navigate]);
 
   const teams = MOCK_TEAMS;
   const emptySlots = MAX_TEAMS - teams.length;
