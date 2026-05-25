@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Round;
+use App\Models\Game;
 use App\Repositories\RoomRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -20,6 +21,27 @@ class RoomService
         return [
             'success' => true,
             'data' => $rooms,
+        ];
+    }
+
+    public function paginate(int $perPage): array
+    {
+        $paginator = $this->roomRepository->paginate($perPage);
+
+        return [
+            'data' => $paginator
+                ->getCollection()
+                ->map(fn (Game $room) => $room->toArray())
+                ->values()
+                ->all(),
+            'meta' => [
+                'currentPage' => $paginator->currentPage(),
+                'from' => $paginator->firstItem(),
+                'lastPage' => $paginator->lastPage(),
+                'perPage' => $paginator->perPage(),
+                'to' => $paginator->lastItem(),
+                'total' => $paginator->total(),
+            ],
         ];
     }
 

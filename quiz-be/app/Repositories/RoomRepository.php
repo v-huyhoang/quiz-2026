@@ -12,6 +12,11 @@ class RoomRepository
         return Game::latest()->get();
     }
 
+    public function paginate(int $perPage): LengthAwarePaginator
+    {
+        return Game::orderBy('created_at', 'desc')->paginate($perPage);
+    }
+
     public function findById(string $id)
     {
         return Game::with('rounds.roundQuestions.question')->findOrFail($id);

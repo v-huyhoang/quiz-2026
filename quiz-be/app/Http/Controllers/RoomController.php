@@ -3,10 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Services\RoomService;
+use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
 
 class RoomController extends Controller
 {
+    use ApiResponseTrait;
+    
+    private const ROOM_PER_PAGE = 10;
+    
     public function __construct(
         private readonly RoomService $roomService
     ) {
@@ -17,7 +22,10 @@ class RoomController extends Controller
      */
     public function index()
     {
-        return response()->json($this->roomService->getAll());
+        return $this->successResponse(
+            $this->roomService->paginate(self::ROOM_PER_PAGE),
+            'Rooms retrieved successfully'
+        );
     }
 
     /**

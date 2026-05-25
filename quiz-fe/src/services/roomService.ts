@@ -23,7 +23,6 @@ export interface CreateRoomPayload {
   questions_per_round: number;
   access_code: string;
   question_mode: "random" | "manual";
-  /** Chỉ gửi khi question_mode === "manual" */
   round_questions?: RoundQuestionAssignment[];
 }
 
