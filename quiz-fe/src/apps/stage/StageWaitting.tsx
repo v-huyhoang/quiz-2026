@@ -1,33 +1,11 @@
 import { Group, UserPlus } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
-import { useEffect } from "react";
-import { useStageSocket } from "../../sockets/hooks/useStageSocket";
-import echo from "../../sockets/echo";
 
 export default function StageWaitting() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roomCode = searchParams.get("roomCode");
-
-  // Listen for game started event
-  useStageSocket();
-
-  useEffect(() => {
-    const handleGameStarted = (data: any) => {
-      console.log("Stage: Received game.started event", data);
-      navigate("/stage/game");
-    };
-
-    // Listen to game.started event from the stage channel
-    const channel = echo.channel("stage");
-    console.log("Stage: Subscribing to stage channel");
-    channel.listen("game.started", handleGameStarted);
-
-    return () => {
-      channel.stopListening("game.started");
-    };
-  }, [navigate]);
 
   const teams = [
     { name: "Team Alpha", ready: true },

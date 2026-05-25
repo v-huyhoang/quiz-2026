@@ -7,9 +7,7 @@ export function registerGameListeners(gameId: string) {
   channel.listen('.game.started', (data: any) => {
     updateGame({ status: 'active', ...data });
   });
-  channel.listen('GameFinished', (data: any) => {
-    updateGame({ status: 'finished', ...data });
-  });
+
   // Thêm các listener khác nếu cần
   return channel;
 }

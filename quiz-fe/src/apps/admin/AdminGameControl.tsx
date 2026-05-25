@@ -3,7 +3,6 @@ import { Navbar } from "./parts/Navbar";
 import { motion } from "motion/react";
 import { Play, Pause, SkipForward, Trophy, Clock, Users, CheckCircle, XCircle, ArrowLeft } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAdminSocket } from "../../sockets/hooks/useAdminSocket";
 import { startGame } from "../../services/gameService";
 
 type GameStatus = "pending" | "active" | "finished";
@@ -41,16 +40,13 @@ export default function AdminGameControl() {
   const [gameStatus, setGameStatus] = useState<GameStatus>("pending");
   const [roundStatus, setRoundStatus] = useState<RoundStatus>("pending");
   const [questionStatus, setQuestionStatus] = useState<QuestionStatus>("pending");
-  const [currentRound, setCurrentRound] = useState(1);
+  const [currentRound] = useState(1);
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [totalQuestions] = useState(5);
   const [timer, setTimer] = useState(30);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [gameId, setGameId] = useState<number | null>(null);
   const [isStarting, setIsStarting] = useState(false);
-
-  // Use admin socket to listen for game events
-  useAdminSocket();
 
   // Set gameId from URL parameter
   useEffect(() => {

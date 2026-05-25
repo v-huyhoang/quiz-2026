@@ -53,8 +53,7 @@ export const AdminRoom = () => {
   const fetchRooms = async () => {
     try {
       setFetching(true);
-      const { data } = await getRooms();
-
+      const data = await getRooms();
 
       const roomsData = data.map((room: any) => ({
         id: String(room.id),

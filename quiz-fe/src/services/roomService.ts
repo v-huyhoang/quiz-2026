@@ -64,9 +64,9 @@ export const createRoom = (payload: CreateRoomPayload) =>
 
 /** Admin: get danh sách phòng */
 export const getRooms = async () => {
-  const response = await api.get<CreateRoomResponse[]>("/admin/rooms");
+  const response = await api.get<RoomsResponse>("/admin/rooms");
 
-  return response.data;
+  return response.data.data;
 };
 
 /** Admin: xóa phòng */
