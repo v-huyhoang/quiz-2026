@@ -1,45 +1,22 @@
 import { Timer } from "lucide-react";
-import { useState, useEffect } from "react";
 import { motion } from "motion/react";
+import { useEffect } from "react";
 import { useGameStore } from "../../store/gameStore";
-import echo from "../../sockets/echo";
+import { registerStageListeners } from "../../sockets/listeners/register-game-listeners";
+import { useCountdown } from "../../hooks/useCountdown";
 
 export default function StageGame() {
-  const [timeLeft, setTimeLeft] = useState(30);
-  const { currentQuestion, updateQuestion } = useGameStore();
+  const { currentQuestion } = useGameStore();
 
+  // Mount socket listener
   useEffect(() => {
-    // Listen for question.started event
-    const handleQuestionStarted = (data: any) => {
-      updateQuestion({
-        currentQuestion: {
-          id: data.question.id,
-          content: data.question.content,
-          options: data.question.answers.map((a: any) => ({
-            id: a.id,
-            content: a.content,
-          })),
-          openedAt: new Date().toISOString(),
-          timeLimit: data.time_limit_seconds,
-        },
-        questionStatus: "open",
-      });
-      setTimeLeft(data.time_limit_seconds);
-    };
+    registerStageListeners();
+  }, []);
 
-    const channel = echo.channel("stage");
-    channel.listen("question.started", handleQuestionStarted);
-
-    return () => {
-      channel.stopListening("question.started");
-    };
-  }, [updateQuestion]);
-
-  useEffect(() => {
-    if (timeLeft <= 0) return;
-    const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
-    return () => clearInterval(timer);
-  }, [timeLeft]);
+  const { timeLeft } = useCountdown({
+    openedAt: currentQuestion?.openedAt,
+    duration: currentQuestion?.timeLimit,
+  });
 
   const displayQuestion = currentQuestion
     ? {

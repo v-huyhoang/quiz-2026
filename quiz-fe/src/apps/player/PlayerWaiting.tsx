@@ -2,9 +2,9 @@ import { useEffect } from "react";
 import { Group, UserPlus, Clock } from "lucide-react";
 import { motion } from "motion/react";
 import { useAuthStore } from "../../store/authStore";
+import { useGameStore } from "../../store/gameStore";
 import { useNavigate } from "react-router-dom";
 import { useGameSocket } from "../../sockets/hooks/useGameSocket";
-import echo from "../../sockets/echo";
 
 // Mock teams for Phase 2 (Phase 6 will use Reverb presence channel)
 const MOCK_TEAMS = [
@@ -17,27 +17,18 @@ const MAX_TEAMS = 16;
 
 export default function PlayerWaiting() {
   const { teamName, teamId, gameId } = useAuthStore();
+  const { gameStatus, currentQuestion } = useGameStore();
   const navigate = useNavigate();
 
-  // Listen for game started event
+  // Listen for socket events
   useGameSocket(gameId?.toString() || "1");
 
+  // Redirect to game screen when question starts
   useEffect(() => {
-    const handleGameStarted = (data: any) => {
-      console.log("Player: Received game.started event", data);
+    if (currentQuestion) {
       navigate("/player/game");
-    };
-
-    // Listen to game.started event from the game channel
-    const channelName = `game.${gameId || 1}`;
-    console.log("Player: Subscribing to channel", channelName, "gameId:", gameId);
-    const channel = echo.channel(channelName);
-    channel.listen("game.started", handleGameStarted);
-
-    return () => {
-      channel.stopListening("game.started");
-    };
-  }, [gameId, navigate]);
+    }
+  }, [currentQuestion, navigate]);
 
   const teams = MOCK_TEAMS;
   const emptySlots = MAX_TEAMS - teams.length;
@@ -55,9 +46,9 @@ export default function PlayerWaiting() {
           <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
 
           <div className="relative z-10 flex items-center justify-center gap-3 mb-1">
-            <div className="w-3 h-3 rounded-full bg-primary animate-ping" />
-            <h1 className="text-2xl font-bold text-primary uppercase tracking-widest">
-              Đã kết nối
+            <div className={`w-3 h-3 rounded-full ${gameStatus === 'active' ? 'bg-green-500' : 'bg-primary'} ${gameStatus === 'active' ? 'animate-pulse' : 'animate-ping'}`} />
+            <h1 className={`text-2xl font-bold uppercase tracking-widest ${gameStatus === 'active' ? 'text-green-600' : 'text-primary'}`}>
+              {gameStatus === 'active' ? 'Game has started' : 'Đã kết nối'}
             </h1>
           </div>
 
@@ -72,9 +63,11 @@ export default function PlayerWaiting() {
             <p className="text-xs text-gray-400 font-mono">#{teamId}</p>
           </div>
 
-          <div className="relative z-10 flex items-center gap-2 text-gray-500 mt-2">
-            <Clock size={14} className="animate-pulse" />
-            <p className="font-medium text-sm">Chờ Host bắt đầu...</p>
+          <div className="relative z-10 flex items-center gap-2 mt-2">
+            <Clock size={14} className={gameStatus === 'active' ? 'animate-pulse text-green-600' : 'animate-pulse text-gray-500'} />
+            <p className={`font-medium text-sm ${gameStatus === 'active' ? 'text-green-600' : 'text-gray-500'}`}>
+              {gameStatus === 'active' ? 'Please wait for question...' : 'Chờ Host bắt đầu...'}
+            </p>
           </div>
 
           {/* Progress bar */}

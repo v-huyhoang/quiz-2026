@@ -1,11 +1,27 @@
 import { Group, UserPlus } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
+import { useEffect } from "react";
+import { useGameStore } from "../../store/gameStore";
+import { registerStageListeners } from "../../sockets/listeners/register-game-listeners";
 
 export default function StageWaitting() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roomCode = searchParams.get("roomCode");
+  const { gameStatus, currentQuestion } = useGameStore();
+
+  // Mount socket listener
+  useEffect(() => {
+    registerStageListeners();
+  }, []);
+
+  // Redirect to game screen when question starts
+  useEffect(() => {
+    if (currentQuestion) {
+      navigate('/stage/game');
+    }
+  }, [currentQuestion, navigate]);
 
   const teams = [
     { name: "Team Alpha", ready: true },
@@ -24,9 +40,9 @@ export default function StageWaitting() {
         >
           <div className="absolute inset-0 bg-primary-container/5 pointer-events-none"></div>
           <div className="relative z-10 flex items-center justify-center gap-3 mb-2">
-            <div className="w-4 h-4 rounded-full bg-primary-container animate-ping"></div>
-            <h1 className="text-2xl font-bold text-primary uppercase tracking-widest">
-              Connected to Arena
+            <div className={`w-4 h-4 rounded-full ${gameStatus === 'active' ? 'bg-green-500' : 'bg-primary-container'} ${gameStatus === 'active' ? 'animate-pulse' : 'animate-ping'}`}></div>
+            <h1 className={`text-2xl font-bold uppercase tracking-widest ${gameStatus === 'active' ? 'text-green-600' : 'text-primary'}`}>
+              {gameStatus === 'active' ? 'ROOM IS LIVE' : 'Connected to Arena'}
             </h1>
           </div>
           {roomCode && (
@@ -37,8 +53,8 @@ export default function StageWaitting() {
               </span>
             </div>
           )}
-          <p className="text-gray-500 font-medium z-10">
-            Waiting for admin to start...
+          <p className={`font-medium z-10 ${gameStatus === 'active' ? 'text-green-600' : 'text-gray-500'}`}>
+            {gameStatus === 'active' ? 'Waiting for first question...' : 'Waiting for admin to start...'}
           </p>
           <div className="w-full h-2 bg-gray-100 mt-4 rounded-full overflow-hidden z-10">
             <motion.div

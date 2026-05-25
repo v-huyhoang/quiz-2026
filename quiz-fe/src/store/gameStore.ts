@@ -12,17 +12,18 @@ interface GameState {
   gameId: number | null;
   roundId: number | null;
   roundNumber: number | null;
-  questionStatus: "pending" | "open" | "closed";
+  gameStatus: "waiting" | "active" | "finished";
+  roundStatus: "waiting" | "active" | "finished";
+  questionStatus: "waiting" | "open" | "closed";
   currentQuestion: Question | null;
   submittedQuestionIds: number[];
-  gameStatus?: string;
   leaderboard?: any;
   roundData?: any;
 
   setGame: (gameId: number) => void;
   setRound: (roundId: number, roundNumber: number) => void;
   setQuestion: (question: Question) => void;
-  setQuestionStatus: (status: "pending" | "open" | "closed") => void;
+  setQuestionStatus: (status: "waiting" | "open" | "closed") => void;
   markSubmitted: (questionId: number) => void;
   hasSubmitted: (questionId: number) => boolean;
   reset: () => void;
@@ -36,10 +37,11 @@ export const useGameStore = create<GameState>()((set, get) => ({
   gameId: null,
   roundId: null,
   roundNumber: null,
-  questionStatus: "pending",
+  gameStatus: "waiting",
+  roundStatus: "waiting",
+  questionStatus: "waiting",
   currentQuestion: null,
   submittedQuestionIds: [],
-  gameStatus: undefined,
   leaderboard: undefined,
   roundData: undefined,
 
@@ -59,10 +61,11 @@ export const useGameStore = create<GameState>()((set, get) => ({
       gameId: null,
       roundId: null,
       roundNumber: null,
-      questionStatus: "pending",
+      gameStatus: "waiting",
+      roundStatus: "waiting",
+      questionStatus: "waiting",
       currentQuestion: null,
       submittedQuestionIds: [],
-      gameStatus: undefined,
       leaderboard: undefined,
       roundData: undefined,
     }),

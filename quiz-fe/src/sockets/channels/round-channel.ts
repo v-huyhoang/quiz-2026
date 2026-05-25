@@ -1,3 +1,3 @@
-import echo from '../echo';
+import { getEcho } from '../echo';
 
-export const getRoundChannel = (roundId: string) => echo.channel(`round.${roundId}`);
+export const getRoundChannel = (roundId: string) => getEcho().channel(`round.${roundId}`);
