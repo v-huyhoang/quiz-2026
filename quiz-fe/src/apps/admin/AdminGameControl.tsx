@@ -4,10 +4,9 @@ import { motion } from "motion/react";
 import { Play, Pause, SkipForward, Trophy, Clock, Users, CheckCircle, XCircle, ArrowLeft } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { startGame } from "../../services/gameService";
-
-type GameStatus = "pending" | "active" | "finished";
-type RoundStatus = "pending" | "active" | "finished";
-type QuestionStatus = "pending" | "open" | "closed";
+import { useGameSocket } from "../../sockets/hooks/useGameSocket";
+import { useGameStore } from "../../store/gameStore";
+import { useCountdown } from "../../hooks/useCountdown";
 
 // Mock data for demo
 const MOCK_TEAMS = [
@@ -19,31 +18,24 @@ const MOCK_TEAMS = [
   { id: 6, name: "Team Zeta", score: 60, correct: 2, responseTime: 24.5, submitted: true },
 ];
 
-const MOCK_QUESTION = {
-  id: 1,
-  text: "What does HTML stand for?",
-  category: "Web Development",
-  totalTime: 30,
-  options: [
-    { id: "a", text: "HyperText Markup Language", isCorrect: true },
-    { id: "b", text: "HighText Machine Language" },
-    { id: "c", text: "HyperText Modern Language" },
-    { id: "d", text: "HyperTransfer Markup Language" },
-  ],
-};
-
 export default function AdminGameControl() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roomId = searchParams.get("roomId");
-  
-  const [gameStatus, setGameStatus] = useState<GameStatus>("pending");
-  const [roundStatus, setRoundStatus] = useState<RoundStatus>("pending");
-  const [questionStatus, setQuestionStatus] = useState<QuestionStatus>("pending");
+  const { 
+    gameStatus: storeGameStatus, 
+    roundStatus: storeRoundStatus,
+    questionStatus: storeQuestionStatus,
+    currentQuestion: storeQuestion 
+  } = useGameStore();
+
+  const gameStatus = storeGameStatus || "waiting";
+  const roundStatus = storeRoundStatus || "waiting";
+  const questionStatus = storeQuestionStatus || "waiting";
+
   const [currentRound] = useState(1);
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [totalQuestions] = useState(5);
-  const [timer, setTimer] = useState(30);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [gameId, setGameId] = useState<number | null>(null);
   const [isStarting, setIsStarting] = useState(false);
@@ -55,13 +47,22 @@ export default function AdminGameControl() {
     }
   }, [roomId]);
 
+  // Listen for socket events when gameId is set
+  useGameSocket(gameId?.toString() || "");
+
+  // Use countdown hook for timer
+  const { timeLeft } = useCountdown({
+    openedAt: storeQuestion?.openedAt,
+    duration: storeQuestion?.timeLimit,
+  });
+
   const handleStartGame = async () => {
     if (!gameId) {
       alert("Please select a game first");
       return;
     }
 
-    if (gameStatus === "active") {
+    if (storeGameStatus === "active") {
       alert("Game is already active");
       return;
     }
@@ -69,10 +70,7 @@ export default function AdminGameControl() {
     setIsStarting(true);
     try {
       const response = await startGame({ game_id: gameId });
-      if (response.data.success) {
-        setGameStatus("active");
-        setRoundStatus("active");
-      } else {
+      if (!response.data.success) {
         alert(response.data.message || "Failed to start game");
       }
     } catch (error: any) {
@@ -85,28 +83,24 @@ export default function AdminGameControl() {
   };
 
   const handleStartRound = () => {
-    setRoundStatus("active");
-    setQuestionStatus("pending");
+    // TODO: Call API to start round
   };
 
   const handleFinishRound = () => {
-    setRoundStatus("finished");
     setShowLeaderboard(true);
   };
 
   const handleOpenQuestion = () => {
-    setQuestionStatus("open");
-    setTimer(MOCK_QUESTION.totalTime);
+    // TODO: Call API to open question
   };
 
   const handleCloseQuestion = () => {
-    setQuestionStatus("closed");
+    // TODO: Call API to close question
   };
 
   const handleNextQuestion = () => {
     if (currentQuestion < totalQuestions) {
       setCurrentQuestion((prev) => prev + 1);
-      setQuestionStatus("pending");
     } else {
       handleFinishRound();
     }
@@ -194,7 +188,7 @@ export default function AdminGameControl() {
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   />
                 </div>
-                {gameStatus === "pending" && (
+                {gameStatus === "waiting" && (
                   <button
                     onClick={handleStartGame}
                     disabled={!gameId || isStarting}
@@ -228,7 +222,7 @@ export default function AdminGameControl() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest">
-                        {MOCK_QUESTION.category}
+                        Quiz
                       </span>
                       <span className="text-xs text-gray-400 font-bold">
                         Question {currentQuestion} of {totalQuestions}
@@ -237,34 +231,31 @@ export default function AdminGameControl() {
                     {questionStatus === "open" && (
                       <div className="flex items-center gap-2 bg-red-50 text-red-600 px-3 py-1 rounded-full">
                         <Clock size={16} className="animate-pulse" />
-                        <span className="text-sm font-black">{timer}s</span>
+                        <span className="text-sm font-black">{timeLeft}s</span>
                       </div>
                     )}
                   </div>
 
-                  <h3 className="text-xl font-bold text-gray-900 mb-6">{MOCK_QUESTION.text}</h3>
+                  <h3 className="text-xl font-bold text-gray-900 mb-6">{storeQuestion?.content || "Waiting for question..."}</h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {MOCK_QUESTION.options.map((opt) => (
+                    {storeQuestion?.options?.map((opt: any, idx: number) => (
                       <div
                         key={opt.id}
-                        className={`p-4 rounded-xl border ${
-                          opt.isCorrect
-                            ? "bg-green-50 border-green-200"
-                            : "bg-gray-50 border-gray-100"
-                        }`}
+                        className="p-4 rounded-xl border bg-gray-50 border-gray-100"
                       >
                         <div className="flex items-center gap-3">
                           <span className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-sm font-bold text-gray-600">
-                            {opt.id.toUpperCase()}
+                            {String.fromCharCode(97 + idx).toUpperCase()}
                           </span>
-                          <span className="text-sm font-medium text-gray-700">{opt.text}</span>
-                          {opt.isCorrect && questionStatus === "closed" && (
-                            <CheckCircle className="text-green-500 ml-auto" size={20} />
-                          )}
+                          <span className="text-sm font-medium text-gray-700">{opt.content}</span>
                         </div>
                       </div>
-                    ))}
+                    )) || (
+                      <div className="col-span-2 text-center text-gray-400 py-8">
+                        Waiting for question...
+                      </div>
+                    )}
                   </div>
                 </motion.div>
 
@@ -280,7 +271,7 @@ export default function AdminGameControl() {
                   </h3>
                   
                   <div className="flex flex-wrap gap-3">
-                    {roundStatus === "pending" && (
+                    {roundStatus === "waiting" && (
                       <button
                         onClick={handleStartRound}
                         className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
@@ -290,7 +281,7 @@ export default function AdminGameControl() {
                       </button>
                     )}
 
-                    {roundStatus === "active" && questionStatus === "pending" && (
+                    {roundStatus === "active" && questionStatus === "waiting" && (
                       <button
                         onClick={handleOpenQuestion}
                         className="flex items-center gap-2 bg-green-500 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-green-600 transition-all shadow-lg shadow-green-500/20"

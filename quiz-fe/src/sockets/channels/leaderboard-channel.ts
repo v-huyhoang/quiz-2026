@@ -1,3 +1,3 @@
-import echo from '../echo';
+import { getEcho } from '../echo';
 
-export const getLeaderboardChannel = (gameId: string) => echo.channel(`leaderboard.${gameId}`);
+export const getLeaderboardChannel = (gameId: string) => getEcho().channel(`leaderboard.${gameId}`);

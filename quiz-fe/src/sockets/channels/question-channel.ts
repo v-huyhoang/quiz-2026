@@ -1,3 +1,3 @@
-import echo from '../echo';
+import { getEcho } from '../echo';
 
-export const getQuestionChannel = (questionId: string) => echo.channel(`question.${questionId}`);
+export const getQuestionChannel = (questionId: string) => getEcho().channel(`question.${questionId}`);

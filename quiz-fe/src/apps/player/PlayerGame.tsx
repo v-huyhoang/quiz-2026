@@ -2,18 +2,40 @@ import { Timer, CheckCircle, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useGameStore } from "../../store/gameStore";
+import { useGameSocket } from "../../sockets/hooks/useGameSocket";
+import { useCountdown } from "../../hooks/useCountdown";
 
 export default function PlayerGame() {
-  const { currentQuestion} = useGameStore();
+  const { currentQuestion } = useGameStore();
   const [selected, setSelected] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(42);
+  const [gameId, setGameId] = useState<string>("");
 
+  // Get gameId from URL
   useEffect(() => {
-    if (timeLeft <= 0) return;
-    const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
-    return () => clearInterval(timer);
-  }, [timeLeft]);
+    const params = new URLSearchParams(window.location.search);
+    const roomId = params.get("roomId");
+    if (roomId) {
+      setGameId(roomId);
+    }
+  }, []);
+
+  // Listen for socket events
+  useGameSocket(gameId);
+
+  // Use countdown hook for timer
+  const { timeLeft } = useCountdown({
+    openedAt: currentQuestion?.openedAt,
+    duration: currentQuestion?.timeLimit,
+  });
+
+  // Reset selection/submitted when question changes
+  useEffect(() => {
+    if (currentQuestion) {
+      setSelected(null);
+      setSubmitted(false);
+    }
+  }, [currentQuestion]);
 
   const options = currentQuestion?.options.map((opt, idx) => ({
     id: String.fromCharCode(97 + idx),

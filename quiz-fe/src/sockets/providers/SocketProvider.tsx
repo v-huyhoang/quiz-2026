@@ -1,10 +1,10 @@
 import React, { createContext, useContext } from 'react';
-import echo from '../echo';
+import { getEcho } from '../echo';
 
-const SocketContext = createContext<{ echo: typeof echo } | undefined>(undefined);
+const SocketContext = createContext<{ echo: ReturnType<typeof getEcho> } | undefined>(undefined);
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return <SocketContext.Provider value={{ echo }}>{children}</SocketContext.Provider>;
+  return <SocketContext.Provider value={{ echo: getEcho() }}>{children}</SocketContext.Provider>;
 };
 
 export const useSocket = () => {
