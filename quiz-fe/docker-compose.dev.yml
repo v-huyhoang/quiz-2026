@@ -1,0 +1,7 @@
+services:
+  frontend:
+    image: ${DOCKERHUB_USERNAME}/quiz-fe:dev
+    container_name: quiz-fe-dev
+    ports:
+      - "80:80"
+    restart: unless-stopped
