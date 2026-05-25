@@ -11,6 +11,8 @@ WORKDIR /app
 COPY package.json yarn.lock* ./
 RUN yarn install
 COPY . .
+ARG VITE_API_BASE_URL=http://localhost:8000/api
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN yarn build
 
 # ── Production stage ───────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navbar } from "./parts/Navbar";
 import { motion } from "motion/react";
-import { Play, Pause, SkipForward, Trophy, Clock, Users, CheckCircle, XCircle, ChevronRight, ArrowLeft } from "lucide-react";
+import { Play, Pause, SkipForward, Trophy, Clock, Users, CheckCircle, XCircle, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 type GameStatus = "pending" | "active" | "finished";
@@ -33,10 +33,10 @@ const MOCK_QUESTION = {
 
 export default function AdminGameControl() {
   const navigate = useNavigate();
-  const [gameStatus, setGameStatus] = useState<GameStatus>("active");
+  const [gameStatus] = useState<GameStatus>("active");
   const [roundStatus, setRoundStatus] = useState<RoundStatus>("active");
   const [questionStatus, setQuestionStatus] = useState<QuestionStatus>("open");
-  const [currentRound, setCurrentRound] = useState(1);
+  const [currentRound] = useState(1);
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [totalQuestions] = useState(5);
   const [timer, setTimer] = useState(30);
