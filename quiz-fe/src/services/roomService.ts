@@ -37,6 +37,11 @@ export interface CreateRoomResponse {
   join_url: string;
 }
 
+export interface CreateRoomApiResponse {
+  success: boolean;
+  data: CreateRoomResponse | { data: CreateRoomResponse };
+}
+
 export interface RoomsResponse {
   success: boolean;
   code: number;
@@ -58,8 +63,33 @@ export const joinRoom = (code: string, teamName: string) =>
   api.post<JoinRoomResponse>(`/rooms/${code}/join`, { team_name: teamName });
 
 /** Admin: tạo phòng mới */
-export const createRoom = (payload: CreateRoomPayload) =>
-  api.post<CreateRoomResponse>("/admin/rooms", payload);
+export const createRoom = async (payload: CreateRoomPayload) => {
+  const response = await api.post<CreateRoomApiResponse | CreateRoomResponse>(
+    "/admin/rooms",
+    payload,
+  );
+
+  const body = response.data;
+  if ("access_code" in body) {
+    return body;
+  }
+
+  if ("data" in body && body.data && "access_code" in body.data) {
+    return body.data;
+  }
+
+  if (
+    "data" in body &&
+    body.data &&
+    "data" in body.data &&
+    body.data.data &&
+    "access_code" in body.data.data
+  ) {
+    return body.data.data;
+  }
+
+  throw new Error("Invalid create room response");
+};
 
 /** Admin: get danh sách phòng */
 export const getRooms = async () => {

@@ -6,7 +6,7 @@ window.Pusher = Pusher;
 
 const appKey = import.meta.env.VITE_REVERB_APP_KEY;
 
-let echo: Echo | null = null;
+let echo = null as unknown as Echo<any>;
 
 if (appKey) {
   echo = new Echo({
