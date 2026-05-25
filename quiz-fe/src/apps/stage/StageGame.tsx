@@ -1,9 +1,39 @@
 import { Timer } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
+import { useGameStore } from "../../store/gameStore";
+import echo from "../../sockets/echo";
 
-export default function StageQuestion() {
+export default function StageGame() {
   const [timeLeft, setTimeLeft] = useState(30);
+  const { currentQuestion, updateQuestion } = useGameStore();
+
+  useEffect(() => {
+    // Listen for question.started event
+    const handleQuestionStarted = (data: any) => {
+      updateQuestion({
+        currentQuestion: {
+          id: data.question.id,
+          content: data.question.content,
+          options: data.question.answers.map((a: any) => ({
+            id: a.id,
+            content: a.content,
+          })),
+          openedAt: new Date().toISOString(),
+          timeLimit: data.time_limit_seconds,
+        },
+        questionStatus: "open",
+      });
+      setTimeLeft(data.time_limit_seconds);
+    };
+
+    const channel = echo.channel("stage");
+    channel.listen("question.started", handleQuestionStarted);
+
+    return () => {
+      channel.stopListening("question.started");
+    };
+  }, [updateQuestion]);
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -11,18 +41,24 @@ export default function StageQuestion() {
     return () => clearInterval(timer);
   }, [timeLeft]);
 
-  const question = {
-    text: "In computing, what does the acronym 'API' stand for?",
-    category: "Web Development",
-    number: 4,
-    total: 10,
-    options: [
-      { id: "a", text: "Application Programming Interface" },
-      { id: "b", text: "Automated Process Integration" },
-      { id: "c", text: "Advanced Protocol Interaction" },
-      { id: "d", text: "Algorithmic Performance Index" },
-    ],
-  };
+  const displayQuestion = currentQuestion
+    ? {
+        text: currentQuestion.content,
+        category: "Quiz",
+        number: 1,
+        total: 10,
+        options: currentQuestion.options.map((opt, idx) => ({
+          id: String.fromCharCode(97 + idx),
+          text: opt.content,
+        })),
+      }
+    : {
+        text: "Waiting for question...",
+        category: "Loading",
+        number: 0,
+        total: 0,
+        options: [],
+      };
 
   return (
     <div className="min-h-screen bg-surface flex flex-col pt-20">
@@ -31,10 +67,10 @@ export default function StageQuestion() {
         <div className="flex justify-between items-center mb-16">
           <div className="flex items-center gap-4">
             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest border border-gray-200 px-4 py-2 rounded-full">
-              {question.category}
+              {displayQuestion.category}
             </span>
             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-              QUESTION {question.number} / {question.total}
+              QUESTION {displayQuestion.number} / {displayQuestion.total}
             </span>
           </div>
           <div
@@ -57,7 +93,7 @@ export default function StageQuestion() {
           className="text-center mb-16"
         >
           <h1 className="text-6xl md:text-7xl lg:text-8xl font-black text-gray-900 leading-tight">
-            {question.text}
+            {displayQuestion.text}
           </h1>
         </motion.div>
 
@@ -68,7 +104,7 @@ export default function StageQuestion() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto"
         >
-          {question.options.map((option, index) => (
+          {displayQuestion.options.map((option, index) => (
             <motion.div
               key={option.id}
               initial={{ opacity: 0, x: -20 }}

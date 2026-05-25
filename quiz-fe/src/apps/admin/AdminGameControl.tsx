@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "./parts/Navbar";
 import { motion } from "motion/react";
 import { Play, Pause, SkipForward, Trophy, Clock, Users, CheckCircle, XCircle, ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { startGame } from "../../services/gameService";
 
 type GameStatus = "pending" | "active" | "finished";
 type RoundStatus = "pending" | "active" | "finished";
@@ -33,14 +34,55 @@ const MOCK_QUESTION = {
 
 export default function AdminGameControl() {
   const navigate = useNavigate();
-  const [gameStatus] = useState<GameStatus>("active");
-  const [roundStatus, setRoundStatus] = useState<RoundStatus>("active");
-  const [questionStatus, setQuestionStatus] = useState<QuestionStatus>("open");
+  const [searchParams] = useSearchParams();
+  const roomId = searchParams.get("roomId");
+  
+  const [gameStatus, setGameStatus] = useState<GameStatus>("pending");
+  const [roundStatus, setRoundStatus] = useState<RoundStatus>("pending");
+  const [questionStatus, setQuestionStatus] = useState<QuestionStatus>("pending");
   const [currentRound] = useState(1);
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [totalQuestions] = useState(5);
   const [timer, setTimer] = useState(30);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [gameId, setGameId] = useState<number | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
+
+  // Set gameId from URL parameter
+  useEffect(() => {
+    if (roomId) {
+      setGameId(parseInt(roomId));
+    }
+  }, [roomId]);
+
+  const handleStartGame = async () => {
+    if (!gameId) {
+      alert("Please select a game first");
+      return;
+    }
+
+    if (gameStatus === "active") {
+      alert("Game is already active");
+      return;
+    }
+
+    setIsStarting(true);
+    try {
+      const response = await startGame({ game_id: gameId });
+      if (response.data.success) {
+        setGameStatus("active");
+        setRoundStatus("active");
+      } else {
+        alert(response.data.message || "Failed to start game");
+      }
+    } catch (error: any) {
+      console.error("Failed to start game:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to start game. Please try again.";
+      alert(errorMessage);
+    } finally {
+      setIsStarting(false);
+    }
+  };
 
   const handleStartRound = () => {
     setRoundStatus("active");
@@ -134,6 +176,44 @@ export default function AdminGameControl() {
                 value={roundStatus}
                 color={roundStatus === "active" ? "bg-orange-50 text-orange-600" : "bg-gray-50 text-gray-600"}
               />
+            </div>
+
+            {/* Game ID Input */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm mb-6">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">
+                Game Selection
+              </h3>
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <label className="block text-xs font-bold text-gray-500 mb-2">Game ID</label>
+                  <input
+                    type="number"
+                    value={gameId || ""}
+                    onChange={(e) => setGameId(e.target.value ? parseInt(e.target.value) : null)}
+                    placeholder="Enter game ID"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  />
+                </div>
+                {gameStatus === "pending" && (
+                  <button
+                    onClick={handleStartGame}
+                    disabled={!gameId || isStarting}
+                    className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+                  >
+                    {isStarting ? (
+                      <>
+                        <Clock size={18} className="animate-spin" />
+                        Starting...
+                      </>
+                    ) : (
+                      <>
+                        <Play size={18} />
+                        Start Game
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

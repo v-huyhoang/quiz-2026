@@ -19,7 +19,8 @@ import PlayerGame from "../apps/player/PlayerGame";
 import StageLeaderBoard from "../apps/stage/StageLeaderBoard";
 import StageRoundComplete from "../apps/stage/StageRoundComplete";
 import StageFinal from "../apps/stage/StageFinal";
-import StageQuestion from "../apps/stage/StageQuestion";
+import StageWaitting from "../apps/stage/StageWaitting";
+import StageGame from "../apps/stage/StageGame";
 
 // Admin screens
 import AdminLogin from "../apps/admin/AdminLogin";
@@ -45,7 +46,8 @@ export default function AppRoutes() {
         </Route>
 
         <Route path="/stage" element={<StageLayout />}>
-          <Route path="question" element={<StageQuestion />} />
+          <Route path="waiting" element={<StageWaitting />} />
+          <Route path="game" element={<StageGame />} />
           <Route path="leaderboard" element={<StageLeaderBoard />} />
           <Route path="round-complete" element={<StageRoundComplete />} />
           <Route path="final" element={<StageFinal />} />

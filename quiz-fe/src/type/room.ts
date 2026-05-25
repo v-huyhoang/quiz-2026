@@ -3,7 +3,7 @@ export interface Room {
   name: string;
   rounds: number;
   questionsPerRound: number;
-  status: "draft" | "active" | "finished";
+  status: "pending" | "active" | "finished";
   accessCode: string;
   questionMode: "random" | "manual";
 }

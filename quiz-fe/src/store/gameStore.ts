@@ -15,6 +15,9 @@ interface GameState {
   questionStatus: "pending" | "open" | "closed";
   currentQuestion: Question | null;
   submittedQuestionIds: number[];
+  gameStatus?: string;
+  leaderboard?: any;
+  roundData?: any;
 
   setGame: (gameId: number) => void;
   setRound: (roundId: number, roundNumber: number) => void;
@@ -23,6 +26,10 @@ interface GameState {
   markSubmitted: (questionId: number) => void;
   hasSubmitted: (questionId: number) => boolean;
   reset: () => void;
+  updateGame: (data: any) => void;
+  updateLeaderboard: (data: any) => void;
+  updateQuestion: (data: any) => void;
+  updateRound: (data: any) => void;
 }
 
 export const useGameStore = create<GameState>()((set, get) => ({
@@ -32,6 +39,9 @@ export const useGameStore = create<GameState>()((set, get) => ({
   questionStatus: "pending",
   currentQuestion: null,
   submittedQuestionIds: [],
+  gameStatus: undefined,
+  leaderboard: undefined,
+  roundData: undefined,
 
   setGame: (gameId) => set({ gameId }),
   setRound: (roundId, roundNumber) => set({ roundId, roundNumber }),
@@ -52,5 +62,12 @@ export const useGameStore = create<GameState>()((set, get) => ({
       questionStatus: "pending",
       currentQuestion: null,
       submittedQuestionIds: [],
+      gameStatus: undefined,
+      leaderboard: undefined,
+      roundData: undefined,
     }),
+  updateGame: (data) => set({ gameStatus: data.status, ...data }),
+  updateLeaderboard: (data) => set({ leaderboard: data }),
+  updateQuestion: (data) => set((s) => ({ ...s, ...data })),
+  updateRound: (data) => set({ roundData: data }),
 }));

@@ -1,9 +1,11 @@
 import { Group, UserPlus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
 
 export default function StageWaitting() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const roomCode = searchParams.get("roomCode");
 
   const teams = [
     { name: "Team Alpha", ready: true },
@@ -27,6 +29,14 @@ export default function StageWaitting() {
               Connected to Arena
             </h1>
           </div>
+          {roomCode && (
+            <div className="relative z-10 flex items-center gap-2 mb-2">
+              <span className="text-sm text-gray-500 font-medium">Room Code:</span>
+              <span className="text-3xl font-black text-primary font-mono tracking-widest">
+                {roomCode}
+              </span>
+            </div>
+          )}
           <p className="text-gray-500 font-medium z-10">
             Waiting for admin to start...
           </p>

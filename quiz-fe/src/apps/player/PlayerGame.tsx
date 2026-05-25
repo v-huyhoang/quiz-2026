@@ -1,8 +1,10 @@
 import { Timer, CheckCircle, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useGameStore } from "../../store/gameStore";
 
 export default function PlayerGame() {
+  const { currentQuestion} = useGameStore();
   const [selected, setSelected] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(42);
@@ -13,12 +15,10 @@ export default function PlayerGame() {
     return () => clearInterval(timer);
   }, [timeLeft]);
 
-  const options = [
-    { id: "a", text: "Application Programming Interface" },
-    { id: "b", text: "Automated Process Integration" },
-    { id: "c", text: "Advanced Protocol Interaction" },
-    { id: "d", text: "Algorithmic Performance Index" },
-  ];
+  const options = currentQuestion?.options.map((opt, idx) => ({
+    id: String.fromCharCode(97 + idx),
+    text: opt.content,
+  })) || [];
 
   const handleSubmit = () => {
     if (!selected || submitted) return;
@@ -55,7 +55,7 @@ export default function PlayerGame() {
           className="mb-12"
         >
           <h2 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight">
-            In computing, what does the acronym "API" stand for?
+            {currentQuestion?.content || "Waiting for question..."}
           </h2>
         </motion.div>
 
