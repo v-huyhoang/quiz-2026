@@ -1,36 +1,47 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Group, UserPlus, Clock } from "lucide-react";
 import { motion } from "motion/react";
 import { useAuthStore } from "../../store/authStore";
-import { useGameStore } from "../../store/gameStore";
-import { useNavigate } from "react-router-dom";
-import { useGameSocket } from "../../sockets/hooks/useGameSocket";
+import { getPublicGameState, type GameTeam } from "../../services/gameService";
 
-// Mock teams for Phase 2 (Phase 6 will use Reverb presence channel)
-const MOCK_TEAMS = [
-  { id: 1, name: "Alpha Team" },
-  { id: 2, name: "Neon Knights" },
-  { id: 3, name: "Cyber Punks" },
-  { id: 4, name: "Data Miners" },
-];
 const MAX_TEAMS = 16;
 
 export default function PlayerWaiting() {
   const { teamName, teamId, gameId } = useAuthStore();
-  const { gameStatus, currentQuestion } = useGameStore();
   const navigate = useNavigate();
 
-  // Listen for socket events
-  useGameSocket(gameId?.toString() || "1");
+  const [teams, setTeams] = useState<GameTeam[]>([]);
 
-  // Redirect to game screen when question starts
   useEffect(() => {
-    if (currentQuestion) {
-      navigate("/player/game");
-    }
-  }, [currentQuestion, navigate]);
+    if (!gameId) return;
+    let cancelled = false;
 
-  const teams = MOCK_TEAMS;
+    const poll = async () => {
+      if (cancelled) return;
+      try {
+        const res   = await getPublicGameState(gameId);
+        const state = res.data.data;
+
+        if (!cancelled) {
+          setTeams(state.teams);
+
+          if (state.status === "active") {
+            navigate("/player/game", { replace: true });
+            return;
+          }
+        }
+      } catch {
+        // ignore polling errors silently
+      }
+
+      if (!cancelled) setTimeout(poll, 2000);
+    };
+
+    poll();
+    return () => { cancelled = true; };
+  }, [gameId, navigate]);
+
   const emptySlots = MAX_TEAMS - teams.length;
 
   return (
@@ -46,34 +57,25 @@ export default function PlayerWaiting() {
           <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
 
           <div className="relative z-10 flex items-center justify-center gap-3 mb-1">
-            <div className={`w-3 h-3 rounded-full ${gameStatus === 'active' ? 'bg-green-500' : 'bg-primary'} ${gameStatus === 'active' ? 'animate-pulse' : 'animate-ping'}`} />
-            <h1 className={`text-2xl font-bold uppercase tracking-widest ${gameStatus === 'active' ? 'text-green-600' : 'text-primary'}`}>
-              {gameStatus === 'active' ? 'Game has started' : 'Đã kết nối'}
+            <div className="w-3 h-3 rounded-full bg-primary animate-ping" />
+            <h1 className="text-2xl font-bold text-primary uppercase tracking-widest">
+              Đã kết nối
             </h1>
           </div>
 
-          {/* Tên team từ authStore */}
           <div className="relative z-10 flex flex-col items-center gap-1">
-            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
-              Đội của bạn
-            </p>
-            <p className="text-2xl font-black text-gray-900">
-              {teamName ?? "Unknown Team"}
-            </p>
+            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Đội của bạn</p>
+            <p className="text-2xl font-black text-gray-900">{teamName ?? "Unknown Team"}</p>
             <p className="text-xs text-gray-400 font-mono">#{teamId}</p>
           </div>
 
           <div className="relative z-10 flex items-center gap-2 mt-2">
-            <Clock size={14} className={gameStatus === 'active' ? 'animate-pulse text-green-600' : 'animate-pulse text-gray-500'} />
-            <p className={`font-medium text-sm ${gameStatus === 'active' ? 'text-green-600' : 'text-gray-500'}`}>
-              {gameStatus === 'active' ? 'Please wait for question...' : 'Chờ Host bắt đầu...'}
-            </p>
+            <Clock size={14} className="animate-pulse text-gray-500" />
+            <p className="font-medium text-sm text-gray-500">Chờ Host bắt đầu...</p>
           </div>
 
-          {/* Progress bar */}
           <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden z-10">
             <motion.div
-              initial={{ width: "0%" }}
               animate={{ width: `${(teams.length / MAX_TEAMS) * 100}%` }}
               transition={{ duration: 0.5 }}
               className="h-full bg-primary rounded-full"
@@ -92,17 +94,14 @@ export default function PlayerWaiting() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Teams đã join */}
             {teams.map((team, index) => (
               <motion.div
                 key={team.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.08 }}
+                transition={{ delay: index * 0.05 }}
                 className={`bg-white border-2 p-4 rounded-xl flex items-center gap-3 shadow-sm ${
-                  team.id === teamId
-                    ? "border-primary shadow-primary/20"
-                    : "border-primary/30"
+                  team.id === teamId ? "border-primary shadow-primary/20" : "border-primary/30"
                 }`}
               >
                 <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shrink-0 text-sm font-black">
@@ -119,7 +118,6 @@ export default function PlayerWaiting() {
               </motion.div>
             ))}
 
-            {/* Empty slots */}
             {Array.from({ length: emptySlots }).map((_, i) => (
               <div
                 key={`empty-${i}`}
@@ -128,20 +126,15 @@ export default function PlayerWaiting() {
                 <div className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-300">
                   <UserPlus size={16} />
                 </div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  Trống
-                </p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Trống</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Hint */}
         <div className="mt-12 flex items-center gap-2 text-gray-400">
           <Group size={14} />
-          <p className="text-xs font-medium">
-            Game sẽ bắt đầu khi Host ra lệnh
-          </p>
+          <p className="text-xs font-medium">Game sẽ bắt đầu khi Host ra lệnh</p>
         </div>
       </main>
     </div>

@@ -7,10 +7,20 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
 import type { Room, RoundQuestionMap } from "../../type/room";
-import { createRoom, getRooms, deleteRoom } from "../../services/roomService";
+import { createRoom, getRooms, deleteRoom, type CreateRoomResponse } from "../../services/roomService";
 import { getQuestions } from "../../services/questionService";
 
 const APP_URL = import.meta.env.VITE_APP_URL ?? "http://localhost:5173";
+
+const mapApiRoom = (r: CreateRoomResponse): Room => ({
+  id: String(r.id),
+  name: r.name,
+  accessCode: r.access_code,
+  rounds: r.rounds,
+  questionsPerRound: r.questions_per_round,
+  questionMode: r.question_mode,
+  status: r.status,
+});
 
 interface FormState {
   name: string;
@@ -25,69 +35,40 @@ type ModalStep = "step1_config" | "step2_questions" | "step3_qr";
 export const AdminRoom = () => {
   const navigate = useNavigate();
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [loadingRooms, setLoadingRooms] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<ModalStep>("step1_config");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [fetching, setFetching] = useState(true);
-  const [questionBank, setQuestionBank] = useState<any[]>([]);
+  const [questionBank, setQuestionBank] = useState<{ id: string; text: string; category: string }[]>([]);
   const [fetchingQuestions, setFetchingQuestions] = useState(false);
+  const [createError, setCreateError] = useState("");
 
-  // States for saving results after creation
   const [newRoomCode, setNewRoomCode] = useState("");
   const [newRoomName, setNewRoomName] = useState("");
 
-  // Fetch rooms on mount
   useEffect(() => {
-    fetchRooms();
-    fetchQuestions();
+    getRooms()
+      .then((res) => setRooms(res.data.data.map(mapApiRoom)))
+      .catch(() => {})
+      .finally(() => setLoadingRooms(false));
   }, []);
 
-  // Fetch questions when modal opens
   useEffect(() => {
-    if (isOpen) {
-      fetchQuestions();
-    }
+    if (isOpen) fetchQuestions();
   }, [isOpen]);
-
-  const fetchRooms = async () => {
-    try {
-      setFetching(true);
-      const { data } = await getRooms();
-
-      const roomsData = data.map((room: any) => ({
-        id: String(room.id),
-        name: room.name,
-        rounds: room.rounds,
-        questionsPerRound: room.questions_per_round,
-        status: room.status,
-        accessCode: room.access_code,
-        questionMode: room.question_mode,
-      }));
-      setRooms(roomsData);
-    } catch (error) {
-      console.error("Failed to fetch rooms:", error);
-      setRooms([]);
-    } finally {
-      setFetching(false);
-    }
-  };
 
   const fetchQuestions = async () => {
     try {
       setFetchingQuestions(true);
-
       const { data } = await getQuestions();
-
       const questionsData = data.map((q) => ({
         id: q.id,
         text: q.text,
         category: "General",
       }));
-
       setQuestionBank(questionsData);
-    } catch (error) {
-      console.error("Failed to fetch questions:", error);
+    } catch {
       setQuestionBank([]);
     } finally {
       setFetchingQuestions(false);
@@ -102,7 +83,6 @@ export const AdminRoom = () => {
     questionMode: "random",
   });
 
-  // State cho mode manual
   const [manualSelection, setManualSelection] = useState<RoundQuestionMap>({});
   const [activeRoundTab, setActiveRoundTab] = useState(1);
 
@@ -115,17 +95,12 @@ export const AdminRoom = () => {
 
   const handleNextStep1 = () => {
     if (!form.name.trim() || !form.accessCode.trim() || !form.rounds || !form.questionsPerRound) return;
-    
-    // Initialize empty manual array for the entered number of rounds
     const roundsCount = Number(form.rounds);
     setManualSelection((prev) => {
       const nextMap: RoundQuestionMap = {};
-      for (let i = 1; i <= roundsCount; i++) {
-        nextMap[i] = prev[i] || [];
-      }
+      for (let i = 1; i <= roundsCount; i++) nextMap[i] = prev[i] || [];
       return nextMap;
     });
-
     setActiveRoundTab(1);
     setStep("step2_questions");
   };
@@ -134,51 +109,45 @@ export const AdminRoom = () => {
     setManualSelection((prev) => {
       const selectedIds = prev[activeRoundTab] || [];
       const exists = selectedIds.includes(qId);
-      if (exists) {
-        return { ...prev, [activeRoundTab]: selectedIds.filter((id) => id !== qId) };
-      } else {
-        // Only allow selecting up to the specified number of questions
-        if (selectedIds.length >= Number(form.questionsPerRound)) return prev;
-        return { ...prev, [activeRoundTab]: [...selectedIds, qId] };
-      }
+      if (exists) return { ...prev, [activeRoundTab]: selectedIds.filter((id) => id !== qId) };
+      if (selectedIds.length >= Number(form.questionsPerRound)) return prev;
+      return { ...prev, [activeRoundTab]: [...selectedIds, qId] };
     });
   };
 
   const handleCreate = async () => {
     setLoading(true);
-
+    setCreateError("");
     try {
-      const payload: any = {
-        name: form.name,
-        rounds: Number(form.rounds),
+      const payload = {
+        name:                form.name,
+        rounds:              Number(form.rounds),
         questions_per_round: Number(form.questionsPerRound),
-        access_code: form.accessCode,
-        question_mode: form.questionMode,
+        access_code:         form.accessCode,
+        question_mode:       form.questionMode,
+        ...(form.questionMode === "manual" && {
+          round_questions: Object.entries(manualSelection).map(([roundStr, qIds]) => ({
+            round_number: Number(roundStr),
+            question_ids: qIds,
+          })),
+        }),
       };
-      if (form.questionMode === "manual") {
-        payload.round_questions = Object.entries(manualSelection).map(([roundStr, qIds]) => ({
-          round_number: Number(roundStr),
-          question_ids: qIds,
-        }));
-      }
       const res = await createRoom(payload);
-      setNewRoomCode(res.data.access_code);
-      setNewRoomName(res.data.name);
-      const newRoom: Room = {
-        id: String(res.data.id),
-        name: res.data.name,
-        rounds: res.data.rounds,
-        questionsPerRound: res.data.questions_per_round,
-        status: res.data.status,
-        accessCode: res.data.access_code,
-        questionMode: res.data.question_mode,
-      };
-      setRooms((prev) => [...prev, newRoom]);
-
+      const created = res.data.data;
+      setRooms((prev) => [...prev, mapApiRoom(created)]);
+      setNewRoomCode(created.access_code);
+      setNewRoomName(created.name);
       setStep("step3_qr");
-    } catch (error) {
-      console.error("Failed to create room:", error);
-      alert("Failed to create room. Please try again.");
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
+      const errors = axiosErr?.response?.data?.errors;
+      const msg    = axiosErr?.response?.data?.message;
+      if (errors) {
+        const first = Object.values(errors)[0]?.[0];
+        setCreateError(first ?? msg ?? "Tạo phòng thất bại. Vui lòng thử lại.");
+      } else {
+        setCreateError(msg ?? "Tạo phòng thất bại. Vui lòng thử lại.");
+      }
     } finally {
       setLoading(false);
     }
@@ -192,12 +161,10 @@ export const AdminRoom = () => {
 
   const handleDelete = async (roomId: string) => {
     if (!confirm("Are you sure you want to delete this room?")) return;
-
     try {
       await deleteRoom(roomId);
       setRooms((prev) => prev.filter((room) => room.id !== roomId));
-    } catch (error) {
-      console.error("Failed to delete room:", error);
+    } catch {
       alert("Failed to delete room. Please try again.");
     }
   };
@@ -208,6 +175,7 @@ export const AdminRoom = () => {
     setForm({ name: "", rounds: "3", questionsPerRound: "10", accessCode: "", questionMode: "random" });
     setCopied(false);
     setManualSelection({});
+    setCreateError("");
   };
 
   return (
@@ -230,108 +198,110 @@ export const AdminRoom = () => {
       </div>
 
       {/* Room list */}
-      {fetching ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="animate-spin text-primary" size={32} />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {rooms.map((room) => (
-            <motion.div
-              key={room.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all group"
-            >
-              <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-                <div className="flex justify-between items-start mb-4">
-                  <span
-                    className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${
-                      room.status === "active"
-                        ? "bg-green-100 text-green-600"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    {room.status}
-                  </span>
-                  <span className="text-xl font-black text-primary font-mono">
-                    {room.accessCode}
-                  </span>
-                </div>
-                <h4 className="text-xl font-bold text-gray-900 group-hover:text-primary transition-colors">
-                  {room.name}
-                </h4>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-2 flex items-center gap-1">
-                   {room.questionMode === "random" ? <Dices size={14}/> : <ListChecks size={14}/>} Mode: {room.questionMode}
-                </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {loadingRooms && (
+          <div className="col-span-2 flex items-center justify-center py-12 text-gray-400">
+            <Loader2 size={24} className="animate-spin mr-2" />
+            <span className="text-sm font-medium">Đang tải danh sách phòng...</span>
+          </div>
+        )}
+        {!loadingRooms && rooms.length === 0 && (
+          <div className="col-span-2 flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
+            <QrCode size={32} className="opacity-30" />
+            <p className="text-sm font-medium">Chưa có phòng nào. Hãy tạo phòng mới.</p>
+          </div>
+        )}
+        {rooms.map((room) => (
+          <motion.div
+            key={room.id}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all group"
+          >
+            <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex justify-between items-start mb-4">
+                <span
+                  className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${
+                    room.status === "active"
+                      ? "bg-green-100 text-green-600"
+                      : room.status === "finished"
+                      ? "bg-red-100 text-red-500"
+                      : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  {room.status}
+                </span>
+                <span className="text-xl font-black text-primary font-mono">
+                  {room.accessCode}
+                </span>
               </div>
+              <h4 className="text-xl font-bold text-gray-900 group-hover:text-primary transition-colors">
+                {room.name}
+              </h4>
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-2 flex items-center gap-1">
+                {room.questionMode === "random" ? <Dices size={14} /> : <ListChecks size={14} />} Mode: {room.questionMode}
+              </p>
+            </div>
 
-              <div className="p-6 grid grid-cols-2 gap-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-50 text-blue-500 rounded-lg">
-                    <Layout size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                      Rounds
-                    </p>
-                    <p className="text-lg font-bold text-gray-900">{room.rounds}</p>
-                  </div>
+            <div className="p-6 grid grid-cols-2 gap-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-50 text-blue-500 rounded-lg">
+                  <Layout size={20} />
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-50 text-orange-500 rounded-lg">
-                    <Hash size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                      Questions
-                    </p>
-                    <p className="text-lg font-bold text-gray-900">
-                      {room.questionsPerRound} / round
-                    </p>
-                  </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rounds</p>
+                  <p className="text-lg font-bold text-gray-900">{room.rounds}</p>
                 </div>
               </div>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-50 text-orange-500 rounded-lg">
+                  <Hash size={20} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Questions</p>
+                  <p className="text-lg font-bold text-gray-900">{room.questionsPerRound} / round</p>
+                </div>
+              </div>
+            </div>
 
-              <div className="px-6 py-4 bg-gray-50 flex gap-3">
-                <button 
-                  onClick={() => navigate(`/admin/game-control?roomId=${room.id}`)}
-                  className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm"
-                >
-                  LAUNCH SESSION
-                </button>
+            <div className="px-6 py-4 bg-gray-50 flex gap-3">
+              <button
+                onClick={() => navigate(`/admin/game-control/${room.id}`)}
+                className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-primary/90 transition-all"
+              >
+                LAUNCH SESSION
+              </button>
+              <button
+                onClick={() => window.open(`/stage/waiting?gameId=${room.id}`, "_blank")}
+                className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-purple-700 transition-all"
+              >
+                STAGE SCREEN
+              </button>
+              <button
+                onClick={() => {
+                  setNewRoomCode(room.accessCode);
+                  setNewRoomName(room.name);
+                  setStep("step3_qr");
+                  setIsOpen(true);
+                }}
+                className="py-2 px-3 border border-gray-200 text-gray-500 rounded-lg hover:bg-white transition-all"
+                title="Hiện QR code"
+              >
+                <QrCode size={16} />
+              </button>
+              {room.status === "pending" && (
                 <button
-                  onClick={() => window.open(`/stage/waiting?roomCode=${room.accessCode}`, '_blank')}
-                  className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-purple-700 transition-all"
+                  onClick={() => handleDelete(room.id)}
+                  className="py-2 px-3 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-all"
+                  title="Xóa phòng"
                 >
-                  STAGE SCREEN
+                  <Trash2 size={16} />
                 </button>
-                <button
-                  onClick={() => {
-                    setNewRoomCode(room.accessCode);
-                    setNewRoomName(room.name);
-                    setStep("step3_qr");
-                    setIsOpen(true);
-                  }}
-                  className="py-2 px-3 border border-gray-200 text-gray-500 rounded-lg hover:bg-white transition-all"
-                  title="Hiện QR code"
-                >
-                  <QrCode size={16} />
-                </button>
-                {room.status === "pending" && (
-                  <button
-                    onClick={() => handleDelete(room.id)}
-                    className="py-2 px-3 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-all"
-                    title="Xóa phòng"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </div>
 
       {/* Modal */}
       <AnimatePresence>
@@ -362,9 +332,7 @@ export const AdminRoom = () => {
                       <div className="flex items-center gap-3">
                         <Users className="text-primary" size={32} />
                         <div>
-                          <h3 className="text-2xl font-black text-gray-900">
-                            New Quiz Room
-                          </h3>
+                          <h3 className="text-2xl font-black text-gray-900">New Quiz Room</h3>
                           <p className="text-sm text-gray-400 font-bold tracking-widest uppercase">
                             Step 1: Configuration
                           </p>
@@ -467,9 +435,7 @@ export const AdminRoom = () => {
                     <div className="flex items-center gap-3 mb-6">
                       <Layout className="text-primary" size={32} />
                       <div>
-                        <h3 className="text-2xl font-black text-gray-900">
-                          Question Selection
-                        </h3>
+                        <h3 className="text-2xl font-black text-gray-900">Question Selection</h3>
                         <p className="text-sm text-gray-400 font-bold tracking-widest uppercase">
                           Step 2: Assign Questions
                         </p>
@@ -490,7 +456,7 @@ export const AdminRoom = () => {
                         <span className="font-bold uppercase tracking-widest text-xs">Ngẫu nhiên</span>
                         <span className="text-xs text-center opacity-80 mt-1 lowercase">Hệ thống chọn lúc bắt đầu round</span>
                       </button>
-                      
+
                       <button
                         onClick={() => setForm((f) => ({ ...f, questionMode: "manual" }))}
                         className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
@@ -544,58 +510,64 @@ export const AdminRoom = () => {
 
                           {/* Question list picker */}
                           <div className="w-2/3 border border-gray-200 rounded-xl bg-gray-50 overflow-hidden flex flex-col h-[300px]">
-                             <div className="p-3 border-b border-gray-200 bg-white">
-                                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-                                  Ngân hàng câu hỏi
-                                </p>
-                             </div>
-                             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
-                               {fetchingQuestions ? (
-                                 <div className="flex items-center justify-center py-8">
-                                   <Loader2 className="animate-spin text-primary" size={24} />
-                                 </div>
-                               ) : questionBank.length === 0 ? (
-                                 <div className="text-center py-8 text-gray-400 text-sm">
-                                   Không có câu hỏi nào
-                                 </div>
-                               ) : (
-                                 questionBank.map((q) => {
-                                   const isSelected = manualSelection[activeRoundTab]?.includes(q.id);
-                                   return (
-                                     <div
-                                       key={q.id}
-                                       onClick={() => toggleQuestionSelection(q.id)}
-                                       className={`p-3 rounded-lg border-2 cursor-pointer transition-all flex items-start gap-3 ${
-                                         isSelected
+                            <div className="p-3 border-b border-gray-200 bg-white">
+                              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                                Ngân hàng câu hỏi
+                              </p>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+                              {fetchingQuestions ? (
+                                <div className="flex items-center justify-center py-8">
+                                  <Loader2 className="animate-spin text-primary" size={24} />
+                                </div>
+                              ) : questionBank.length === 0 ? (
+                                <div className="text-center py-8 text-gray-400 text-sm">
+                                  Không có câu hỏi nào
+                                </div>
+                              ) : (
+                                questionBank.map((q) => {
+                                  const isSelected = manualSelection[activeRoundTab]?.includes(Number(q.id));
+                                  return (
+                                    <div
+                                      key={q.id}
+                                      onClick={() => toggleQuestionSelection(Number(q.id))}
+                                      className={`p-3 rounded-lg border-2 cursor-pointer transition-all flex items-start gap-3 ${
+                                        isSelected
                                           ? "border-primary bg-primary/5"
                                           : "border-transparent bg-white hover:border-gray-200"
-                                       }`}
-                                     >
-                                       <div className={`w-5 h-5 rounded border mt-0.5 flex items-center justify-center shrink-0 ${
-                                         isSelected ? "bg-primary border-primary text-white" : "border-gray-300"
-                                       }`}>
-                                         {isSelected && <CheckCheck size={12}/>}
-                                       </div>
-                                       <div>
-                                          <p className="text-sm font-semibold text-gray-800">{q.text}</p>
-                                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{q.category}</p>
-                                       </div>
-                                     </div>
-                                   );
-                                 })
-                               )}
-                             </div>
+                                      }`}
+                                    >
+                                      <div className={`w-5 h-5 rounded border mt-0.5 flex items-center justify-center shrink-0 ${
+                                        isSelected ? "bg-primary border-primary text-white" : "border-gray-300"
+                                      }`}>
+                                        {isSelected && <CheckCheck size={12} />}
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-semibold text-gray-800">{q.text}</p>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{q.category}</p>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
                           </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
 
-                    <div className="flex gap-4 mt-6">
+                    {createError && (
+                      <p className="mt-4 text-sm text-red-600 font-semibold bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+                        {createError}
+                      </p>
+                    )}
+
+                    <div className="flex gap-4 mt-4">
                       <button
-                        onClick={() => setStep("step1_config")}
+                        onClick={() => { setStep("step1_config"); setCreateError(""); }}
                         className="py-4 px-6 border border-gray-200 rounded-xl font-bold text-gray-400 hover:bg-gray-50 transition-all text-xs flex items-center gap-2 uppercase tracking-widest"
                       >
-                         <ArrowLeft size={16}/> Quay lại
+                        <ArrowLeft size={16} /> Quay lại
                       </button>
                       <button
                         onClick={handleCreate}
@@ -631,7 +603,6 @@ export const AdminRoom = () => {
                       </p>
                     </div>
 
-                    {/* QR Code */}
                     <div className="p-4 bg-white border-2 border-gray-100 rounded-2xl shadow-sm">
                       <QRCodeSVG
                         value={joinUrl}
@@ -641,7 +612,6 @@ export const AdminRoom = () => {
                       />
                     </div>
 
-                    {/* Access code badge */}
                     <div className="flex items-center gap-2 bg-primary/5 px-5 py-2 rounded-full">
                       <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
                         Mã phòng:
@@ -651,7 +621,6 @@ export const AdminRoom = () => {
                       </span>
                     </div>
 
-                    {/* Join URL + copy */}
                     <div className="w-full flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
                       <p className="flex-1 text-xs text-gray-500 font-mono truncate">
                         {joinUrl}

@@ -12,6 +12,8 @@ class RoundQuestion extends Pivot
 
     protected $fillable = ['round_id', 'question_id', 'order_number', 'status', 'opened_at', 'closed_at'];
 
+    protected $casts = ['opened_at' => 'datetime', 'closed_at' => 'datetime'];
+
     public function round()
     {
         return $this->belongsTo(Round::class);
