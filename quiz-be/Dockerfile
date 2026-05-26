@@ -49,6 +49,6 @@ RUN composer dump-autoload --optimize \
 COPY nginx/default.conf /etc/nginx/sites-available/default
 COPY docker/supervisor/*.conf /etc/supervisor/conf.d/
 
-EXPOSE 80
+EXPOSE 80 8080
 
 CMD ["/usr/bin/supervisord", "-n"]
