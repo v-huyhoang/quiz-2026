@@ -3,8 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Users, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuthStore } from "../../store/authStore";
-// TODO Phase 2: uncomment when BE is ready
-// import { joinRoom } from "../../services/roomService";
+import { joinRoom } from "../../services/roomService";
 
 export default function JoinRoom() {
   const [searchParams] = useSearchParams();
@@ -46,36 +45,25 @@ export default function JoinRoom() {
     setError("");
 
     try {
-      // ── TODO Phase 2: replace mock with real API call ────────────────────
-      // const res = await joinRoom(trimmedCode, trimmedTeam);
-      // setAuth({
-      //   token: res.data.token,
-      //   teamId: res.data.team_id,
-      //   teamName: res.data.team_name,
-      //   gameId: res.data.game_id,
-      //   role: "player",
-      // });
-      // ─────────────────────────────────────────────────────────────────
+      const res = await joinRoom(trimmedCode, trimmedTeam);
+      const payload = res.data.data;
 
-      // ── MOCK (remove when BE is ready) ──────────────────────────────────────────
-      await new Promise((r) => setTimeout(r, 800));
       setAuth({
-        token: "mock-token-" + Date.now(),
-        teamId: Math.floor(Math.random() * 100) + 1,
-        teamName: trimmedTeam,
-        gameId: 1,
-        role: "player",
+        token:    payload.token,
+        teamId:   payload.team_id,
+        teamName: payload.team_name,
+        gameId:   payload.game_id,
+        role:     "player",
       });
-      // ─────────────────────────────────────────────────────────────────
 
       navigate("/player/waiting");
     } catch (err: unknown) {
-      // Handle errors from real API
       const axiosErr = err as { response?: { status: number; data?: { message?: string } } };
-      const status = axiosErr?.response?.status;
+      const status   = axiosErr?.response?.status;
+      const message  = axiosErr?.response?.data?.message;
       if (status === 404) setError("Mã phòng không tồn tại. Vui lòng kiểm tra lại.");
       else if (status === 409) setError("Phòng đã đầy (tối đa 16 đội).");
-      else if (status === 422) setError("Tên đội đã được dùng. Vui lòng chọn tên khác.");
+      else if (status === 422) setError(message ?? "Tên đội đã được dùng. Vui lòng chọn tên khác.");
       else setError("Không thể vào phòng. Vui lòng thử lại.");
     } finally {
       setLoading(false);

@@ -1,4 +1,5 @@
 import { api } from "./api";
+import type { ApiResponse } from "../type/api";
 
 export interface JoinRoomResponse {
   token: string;
@@ -34,42 +35,20 @@ export interface CreateRoomResponse {
   questions_per_round: number;
   question_mode: "random" | "manual";
   status: "pending" | "active" | "finished";
-  join_url: string;
 }
 
-export interface RoomsResponse {
-  success: boolean;
-  code: number;
-  message: string;
-  data: {
-    data: CreateRoomResponse[];
-    meta: {
-      currentPage: number;
-      from: number;
-      lastPage: number;
-      perPage: number;
-      to: number;
-      total: number;
-    };
-  }
-}
 /** Player: tham gia phòng bằng access code + tên team */
 export const joinRoom = (code: string, teamName: string) =>
-  api.post<JoinRoomResponse>(`/rooms/${code}/join`, { team_name: teamName });
+  api.post<ApiResponse<JoinRoomResponse>>(`/rooms/${code}/join`, { team_name: teamName });
 
 /** Admin: tạo phòng mới */
 export const createRoom = (payload: CreateRoomPayload) =>
-  api.post<CreateRoomResponse>("/admin/rooms", payload);
+  api.post<ApiResponse<CreateRoomResponse>>("/admin/rooms", payload);
 
-/** Admin: get danh sách phòng */
-export const getRooms = async () => {
-  const response = await api.get<RoomsResponse>("/admin/rooms");
-
-  return response.data.data;
-};
+/** Admin: get danh sách phòng (flat array) */
+export const getRooms = () =>
+  api.get<ApiResponse<CreateRoomResponse[]>>("/admin/rooms");
 
 /** Admin: xóa phòng */
-export const deleteRoom = async (id: string) => {
-  const response = await api.delete(`/admin/rooms/${id}`);
-  return response.data;
-};
+export const deleteRoom = (id: string) =>
+  api.delete(`/admin/rooms/${id}`);
