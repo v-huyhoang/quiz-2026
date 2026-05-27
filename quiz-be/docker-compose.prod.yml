@@ -4,8 +4,8 @@ services:
     container_name: quiz-be-prod
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "8080:8080" # For Reverb
+      - "${BACKEND_HTTP_PORT:-8000}:80"
+      - "${REVERB_PUBLIC_PORT:-8080}:8080" # For Reverb
     env_file:
       - .env
     depends_on:
