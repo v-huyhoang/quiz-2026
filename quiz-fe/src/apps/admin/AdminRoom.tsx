@@ -5,22 +5,15 @@ import {
   QrCode, Copy, CheckCheck, Loader2, ArrowRight, ArrowLeft, Dices, ListChecks, Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import AdminRoomDetail from "./AdminRoomDetail";
 import { QRCodeSVG } from "qrcode.react";
-import type { Room, RoundQuestionMap } from "../../type/room";
+import type { Room, RoundQuestionMap, FormState, CreateRoomPayload } from "../../type/room";
 import { createRoom, getRooms, deleteRoom } from "../../services/roomService";
 import { getQuestions } from "../../services/questionService";
 
 const APP_URL = import.meta.env.VITE_APP_URL ?? "http://localhost:5173";
 
-interface FormState {
-  name: string;
-  rounds: string;
-  questionsPerRound: string;
-  accessCode: string;
-  questionMode: "random" | "manual";
-}
-
-type ModalStep = "step1_config" | "step2_questions" | "step3_qr";
+type ModalStep = "step1_config" | "step2_questions" | "step3_qr" | "detail";
 
 export const AdminRoom = () => {
   const navigate = useNavigate();
@@ -32,6 +25,7 @@ export const AdminRoom = () => {
   const [fetching, setFetching] = useState(true);
   const [questionBank, setQuestionBank] = useState<any[]>([]);
   const [fetchingQuestions, setFetchingQuestions] = useState(false);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
 
   // States for saving results after creation
   const [newRoomCode, setNewRoomCode] = useState("");
@@ -115,7 +109,7 @@ export const AdminRoom = () => {
 
   const handleNextStep1 = () => {
     if (!form.name.trim() || !form.accessCode.trim() || !form.rounds || !form.questionsPerRound) return;
-    
+
     // Initialize empty manual array for the entered number of rounds
     const roundsCount = Number(form.rounds);
     setManualSelection((prev) => {
@@ -148,7 +142,7 @@ export const AdminRoom = () => {
     setLoading(true);
 
     try {
-      const payload: any = {
+      const payload: CreateRoomPayload = {
         name: form.name,
         rounds: Number(form.rounds),
         questions_per_round: Number(form.questionsPerRound),
@@ -164,16 +158,8 @@ export const AdminRoom = () => {
       const res = await createRoom(payload);
       setNewRoomCode(res.data.access_code);
       setNewRoomName(res.data.name);
-      const newRoom: Room = {
-        id: String(res.data.id),
-        name: res.data.name,
-        rounds: res.data.rounds,
-        questionsPerRound: res.data.questions_per_round,
-        status: res.data.status,
-        accessCode: res.data.access_code,
-        questionMode: res.data.question_mode,
-      };
-      setRooms((prev) => [...prev, newRoom]);
+
+      await fetchRooms();
 
       setStep("step3_qr");
     } catch (error) {
@@ -202,12 +188,19 @@ export const AdminRoom = () => {
     }
   };
 
+  const handleOpenDetail = (roomId: string) => {
+    setSelectedRoomId(roomId);
+    setStep("detail");
+    setIsOpen(true);
+  };
+
   const handleClose = () => {
     setIsOpen(false);
     setStep("step1_config");
     setForm({ name: "", rounds: "3", questionsPerRound: "10", accessCode: "", questionMode: "random" });
     setCopied(false);
     setManualSelection({});
+    setSelectedRoomId(null);
   };
 
   return (
@@ -246,11 +239,10 @@ export const AdminRoom = () => {
               <div className="p-6 border-b border-gray-100 bg-gray-50/50">
                 <div className="flex justify-between items-start mb-4">
                   <span
-                    className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${
-                      room.status === "active"
-                        ? "bg-green-100 text-green-600"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
+                    className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${room.status === "active"
+                      ? "bg-green-100 text-green-600"
+                      : "bg-gray-100 text-gray-500"
+                      }`}
                   >
                     {room.status}
                   </span>
@@ -262,7 +254,7 @@ export const AdminRoom = () => {
                   {room.name}
                 </h4>
                 <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-2 flex items-center gap-1">
-                   {room.questionMode === "random" ? <Dices size={14}/> : <ListChecks size={14}/>} Mode: {room.questionMode}
+                  {room.questionMode === "random" ? <Dices size={14} /> : <ListChecks size={14} />} Mode: {room.questionMode}
                 </p>
               </div>
 
@@ -294,7 +286,7 @@ export const AdminRoom = () => {
               </div>
 
               <div className="px-6 py-4 bg-gray-50 flex gap-3">
-                <button 
+                <button
                   onClick={() => navigate(`/admin/game-control?roomId=${room.id}`)}
                   className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm"
                 >
@@ -317,6 +309,13 @@ export const AdminRoom = () => {
                   title="Hiện QR code"
                 >
                   <QrCode size={16} />
+                </button>
+                <button
+                  onClick={() => handleOpenDetail(room.id)}
+                  className="py-2 px-3 border border-gray-200 text-gray-500 rounded-lg hover:bg-white transition-all"
+                  title="Xem chi tiết"
+                >
+                  <ListChecks size={16} />
                 </button>
                 {room.status === "pending" && (
                   <button
@@ -347,7 +346,12 @@ export const AdminRoom = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className={`bg-white w-full rounded-2xl p-8 shadow-2xl transition-all duration-300 ${step === "step2_questions" ? "max-w-3xl" : "max-w-xl"}`}
+              className={`bg-white w-full rounded-2xl p-8 shadow-2xl transition-all duration-300 overflow-y-auto max-h-[90vh] ${step === "step2_questions"
+                ? "max-w-3xl"
+                : step === "detail"
+                  ? "max-w-4xl"
+                  : "max-w-xl"
+                }`}
             >
               <AnimatePresence mode="wait">
                 {/* ── Step 1: Config ─────────────────────────────────────── */}
@@ -480,24 +484,22 @@ export const AdminRoom = () => {
                     <div className="flex gap-4 mb-6">
                       <button
                         onClick={() => setForm((f) => ({ ...f, questionMode: "random" }))}
-                        className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                          form.questionMode === "random"
-                            ? "border-primary bg-primary/5 text-primary"
-                            : "border-gray-200 text-gray-400 hover:border-gray-300"
-                        }`}
+                        className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${form.questionMode === "random"
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-gray-200 text-gray-400 hover:border-gray-300"
+                          }`}
                       >
                         <Dices size={24} />
                         <span className="font-bold uppercase tracking-widest text-xs">Ngẫu nhiên</span>
                         <span className="text-xs text-center opacity-80 mt-1 lowercase">Hệ thống chọn lúc bắt đầu round</span>
                       </button>
-                      
+
                       <button
                         onClick={() => setForm((f) => ({ ...f, questionMode: "manual" }))}
-                        className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                          form.questionMode === "manual"
-                            ? "border-primary bg-primary/5 text-primary"
-                            : "border-gray-200 text-gray-400 hover:border-gray-300"
-                        }`}
+                        className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${form.questionMode === "manual"
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-gray-200 text-gray-400 hover:border-gray-300"
+                          }`}
                       >
                         <ListChecks size={24} />
                         <span className="font-bold uppercase tracking-widest text-xs">Tự chọn</span>
@@ -525,16 +527,14 @@ export const AdminRoom = () => {
                                 <button
                                   key={rNum}
                                   onClick={() => setActiveRoundTab(rNum)}
-                                  className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
-                                    activeRoundTab === rNum
-                                      ? "bg-primary text-white border-primary shadow-md"
-                                      : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
-                                  }`}
+                                  className={`p-3 rounded-xl border flex justify-between items-center transition-all ${activeRoundTab === rNum
+                                    ? "bg-primary text-white border-primary shadow-md"
+                                    : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                                    }`}
                                 >
                                   <span className="font-bold text-sm">Round {rNum}</span>
-                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                    activeRoundTab === rNum ? "bg-white/20" : "bg-white border border-gray-200"
-                                  }`}>
+                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${activeRoundTab === rNum ? "bg-white/20" : "bg-white border border-gray-200"
+                                    }`}>
                                     {selectedCount}/{maxQuestions}
                                   </span>
                                 </button>
@@ -544,47 +544,45 @@ export const AdminRoom = () => {
 
                           {/* Question list picker */}
                           <div className="w-2/3 border border-gray-200 rounded-xl bg-gray-50 overflow-hidden flex flex-col h-[300px]">
-                             <div className="p-3 border-b border-gray-200 bg-white">
-                                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-                                  Ngân hàng câu hỏi
-                                </p>
-                             </div>
-                             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
-                               {fetchingQuestions ? (
-                                 <div className="flex items-center justify-center py-8">
-                                   <Loader2 className="animate-spin text-primary" size={24} />
-                                 </div>
-                               ) : questionBank.length === 0 ? (
-                                 <div className="text-center py-8 text-gray-400 text-sm">
-                                   Không có câu hỏi nào
-                                 </div>
-                               ) : (
-                                 questionBank.map((q) => {
-                                   const isSelected = manualSelection[activeRoundTab]?.includes(q.id);
-                                   return (
-                                     <div
-                                       key={q.id}
-                                       onClick={() => toggleQuestionSelection(q.id)}
-                                       className={`p-3 rounded-lg border-2 cursor-pointer transition-all flex items-start gap-3 ${
-                                         isSelected
-                                          ? "border-primary bg-primary/5"
-                                          : "border-transparent bg-white hover:border-gray-200"
-                                       }`}
-                                     >
-                                       <div className={`w-5 h-5 rounded border mt-0.5 flex items-center justify-center shrink-0 ${
-                                         isSelected ? "bg-primary border-primary text-white" : "border-gray-300"
-                                       }`}>
-                                         {isSelected && <CheckCheck size={12}/>}
-                                       </div>
-                                       <div>
-                                          <p className="text-sm font-semibold text-gray-800">{q.text}</p>
-                                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{q.category}</p>
-                                       </div>
-                                     </div>
-                                   );
-                                 })
-                               )}
-                             </div>
+                            <div className="p-3 border-b border-gray-200 bg-white">
+                              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                                Ngân hàng câu hỏi
+                              </p>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+                              {fetchingQuestions ? (
+                                <div className="flex items-center justify-center py-8">
+                                  <Loader2 className="animate-spin text-primary" size={24} />
+                                </div>
+                              ) : questionBank.length === 0 ? (
+                                <div className="text-center py-8 text-gray-400 text-sm">
+                                  Không có câu hỏi nào
+                                </div>
+                              ) : (
+                                questionBank.map((q) => {
+                                  const isSelected = manualSelection[activeRoundTab]?.includes(q.id);
+                                  return (
+                                    <div
+                                      key={q.id}
+                                      onClick={() => toggleQuestionSelection(q.id)}
+                                      className={`p-3 rounded-lg border-2 cursor-pointer transition-all flex items-start gap-3 ${isSelected
+                                        ? "border-primary bg-primary/5"
+                                        : "border-transparent bg-white hover:border-gray-200"
+                                        }`}
+                                    >
+                                      <div className={`w-5 h-5 rounded border mt-0.5 flex items-center justify-center shrink-0 ${isSelected ? "bg-primary border-primary text-white" : "border-gray-300"
+                                        }`}>
+                                        {isSelected && <CheckCheck size={12} />}
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-semibold text-gray-800">{q.text}</p>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{q.category}</p>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
                           </div>
                         </motion.div>
                       )}
@@ -595,7 +593,7 @@ export const AdminRoom = () => {
                         onClick={() => setStep("step1_config")}
                         className="py-4 px-6 border border-gray-200 rounded-xl font-bold text-gray-400 hover:bg-gray-50 transition-all text-xs flex items-center gap-2 uppercase tracking-widest"
                       >
-                         <ArrowLeft size={16}/> Quay lại
+                        <ArrowLeft size={16} /> Quay lại
                       </button>
                       <button
                         onClick={handleCreate}
@@ -675,6 +673,10 @@ export const AdminRoom = () => {
                       Đóng
                     </button>
                   </motion.div>
+                )}
+                {/* ── Detail: Room Details ──────────────────────────────────── */}
+                {step === "detail" && selectedRoomId && (
+                  <AdminRoomDetail roomId={selectedRoomId} onClose={handleClose} />
                 )}
               </AnimatePresence>
             </motion.div>

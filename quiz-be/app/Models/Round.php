@@ -18,4 +18,9 @@ class Round extends Model
                     ->withPivot('id', 'order_number', 'status', 'opened_at', 'closed_at')
                     ->withTimestamps();
     }
+
+    public function roundQuestions()
+    {
+        return $this->hasMany(RoundQuestion::class);
+    }
 }

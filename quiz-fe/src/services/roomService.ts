@@ -73,3 +73,9 @@ export const deleteRoom = async (id: string) => {
   const response = await api.delete(`/admin/rooms/${id}`);
   return response.data;
 };
+
+/** Admin: lấy chi tiết phòng */
+export const getRoomDetail = async (id: string) => {
+  const response = await api.get(`/admin/rooms/${id}`);
+  return response.data.data;
+};

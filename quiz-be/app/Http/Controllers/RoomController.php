@@ -63,11 +63,14 @@ class RoomController extends Controller
     {
         $request->validate([
             'name' => 'sometimes|string|max:255',
-            'status' => 'sometimes|in:pending,active,finished',
+            'round_questions' => 'sometimes|array',
+            'round_questions.*.round_number' => 'required_with:round_questions|integer',
+            'round_questions.*.question_ids' => 'required_with:round_questions|array',
+            'round_questions.*.question_ids.*' => 'required_with:round_questions|exists:questions,id',
         ]);
 
         return response()->json(
-            $this->roomService->update($id, $request->only(['name', 'status']))
+            $this->roomService->update($id, $request->only(['name', 'round_questions']))
         );
     }
 
