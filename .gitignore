@@ -1,0 +1,7 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Accidental installs at root
+node_modules/
+package-lock.json
