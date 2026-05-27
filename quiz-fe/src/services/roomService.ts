@@ -26,7 +26,7 @@ export interface CreateRoomPayload {
   round_questions?: RoundQuestionAssignment[];
 }
 
-export interface CreateRoomResponse {
+export interface CreateRoomData {
   id: number;
   name: string;
   access_code: string;
@@ -35,6 +35,13 @@ export interface CreateRoomResponse {
   question_mode: "random" | "manual";
   status: "pending" | "active" | "finished";
   join_url: string;
+}
+
+export interface CreateRoomResponse {
+  success: boolean;
+  code: number;
+  message: string;
+  data: CreateRoomData;
 }
 
 export interface RoomsResponse {
@@ -51,7 +58,7 @@ export interface RoomsResponse {
       to: number;
       total: number;
     };
-  }
+  };
 }
 /** Player: tham gia phòng bằng access code + tên team */
 export const joinRoom = (code: string, teamName: string) =>
@@ -77,5 +84,12 @@ export const deleteRoom = async (id: string) => {
 /** Admin: lấy chi tiết phòng */
 export const getRoomDetail = async (id: string) => {
   const response = await api.get(`/admin/rooms/${id}`);
+  return response.data.data;
+};
+
+export const getRoomByCode = async (code: string) => {
+  const response = await api.get<{ success: boolean; data: any }>(
+    `/rooms/code/${code}`,
+  );
   return response.data.data;
 };

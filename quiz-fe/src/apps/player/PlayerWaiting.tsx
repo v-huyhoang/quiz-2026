@@ -23,12 +23,12 @@ export default function PlayerWaiting() {
   // Listen for socket events
   useGameSocket(gameId?.toString() || "1");
 
-  // Redirect to game screen when question starts
+  // Redirect to game screen when game starts or question starts
   useEffect(() => {
-    if (currentQuestion) {
+    if (gameStatus === "active" || currentQuestion) {
       navigate("/player/game");
     }
-  }, [currentQuestion, navigate]);
+  }, [currentQuestion, gameStatus, navigate]);
 
   const teams = MOCK_TEAMS;
   const emptySlots = MAX_TEAMS - teams.length;
@@ -36,7 +36,6 @@ export default function PlayerWaiting() {
   return (
     <div className="min-h-screen bg-surface flex flex-col pt-20">
       <main className="flex-grow w-full max-w-5xl mx-auto px-6 py-12 flex flex-col items-center">
-
         {/* Status banner */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -46,9 +45,13 @@ export default function PlayerWaiting() {
           <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
 
           <div className="relative z-10 flex items-center justify-center gap-3 mb-1">
-            <div className={`w-3 h-3 rounded-full ${gameStatus === 'active' ? 'bg-green-500' : 'bg-primary'} ${gameStatus === 'active' ? 'animate-pulse' : 'animate-ping'}`} />
-            <h1 className={`text-2xl font-bold uppercase tracking-widest ${gameStatus === 'active' ? 'text-green-600' : 'text-primary'}`}>
-              {gameStatus === 'active' ? 'Game has started' : 'Đã kết nối'}
+            <div
+              className={`w-3 h-3 rounded-full ${gameStatus === "active" ? "bg-green-500" : "bg-primary"} ${gameStatus === "active" ? "animate-pulse" : "animate-ping"}`}
+            />
+            <h1
+              className={`text-2xl font-bold uppercase tracking-widest ${gameStatus === "active" ? "text-green-600" : "text-primary"}`}
+            >
+              {gameStatus === "active" ? "Game has started" : "Đã kết nối"}
             </h1>
           </div>
 
@@ -64,9 +67,20 @@ export default function PlayerWaiting() {
           </div>
 
           <div className="relative z-10 flex items-center gap-2 mt-2">
-            <Clock size={14} className={gameStatus === 'active' ? 'animate-pulse text-green-600' : 'animate-pulse text-gray-500'} />
-            <p className={`font-medium text-sm ${gameStatus === 'active' ? 'text-green-600' : 'text-gray-500'}`}>
-              {gameStatus === 'active' ? 'Please wait for question...' : 'Chờ Host bắt đầu...'}
+            <Clock
+              size={14}
+              className={
+                gameStatus === "active"
+                  ? "animate-pulse text-green-600"
+                  : "animate-pulse text-gray-500"
+              }
+            />
+            <p
+              className={`font-medium text-sm ${gameStatus === "active" ? "text-green-600" : "text-gray-500"}`}
+            >
+              {gameStatus === "active"
+                ? "Please wait for question..."
+                : "Chờ Host bắt đầu..."}
             </p>
           </div>
 

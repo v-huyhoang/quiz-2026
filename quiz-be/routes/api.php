@@ -7,6 +7,8 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+Route::get('/rooms/code/{code}', [\App\Http\Controllers\RoomController::class, 'getByCode']);
+
 Route::group(['prefix' => 'admin'], function () {
     Route::post('/login', [\App\Http\Controllers\AuthController::class, 'adminLogin']);
 

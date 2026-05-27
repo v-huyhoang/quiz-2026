@@ -4,24 +4,16 @@ import { motion, AnimatePresence } from "motion/react";
 import { useGameStore } from "../../store/gameStore";
 import { useGameSocket } from "../../sockets/hooks/useGameSocket";
 import { useCountdown } from "../../hooks/useCountdown";
+import { useAuthStore } from "../../store/authStore";
 
 export default function PlayerGame() {
   const { currentQuestion } = useGameStore();
+  const { gameId } = useAuthStore();
   const [selected, setSelected] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [gameId, setGameId] = useState<string>("");
-
-  // Get gameId from URL
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const roomId = params.get("roomId");
-    if (roomId) {
-      setGameId(roomId);
-    }
-  }, []);
 
   // Listen for socket events
-  useGameSocket(gameId);
+  useGameSocket(gameId?.toString() || "");
 
   // Use countdown hook for timer
   const { timeLeft } = useCountdown({
