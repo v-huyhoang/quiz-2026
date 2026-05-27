@@ -14,4 +14,24 @@ export interface QuestionSummary {
   category?: string;
 }
 
+export interface FormState {
+  name: string;
+  rounds: string;
+  questionsPerRound: string;
+  accessCode: string;
+  questionMode: "random" | "manual";
+}
+
+export interface CreateRoomPayload {
+  name: string;
+  rounds: number;
+  questions_per_round: number;
+  access_code: string;
+  question_mode: "random" | "manual";
+  round_questions?: {
+    round_number: number;
+    question_ids: number[];
+  }[];
+}
+
 export type RoundQuestionMap = Record<number, number[]>;

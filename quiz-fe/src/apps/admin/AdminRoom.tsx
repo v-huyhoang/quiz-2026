@@ -5,58 +5,62 @@ import {
   QrCode, Copy, CheckCheck, Loader2, ArrowRight, ArrowLeft, Dices, ListChecks, Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import AdminRoomDetail from "./AdminRoomDetail";
 import { QRCodeSVG } from "qrcode.react";
-import type { Room, RoundQuestionMap } from "../../type/room";
-import { createRoom, getRooms, deleteRoom, type CreateRoomResponse } from "../../services/roomService";
+import type { Room, RoundQuestionMap, FormState, CreateRoomPayload } from "../../type/room";
+import { createRoom, getRooms, deleteRoom } from "../../services/roomService";
 import { getQuestions } from "../../services/questionService";
 
 const APP_URL = import.meta.env.VITE_APP_URL ?? "http://localhost:5173";
 
-const mapApiRoom = (r: CreateRoomResponse): Room => ({
-  id: String(r.id),
-  name: r.name,
-  accessCode: r.access_code,
-  rounds: r.rounds,
-  questionsPerRound: r.questions_per_round,
-  questionMode: r.question_mode,
-  status: r.status,
-});
-
-interface FormState {
-  name: string;
-  rounds: string;
-  questionsPerRound: string;
-  accessCode: string;
-  questionMode: "random" | "manual";
-}
-
-type ModalStep = "step1_config" | "step2_questions" | "step3_qr";
+type ModalStep = "step1_config" | "step2_questions" | "step3_qr" | "detail";
 
 export const AdminRoom = () => {
   const navigate = useNavigate();
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [loadingRooms, setLoadingRooms] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<ModalStep>("step1_config");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [questionBank, setQuestionBank] = useState<{ id: string; text: string; category: string }[]>([]);
+  const [fetching, setFetching] = useState(true);
+  const [questionBank, setQuestionBank] = useState<any[]>([]);
   const [fetchingQuestions, setFetchingQuestions] = useState(false);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [createError, setCreateError] = useState("");
 
   const [newRoomCode, setNewRoomCode] = useState("");
   const [newRoomName, setNewRoomName] = useState("");
 
   useEffect(() => {
-    getRooms()
-      .then((res) => setRooms(res.data.data.map(mapApiRoom)))
-      .catch(() => {})
-      .finally(() => setLoadingRooms(false));
+    fetchRooms();
+    fetchQuestions();
   }, []);
 
   useEffect(() => {
     if (isOpen) fetchQuestions();
   }, [isOpen]);
+
+  const fetchRooms = async () => {
+    try {
+      setFetching(true);
+      const { data } = await getRooms();
+      const roomsData = data.data.map((room) => ({
+        id: String(room.id),
+        name: room.name,
+        rounds: room.rounds,
+        questionsPerRound: room.questions_per_round,
+        status: room.status,
+        accessCode: room.access_code,
+        questionMode: room.question_mode,
+      }));
+      setRooms(roomsData);
+    } catch (error) {
+      console.error("Failed to fetch rooms:", error);
+      setRooms([]);
+    } finally {
+      setFetching(false);
+    }
+  };
 
   const fetchQuestions = async () => {
     try {
@@ -68,7 +72,8 @@ export const AdminRoom = () => {
         category: "General",
       }));
       setQuestionBank(questionsData);
-    } catch {
+    } catch (error) {
+      console.error("Failed to fetch questions:", error);
       setQuestionBank([]);
     } finally {
       setFetchingQuestions(false);
@@ -95,10 +100,14 @@ export const AdminRoom = () => {
 
   const handleNextStep1 = () => {
     if (!form.name.trim() || !form.accessCode.trim() || !form.rounds || !form.questionsPerRound) return;
+
+    // Initialize empty manual array for the entered number of rounds
     const roundsCount = Number(form.rounds);
     setManualSelection((prev) => {
       const nextMap: RoundQuestionMap = {};
-      for (let i = 1; i <= roundsCount; i++) nextMap[i] = prev[i] || [];
+      for (let i = 1; i <= roundsCount; i++) {
+        nextMap[i] = prev[i] || [];
+      }
       return nextMap;
     });
     setActiveRoundTab(1);
@@ -109,9 +118,12 @@ export const AdminRoom = () => {
     setManualSelection((prev) => {
       const selectedIds = prev[activeRoundTab] || [];
       const exists = selectedIds.includes(qId);
-      if (exists) return { ...prev, [activeRoundTab]: selectedIds.filter((id) => id !== qId) };
-      if (selectedIds.length >= Number(form.questionsPerRound)) return prev;
-      return { ...prev, [activeRoundTab]: [...selectedIds, qId] };
+      if (exists) {
+        return { ...prev, [activeRoundTab]: selectedIds.filter((id) => id !== qId) };
+      } else {
+        if (selectedIds.length >= Number(form.questionsPerRound)) return prev;
+        return { ...prev, [activeRoundTab]: [...selectedIds, qId] };
+      }
     });
   };
 
@@ -119,24 +131,23 @@ export const AdminRoom = () => {
     setLoading(true);
     setCreateError("");
     try {
-      const payload = {
-        name:                form.name,
-        rounds:              Number(form.rounds),
+      const payload: CreateRoomPayload = {
+        name: form.name,
+        rounds: Number(form.rounds),
         questions_per_round: Number(form.questionsPerRound),
-        access_code:         form.accessCode,
-        question_mode:       form.questionMode,
-        ...(form.questionMode === "manual" && {
-          round_questions: Object.entries(manualSelection).map(([roundStr, qIds]) => ({
-            round_number: Number(roundStr),
-            question_ids: qIds,
-          })),
-        }),
+        access_code: form.accessCode,
+        question_mode: form.questionMode,
       };
+      if (form.questionMode === "manual") {
+        payload.round_questions = Object.entries(manualSelection).map(([roundStr, qIds]) => ({
+          round_number: Number(roundStr),
+          question_ids: qIds,
+        }));
+      }
       const res = await createRoom(payload);
-      const created = res.data.data;
-      setRooms((prev) => [...prev, mapApiRoom(created)]);
-      setNewRoomCode(created.access_code);
-      setNewRoomName(created.name);
+      setNewRoomCode(res.data.data.access_code);
+      setNewRoomName(res.data.data.name);
+      await fetchRooms();
       setStep("step3_qr");
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
@@ -164,9 +175,16 @@ export const AdminRoom = () => {
     try {
       await deleteRoom(roomId);
       setRooms((prev) => prev.filter((room) => room.id !== roomId));
-    } catch {
+    } catch (error) {
+      console.error("Failed to delete room:", error);
       alert("Failed to delete room. Please try again.");
     }
+  };
+
+  const handleOpenDetail = (roomId: string) => {
+    setSelectedRoomId(roomId);
+    setStep("detail");
+    setIsOpen(true);
   };
 
   const handleClose = () => {
@@ -176,6 +194,7 @@ export const AdminRoom = () => {
     setCopied(false);
     setManualSelection({});
     setCreateError("");
+    setSelectedRoomId(null);
   };
 
   return (
@@ -198,110 +217,116 @@ export const AdminRoom = () => {
       </div>
 
       {/* Room list */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {loadingRooms && (
-          <div className="col-span-2 flex items-center justify-center py-12 text-gray-400">
-            <Loader2 size={24} className="animate-spin mr-2" />
-            <span className="text-sm font-medium">Đang tải danh sách phòng...</span>
-          </div>
-        )}
-        {!loadingRooms && rooms.length === 0 && (
-          <div className="col-span-2 flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
-            <QrCode size={32} className="opacity-30" />
-            <p className="text-sm font-medium">Chưa có phòng nào. Hãy tạo phòng mới.</p>
-          </div>
-        )}
-        {rooms.map((room) => (
-          <motion.div
-            key={room.id}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all group"
-          >
-            <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-              <div className="flex justify-between items-start mb-4">
-                <span
-                  className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${
-                    room.status === "active"
-                      ? "bg-green-100 text-green-600"
-                      : room.status === "finished"
-                      ? "bg-red-100 text-red-500"
-                      : "bg-gray-100 text-gray-500"
-                  }`}
-                >
-                  {room.status}
-                </span>
-                <span className="text-xl font-black text-primary font-mono">
-                  {room.accessCode}
-                </span>
+      {fetching ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="animate-spin text-primary" size={32} />
+        </div>
+      ) : rooms.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
+          <QrCode size={32} className="opacity-30" />
+          <p className="text-sm font-medium">Chưa có phòng nào. Hãy tạo phòng mới.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {rooms.map((room) => (
+            <motion.div
+              key={room.id}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all group"
+            >
+              <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+                <div className="flex justify-between items-start mb-4">
+                  <span
+                    className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${
+                      room.status === "active"
+                        ? "bg-green-100 text-green-600"
+                        : room.status === "finished"
+                        ? "bg-red-100 text-red-500"
+                        : "bg-gray-100 text-gray-500"
+                    }`}
+                  >
+                    {room.status}
+                  </span>
+                  <span className="text-xl font-black text-primary font-mono">
+                    {room.accessCode}
+                  </span>
+                </div>
+                <h4 className="text-xl font-bold text-gray-900 group-hover:text-primary transition-colors">
+                  {room.name}
+                </h4>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-2 flex items-center gap-1">
+                  {room.questionMode === "random" ? <Dices size={14} /> : <ListChecks size={14} />} Mode: {room.questionMode}
+                </p>
               </div>
-              <h4 className="text-xl font-bold text-gray-900 group-hover:text-primary transition-colors">
-                {room.name}
-              </h4>
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-2 flex items-center gap-1">
-                {room.questionMode === "random" ? <Dices size={14} /> : <ListChecks size={14} />} Mode: {room.questionMode}
-              </p>
-            </div>
 
-            <div className="p-6 grid grid-cols-2 gap-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-50 text-blue-500 rounded-lg">
-                  <Layout size={20} />
+              <div className="p-6 grid grid-cols-2 gap-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 text-blue-500 rounded-lg">
+                    <Layout size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rounds</p>
+                    <p className="text-lg font-bold text-gray-900">{room.rounds}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rounds</p>
-                  <p className="text-lg font-bold text-gray-900">{room.rounds}</p>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-50 text-orange-500 rounded-lg">
+                    <Hash size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Questions</p>
+                    <p className="text-lg font-bold text-gray-900">{room.questionsPerRound} / round</p>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-50 text-orange-500 rounded-lg">
-                  <Hash size={20} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Questions</p>
-                  <p className="text-lg font-bold text-gray-900">{room.questionsPerRound} / round</p>
-                </div>
-              </div>
-            </div>
 
-            <div className="px-6 py-4 bg-gray-50 flex gap-3">
-              <button
-                onClick={() => navigate(`/admin/game-control/${room.id}`)}
-                className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-primary/90 transition-all"
-              >
-                LAUNCH SESSION
-              </button>
-              <button
-                onClick={() => window.open(`/stage/waiting?gameId=${room.id}`, "_blank")}
-                className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-purple-700 transition-all"
-              >
-                STAGE SCREEN
-              </button>
-              <button
-                onClick={() => {
-                  setNewRoomCode(room.accessCode);
-                  setNewRoomName(room.name);
-                  setStep("step3_qr");
-                  setIsOpen(true);
-                }}
-                className="py-2 px-3 border border-gray-200 text-gray-500 rounded-lg hover:bg-white transition-all"
-                title="Hiện QR code"
-              >
-                <QrCode size={16} />
-              </button>
-              {room.status === "pending" && (
+              <div className="px-6 py-4 bg-gray-50 flex gap-3">
                 <button
-                  onClick={() => handleDelete(room.id)}
-                  className="py-2 px-3 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-all"
-                  title="Xóa phòng"
+                  onClick={() => navigate(`/admin/game-control?roomId=${room.id}`)}
+                  className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-primary/90 transition-all"
                 >
-                  <Trash2 size={16} />
+                  LAUNCH SESSION
                 </button>
-              )}
-            </div>
-          </motion.div>
-        ))}
-      </div>
+                <button
+                  onClick={() => window.open(`/stage/waiting?roomCode=${room.accessCode}`, "_blank")}
+                  className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-purple-700 transition-all"
+                >
+                  STAGE SCREEN
+                </button>
+                <button
+                  onClick={() => {
+                    setNewRoomCode(room.accessCode);
+                    setNewRoomName(room.name);
+                    setStep("step3_qr");
+                    setIsOpen(true);
+                  }}
+                  className="py-2 px-3 border border-gray-200 text-gray-500 rounded-lg hover:bg-white transition-all"
+                  title="Hiện QR code"
+                >
+                  <QrCode size={16} />
+                </button>
+                <button
+                  onClick={() => handleOpenDetail(room.id)}
+                  className="py-2 px-3 border border-gray-200 text-gray-500 rounded-lg hover:bg-white transition-all"
+                  title="Xem chi tiết"
+                >
+                  <ListChecks size={16} />
+                </button>
+                {room.status === "pending" && (
+                  <button
+                    onClick={() => handleDelete(room.id)}
+                    className="py-2 px-3 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-all"
+                    title="Xóa phòng"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {/* Modal */}
       <AnimatePresence>
@@ -317,7 +342,12 @@ export const AdminRoom = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className={`bg-white w-full rounded-2xl p-8 shadow-2xl transition-all duration-300 ${step === "step2_questions" ? "max-w-3xl" : "max-w-xl"}`}
+              className={`bg-white w-full rounded-2xl p-8 shadow-2xl transition-all duration-300 overflow-y-auto max-h-[90vh] ${step === "step2_questions"
+                ? "max-w-3xl"
+                : step === "detail"
+                  ? "max-w-4xl"
+                  : "max-w-xl"
+                }`}
             >
               <AnimatePresence mode="wait">
                 {/* ── Step 1: Config ─────────────────────────────────────── */}
@@ -446,11 +476,10 @@ export const AdminRoom = () => {
                     <div className="flex gap-4 mb-6">
                       <button
                         onClick={() => setForm((f) => ({ ...f, questionMode: "random" }))}
-                        className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                          form.questionMode === "random"
-                            ? "border-primary bg-primary/5 text-primary"
-                            : "border-gray-200 text-gray-400 hover:border-gray-300"
-                        }`}
+                        className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${form.questionMode === "random"
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-gray-200 text-gray-400 hover:border-gray-300"
+                          }`}
                       >
                         <Dices size={24} />
                         <span className="font-bold uppercase tracking-widest text-xs">Ngẫu nhiên</span>
@@ -459,11 +488,10 @@ export const AdminRoom = () => {
 
                       <button
                         onClick={() => setForm((f) => ({ ...f, questionMode: "manual" }))}
-                        className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                          form.questionMode === "manual"
-                            ? "border-primary bg-primary/5 text-primary"
-                            : "border-gray-200 text-gray-400 hover:border-gray-300"
-                        }`}
+                        className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${form.questionMode === "manual"
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-gray-200 text-gray-400 hover:border-gray-300"
+                          }`}
                       >
                         <ListChecks size={24} />
                         <span className="font-bold uppercase tracking-widest text-xs">Tự chọn</span>
@@ -491,16 +519,14 @@ export const AdminRoom = () => {
                                 <button
                                   key={rNum}
                                   onClick={() => setActiveRoundTab(rNum)}
-                                  className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
-                                    activeRoundTab === rNum
-                                      ? "bg-primary text-white border-primary shadow-md"
-                                      : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
-                                  }`}
+                                  className={`p-3 rounded-xl border flex justify-between items-center transition-all ${activeRoundTab === rNum
+                                    ? "bg-primary text-white border-primary shadow-md"
+                                    : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                                    }`}
                                 >
                                   <span className="font-bold text-sm">Round {rNum}</span>
-                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                    activeRoundTab === rNum ? "bg-white/20" : "bg-white border border-gray-200"
-                                  }`}>
+                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${activeRoundTab === rNum ? "bg-white/20" : "bg-white border border-gray-200"
+                                    }`}>
                                     {selectedCount}/{maxQuestions}
                                   </span>
                                 </button>
@@ -526,20 +552,18 @@ export const AdminRoom = () => {
                                 </div>
                               ) : (
                                 questionBank.map((q) => {
-                                  const isSelected = manualSelection[activeRoundTab]?.includes(Number(q.id));
+                                  const isSelected = manualSelection[activeRoundTab]?.includes(q.id);
                                   return (
                                     <div
                                       key={q.id}
-                                      onClick={() => toggleQuestionSelection(Number(q.id))}
-                                      className={`p-3 rounded-lg border-2 cursor-pointer transition-all flex items-start gap-3 ${
-                                        isSelected
-                                          ? "border-primary bg-primary/5"
-                                          : "border-transparent bg-white hover:border-gray-200"
-                                      }`}
+                                      onClick={() => toggleQuestionSelection(q.id)}
+                                      className={`p-3 rounded-lg border-2 cursor-pointer transition-all flex items-start gap-3 ${isSelected
+                                        ? "border-primary bg-primary/5"
+                                        : "border-transparent bg-white hover:border-gray-200"
+                                        }`}
                                     >
-                                      <div className={`w-5 h-5 rounded border mt-0.5 flex items-center justify-center shrink-0 ${
-                                        isSelected ? "bg-primary border-primary text-white" : "border-gray-300"
-                                      }`}>
+                                      <div className={`w-5 h-5 rounded border mt-0.5 flex items-center justify-center shrink-0 ${isSelected ? "bg-primary border-primary text-white" : "border-gray-300"
+                                        }`}>
                                         {isSelected && <CheckCheck size={12} />}
                                       </div>
                                       <div>
@@ -562,7 +586,7 @@ export const AdminRoom = () => {
                       </p>
                     )}
 
-                    <div className="flex gap-4 mt-4">
+                    <div className="flex gap-4 mt-6">
                       <button
                         onClick={() => { setStep("step1_config"); setCreateError(""); }}
                         className="py-4 px-6 border border-gray-200 rounded-xl font-bold text-gray-400 hover:bg-gray-50 transition-all text-xs flex items-center gap-2 uppercase tracking-widest"
@@ -644,6 +668,11 @@ export const AdminRoom = () => {
                       Đóng
                     </button>
                   </motion.div>
+                )}
+
+                {/* ── Detail: Room Details ──────────────────────────────────── */}
+                {step === "detail" && selectedRoomId && (
+                  <AdminRoomDetail roomId={selectedRoomId} onClose={handleClose} />
                 )}
               </AnimatePresence>
             </motion.div>

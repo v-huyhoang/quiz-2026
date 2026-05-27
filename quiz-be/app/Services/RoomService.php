@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\Round;
 use App\Models\Game;
+use App\Models\Question;
+use App\Models\RoundQuestion;
 use App\Repositories\RoomRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -31,7 +33,7 @@ class RoomService
         return [
             'data' => $paginator
                 ->getCollection()
-                ->map(fn (Game $room) => $room->toArray())
+                ->map(fn(Game $room) => $room->toArray())
                 ->values()
                 ->all(),
             'meta' => [
@@ -69,6 +71,21 @@ class RoomService
 
             $game = $this->roomRepository->create($gameData);
 
+            $randomQuestions = collect();
+
+            if ($data['question_mode'] === 'random') {
+                $totalQuestionsNeeded = $data['rounds'] * $data['questions_per_round'];
+
+                $randomQuestions = Question::query()
+                    ->inRandomOrder()
+                    ->limit($totalQuestionsNeeded)
+                    ->get();
+
+                if ($randomQuestions->count() < $totalQuestionsNeeded) {
+                    throw new \Exception('Không đủ số lượng câu hỏi để tạo game.');
+                }
+            }
+
             // Create rounds
             for ($i = 1; $i <= $data['rounds']; $i++) {
                 $round = Round::create([
@@ -91,6 +108,19 @@ class RoomService
                         }
                     }
                 }
+
+                // Random mode
+                if ($data['question_mode'] === 'random') {
+                    $questions = $randomQuestions
+                        ->splice(0, $data['questions_per_round']);
+
+                    foreach ($questions as $index => $question) {
+                        $round->questions()->attach($question->id, [
+                            'order_number' => $index + 1,
+                            'status' => 'pending',
+                        ]);
+                    }
+                }
             }
 
             return [
@@ -111,11 +141,52 @@ class RoomService
 
     public function update(string $id, array $data): array
     {
-        $room = $this->roomRepository->update($id, $data);
-        return [
-            'success' => true,
-            'data' => $room,
-        ];
+        return DB::transaction(function () use ($id, $data) {
+            $room = $this->roomRepository->findById($id);
+
+            if (isset($data['name'])) {
+                $room->name = $data['name'];
+                $room->save();
+            }
+
+            if (isset($data['round_questions']) && is_array($data['round_questions'])) {
+                foreach ($data['round_questions'] as $roundQuestions) {
+                    $roundNumber = $roundQuestions['round_number'] ?? null;
+                    $questionIds = $roundQuestions['question_ids'] ?? null;
+
+                    if (! $roundNumber || ! is_array($questionIds)) {
+                        continue;
+                    }
+
+                    $round = Round::where('game_id', $room->id)
+                        ->where('round_number', $roundNumber)
+                        ->first();
+
+                    if (! $round) {
+                        continue;
+                    }
+
+                    // Rebuild round_questions rows for this round to match DB structure
+                    RoundQuestion::where('round_id', $round->id)->delete();
+
+                    foreach ($questionIds as $index => $qid) {
+                        $qidInt = is_numeric($qid) ? (int) $qid : $qid;
+
+                        RoundQuestion::create([
+                            'round_id' => $round->id,
+                            'question_id' => $qidInt,
+                            'order_number' => $index + 1,
+                            'status' => 'pending',
+                        ]);
+                    }
+                }
+            }
+
+            return [
+                'success' => true,
+                'data' => $room->fresh(),
+            ];
+        });
     }
 
     public function delete(string $id): array

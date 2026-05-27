@@ -52,3 +52,9 @@ export const getRooms = () =>
 /** Admin: xóa phòng */
 export const deleteRoom = (id: string) =>
   api.delete(`/admin/rooms/${id}`);
+
+/** Admin: lấy chi tiết phòng */
+export const getRoomDetail = async (id: string) => {
+  const response = await api.get(`/admin/rooms/${id}`);
+  return response.data.data;
+};
