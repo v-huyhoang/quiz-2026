@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\HttpStatus;
 use App\Events\GameFinished;
 use App\Events\GameStarted;
 use App\Events\QuestionClosed;
 use App\Events\QuestionStarted;
 use App\Events\RoundFinished;
 use App\Events\TeamJoined;
+use App\Http\Requests\Game\GetCurrentQuestionRequest;
+use App\Http\Requests\Game\JoinGameRequest;
+use App\Http\Requests\Game\SubmitAnswerRequest;
 use App\Models\Game;
 use App\Services\GameService;
 use App\Traits\ApiResponseTrait;
-use Illuminate\Http\Request;
 
 class GameController extends Controller
 {
@@ -34,16 +37,14 @@ class GameController extends Controller
         return $this->successResponse($games->values()->all());
     }
 
-    public function join(string $code, Request $request)
+    public function join(string $code, JoinGameRequest $request)
     {
-        $request->validate(['team_name' => 'required|string|max:255']);
-
         try {
             $data = $this->gameService->joinGame($code, $request->team_name);
             broadcast(new TeamJoined($data['game_id'], ['id' => $data['team_id'], 'name' => $data['team_name']]));
             return $this->successResponse($data, 'Joined successfully');
         } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), null, 422);
+            return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
         }
     }
 
@@ -65,20 +66,15 @@ class GameController extends Controller
         }
     }
 
-    public function submitAnswer(Request $request)
+    public function submitAnswer(SubmitAnswerRequest $request)
     {
-        $request->validate([
-            'round_question_id' => 'required|integer|exists:round_questions,id',
-            'answer_id'         => 'required|integer|exists:answers,id',
-        ]);
-
         $team = $request->user();
 
         try {
             $this->gameService->submitAnswer($team->id, $request->round_question_id, $request->answer_id);
             return $this->successResponse(null, 'Answer submitted');
         } catch (\Exception $e) {
-            $status = str_contains($e->getMessage(), 'Already') ? 409 : 422;
+            $status = str_contains($e->getMessage(), 'Already') ? HttpStatus::Conflict->value : HttpStatus::UnprocessableEntity->value;
             return $this->errorResponse($e->getMessage(), null, $status);
         }
     }
@@ -99,7 +95,7 @@ class GameController extends Controller
             broadcast(new GameStarted($game));
             return $this->successResponse($this->gameService->getAdminState($id), 'Game started');
         } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), null, 422);
+            return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
         }
     }
 
@@ -109,7 +105,7 @@ class GameController extends Controller
             $this->gameService->startNextRound($id);
             return $this->successResponse($this->gameService->getAdminState($id), 'Round started');
         } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), null, 422);
+            return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
         }
     }
 
@@ -133,7 +129,7 @@ class GameController extends Controller
 
             return $this->successResponse($this->gameService->getAdminState($id), 'Question opened');
         } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), null, 422);
+            return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
         }
     }
 
@@ -157,7 +153,7 @@ class GameController extends Controller
 
             return $this->successResponse($this->gameService->getAdminState($id), 'Question closed');
         } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), null, 422);
+            return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
         }
     }
 
@@ -168,7 +164,7 @@ class GameController extends Controller
             broadcast(new RoundFinished($id, $round->round_number));
             return $this->successResponse($this->gameService->getAdminState($id), 'Round finished');
         } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), null, 422);
+            return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
         }
     }
 
@@ -180,7 +176,7 @@ class GameController extends Controller
             broadcast(new GameFinished($game));
             return $this->successResponse($this->gameService->getAdminState($id), 'Game finished');
         } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), null, 422);
+            return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
         }
     }
 
@@ -191,9 +187,8 @@ class GameController extends Controller
         return $this->successResponse($game);
     }
 
-    public function getCurrentQuestion(Request $request)
+    public function getCurrentQuestion(GetCurrentQuestionRequest $request)
     {
-        $request->validate(['game_id' => 'required|integer|exists:games,id']);
         $rq = $this->gameService->getCurrentQuestion($request->game_id);
         return $this->successResponse($rq);
     }

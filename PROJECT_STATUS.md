@@ -1,8 +1,8 @@
 # Quiz Stack 2026 — Project Status Report
 
-> **Cập nhật lần cuối:** 2026-05-26  
+> **Cập nhật lần cuối:** 2026-05-27  
 > **Môi trường:** Laravel 12 (BE) + React 19 + Vite (FE)  
-> **Branch hiện tại:** `develop`
+> **Branch hiện tại:** `feat/player_join_room`
 
 ---
 
@@ -16,11 +16,11 @@
 | Question Management (BE + FE) | ✅ Xong | 100% |
 | Room / Game Creation | ✅ Xong | 100% |
 | Game Flow API (BE) | ✅ Xong | 100% |
+| Real-time (WebSocket / Reverb) | 🟡 Một phần | 75% |
 | Player Flow (FE) | ✅ Xong | 95% |
 | Admin Control Panel (FE) | ✅ Xong | 95% |
-| Stage Display Screens (FE) | 🟡 Một phần | 60% |
+| Stage Display Screens (FE) | 🟡 Một phần | 70% |
 | Ranking / Leaderboard | 🟡 Một phần | 70% |
-| Real-time (WebSocket) | ❌ Chưa làm | 0% |
 | Statistics & Reporting | ❌ Chưa làm | 0% |
 
 ---
@@ -75,29 +75,42 @@
 - [x] `POST /games/submit` — player nộp câu trả lời (auth:sanctum, idempotent với 409)
 - [x] `GET /games/{id}/leaderboard` — bảng xếp hạng tổng kết
 
-### 2.7 Admin Control Panel (Frontend)
+### 2.7 Real-time (WebSocket / Reverb)
+- [x] Cấu hình Laravel Reverb (port 8080) + Laravel Echo (pusher-js) phía FE
+- [x] `src/sockets/echo.ts`: khởi tạo Echo instance, export `getGameChannel(id)`
+- [x] BE broadcast events: `TeamJoined`, `GameStarted`, `QuestionStarted`, `QuestionClosed`, `RoundFinished`, `GameFinished`
+- [x] Tất cả events dùng `ShouldBroadcastNow` (synchronous) — không cần queue
+- [x] `PlayerWaiting`: subscribe `.team.joined` + `.game.started`, auto-navigate khi game bắt đầu
+- [x] `PlayerGame`: subscribe `.question.started`, `.question.closed`, `.game.finished`; reveal đáp án, navigate khi game kết thúc
+- [x] `StageWaitting`: subscribe `.team.joined`, `.question.started`, `.game.finished`
+- [x] `StageGame`: subscribe `.question.started`, `.question.closed`, `.round.finished`, `.game.finished`; navigate tự động theo event
+- [x] Cleanup channel (`echo.leave`) khi component unmount
+
+### 2.8 Admin Control Panel (Frontend)
 - [x] `AdminGameControl`: polling 2s, hiển thị trạng thái game real-time
 - [x] Các nút điều khiển: Start Game → Start Round → Open Question → Close Question → Finish Round → Finish Game
 - [x] Hiển thị danh sách submission của từng đội theo từng câu hỏi (team_submissions)
 - [x] Hiển thị tiến độ câu hỏi: câu X / tổng Y trong vòng Z
 - [x] Điều hướng từ AdminRoom → AdminGameControl theo `gameId`
 
-### 2.8 Player Flow (Frontend)
+### 2.9 Player Flow (Frontend)
 - [x] `JoinRoom`: nhập mã phòng + tên đội, gọi API join, lưu token vào authStore
-- [x] `PlayerWaiting`: polling game state, hiển thị danh sách đội trong lobby, tự redirect khi game bắt đầu
-- [x] `PlayerGame`: polling câu hỏi, chọn đáp án, nộp bài, hiển thị kết quả khi câu đóng
+- [x] `PlayerWaiting`: nhận initial state qua API, sau đó dùng WS; hiển thị lobby, auto-navigate khi `.game.started`
+- [x] `PlayerGame`: nhận initial state qua API, sau đó WS-driven; chọn đáp án, nộp bài, reveal khi `.question.closed`, navigate khi `.game.finished`
 - [x] Chống submit trùng: dùng `useRef` để track `round_question_id` đã nộp, xử lý 409 như success
 
-### 2.9 Stage Display Screens (Frontend)
-- [x] `StageWaitting`: hiển thị lobby + danh sách đội, auto-navigate khi câu hỏi mở
-- [x] `StageGame` (tức StageQuestion): hiển thị câu hỏi lớn, countdown timer, reveal đáp án khi đóng
-- [x] `StageLeaderBoard`: gọi API leaderboard thật, hiển thị bảng xếp hạng
+### 2.10 Stage Display Screens (Frontend — một phần)
+- [x] `StageWaitting`: WS-driven; hiển thị lobby + danh sách đội, auto-navigate khi `.question.started`
+- [x] `StageGame`: hoàn toàn WS-driven; countdown timer, reveal đáp án khi `.question.closed`, navigate khi `.round.finished` hoặc `.game.finished`
+- [x] `StageLeaderBoard`: gọi API leaderboard thật, hiển thị bảng xếp hạng toàn game
+- [ ] `StageRoundComplete`: UI có nhưng dùng mock data cứng; **không được route đến** (luồng hiện tại bỏ qua màn này)
+- [ ] `StageFinal`: animation và layout xong nhưng **dữ liệu vẫn là mock** — chưa gọi API leaderboard thật
 
-### 2.10 Resolve Merge Conflicts
+### 2.11 Resolve Merge Conflicts & Refactor
 - [x] Giải quyết toàn bộ conflict giữa branch `develop` (socket-based) và stash (polling-based)
-- [x] Thống nhất kiến trúc polling thay thế WebSocket
+- [x] Thống nhất kiến trúc: WebSocket cho player/stage screens, polling cho admin control
 - [x] Fix TypeScript import type errors (`verbatimModuleSyntax: true`)
-- [x] Exclude `src/sockets/` khỏi tsconfig (orphaned socket code)
+- [x] Exclude `src/sockets/` khỏi tsconfig (orphaned legacy hook code, không ảnh hưởng build)
 - [x] Frontend production build pass clean
 
 ---
@@ -109,12 +122,12 @@ Question Management    ██████████  100%  ✅
 Room Creation          ██████████  100%  ✅
 Player Join            ██████████  100%  ✅
 Game Flow (BE)         ██████████  100%  ✅
+WebSocket (Reverb)     ███████░░░   75%  🟡  (admin còn polling)
 Admin Control (FE)     █████████░   95%  ✅
 Player Flow (FE)       █████████░   95%  ✅
-Stage Screens (FE)     ██████░░░░   60%  🟡
-Leaderboard            ███████░░░   70%  🟡
+Stage Screens (FE)     ███████░░░   70%  🟡  (StageFinal + StageRoundComplete còn mock)
+Leaderboard            ███████░░░   70%  🟡  (per-round chưa có)
 Auto-close Timer       ░░░░░░░░░░    0%  ❌
-Real-time (Reverb)     ░░░░░░░░░░    0%  ❌
 Statistics             ░░░░░░░░░░    0%  ❌
 ```
 
@@ -126,24 +139,22 @@ Statistics             ░░░░░░░░░░    0%  ❌
 
 | # | Task | Module | Độ ưu tiên | Ước tính | Phụ thuộc | Ghi chú |
 |---|------|--------|------------|----------|-----------|---------|
-| **F1** | Kết nối `StageFinal` với API leaderboard thật | FE / Stage | 🔴 Cao | 0.5 ngày | Leaderboard API (đã có) | Hiện dùng mock data cứng |
-| **F2** | Kết nối `StageRoundComplete` với API thật | FE / Stage | 🔴 Cao | 1 ngày | Leaderboard API (đã có) | Hiện dùng mock data cứng |
-| **F3** | Navigation sau khi round kết thúc cho Player | FE / Player | 🔴 Cao | 0.5 ngày | — | PlayerGame không redirect khi round/game kết thúc |
-| **F4** | Navigation từ StageLeaderBoard sang màn tiếp theo | FE / Stage | 🔴 Cao | 0.5 ngày | — | Sau leaderboard cần đi về waiting hoặc final |
-| **F5** | Auto-close câu hỏi khi hết giờ (BE) | BE / GameService | 🔴 Cao | 1 ngày | Laravel Queue | Hiện admin phải close thủ công |
-| **F6** | Hiển thị per-round leaderboard (sau mỗi vòng) | BE + FE | 🔴 Cao | 1.5 ngày | Round finish flow | Cần API + UI riêng cho leaderboard từng vòng |
-| **F7** | Admin logout thật sự (server-side) | FE / Navbar | 🟡 Trung bình | 0.5 ngày | — | Hiện chỉ clear localStorage, chưa gọi API |
+| **F1** | Kết nối `StageFinal` với API leaderboard thật | FE / Stage | 🔴 Cao | 0.5 ngày | Leaderboard API (đã có) | Dùng `getLeaderboard(gameId)`, lấy gameId từ searchParams |
+| **F2** | Kết nối `StageRoundComplete` với API thật | FE / Stage | 🔴 Cao | 1 ngày | F14 (per-round leaderboard API) | Cần F14 xong trước; hiện màn này không được route đến |
+| **F5** | Auto-close câu hỏi khi hết giờ (BE) | BE / GameService | 🔴 Cao | 1 ngày | Laravel Queue (`QUEUE_CONNECTION=database`) | Cần `AutoCloseQuestionJob` dispatch với delay |
+| **F6** | Hiển thị per-round leaderboard sau mỗi vòng | BE + FE | 🔴 Cao | 1.5 ngày | F14 | Cần API + route `StageRoundComplete` vào luồng |
+| **F14** | API per-round leaderboard | BE | 🔴 Cao | 0.5 ngày | — | `GET /games/{id}/rounds/{round}/leaderboard`; F2 và F6 phụ thuộc task này |
+| **F7** | Admin logout thật sự (server-side) | FE / Navbar | 🟡 Trung bình | 0.5 ngày | — | Hiện chỉ clear localStorage, chưa gọi `POST /admin/logout` |
 | **F8** | Question edit (update API + UI) | BE + FE | 🟡 Trung bình | 1 ngày | — | `QuestionController.update()` hiện là stub rỗng |
-| **F9** | Question show detail (GET /questions/{id}) | BE | 🟡 Trung bình | 0.5 ngày | — | `QuestionController.show()` hiện là stub rỗng |
+| **F9** | Question show detail (`GET /questions/{id}`) | BE | 🟡 Trung bình | 0.5 ngày | — | `QuestionController.show()` hiện là stub rỗng |
 | **F10** | Validate round_questions khi tạo phòng mode manual | BE | 🟡 Trung bình | 0.5 ngày | — | Chưa validate đủ số câu hỏi per round |
 | **F11** | Tie-breaking: ưu tiên câu trả lời sớm nhất ở vòng cuối | BE / Leaderboard | 🟡 Trung bình | 1 ngày | — | Game spec yêu cầu nhưng chưa implement |
-| **F12** | Admin Dashboard với số liệu tổng quan | FE / Admin | 🟡 Trung bình | 1.5 ngày | Statistics API | `AdminDashboard.tsx` hiện là placeholder |
+| **F12** | Admin Dashboard với số liệu tổng quan | FE / Admin | 🟡 Trung bình | 1.5 ngày | F15 | `AdminDashboard.tsx` hiện là placeholder |
 | **F13** | Export kết quả game ra CSV | BE + FE | 🟡 Trung bình | 1 ngày | Leaderboard API | Button Export CSV đã có trong StageFinal (chưa nối) |
-| **F14** | API per-round leaderboard | BE | 🟡 Trung bình | 0.5 ngày | — | `GET /games/{id}/rounds/{round}/leaderboard` |
 | **F15** | API thống kê game (submissions, tỷ lệ đúng) | BE | 🟡 Trung bình | 1 ngày | — | `GET /admin/games/{id}/statistics` |
 | **F16** | Room update API (đổi tên, cập nhật status) | BE | 🟡 Trung bình | 0.5 ngày | — | `RoomController.update()` có nhưng FE chưa dùng |
-| **F17** | Hiển thị thời gian phản hồi per-câu trong AdminControl | FE / Admin | 🟡 Trung bình | 0.5 ngày | team_submissions API (đã có) | response_time_ms đã có trong submissions |
-| **F18** | Laravel Reverb — replace polling bằng WebSocket | BE + FE | 🟢 Thấp | 3 ngày | — | Giảm latency từ 2s → realtime, ưu tiên sau khi tính năng ổn định |
+| **F17** | Hiển thị thời gian phản hồi per-câu trong AdminControl | FE / Admin | 🟡 Trung bình | 0.5 ngày | — | `response_time_ms` đã có trong submissions, chỉ cần hiển thị |
+| **F18** | AdminGameControl dùng WebSocket thay polling | FE / Admin | 🟢 Thấp | 1 ngày | — | Admin cần thêm data `team_submissions` vào WS event hoặc sub channel riêng |
 | **F19** | Phân quyền nhiều Admin (multi-admin) | BE | 🟢 Thấp | 1.5 ngày | — | Hiện chỉ có 1 admin seeded |
 | **F20** | Rate limiting cho answer submission | BE | 🟢 Thấp | 0.5 ngày | — | Tránh spam API |
 | **F21** | Câu hỏi theo categories/tags | BE + FE | 🟢 Thấp | 2 ngày | — | Schema chưa có, cần migration |
@@ -154,26 +165,21 @@ Statistics             ░░░░░░░░░░    0%  ❌
 
 ### Chi tiết nhóm ưu tiên cao (phải làm trước)
 
+#### F14 + F6 — Per-round Leaderboard (chuỗi phụ thuộc)
+**Thứ tự:** F14 (BE) → F2 (FE StageRoundComplete) + F6 (FE navigation)  
+**BE (F14):** Tạo endpoint `GET /games/{id}/rounds/{round}/leaderboard` — query submissions trong round đó, tính điểm/thời gian, trả về ranked list.  
+**FE (F2):** Thay mock data trong `StageRoundComplete.tsx` bằng call thật. Route `StageGame` khi nhận `.round.finished` event sang `/stage/round-complete?gameId=X&round=Y` thay vì `/stage/leaderboard`.  
+**FE (F6):** `StageRoundComplete` cần nút/logic để navigate: nếu còn round tiếp → `/stage/waiting`; nếu game finished → `/stage/final`.
+
 #### F1 — StageFinal kết nối API thật
 **Vấn đề:** `StageFinal.tsx` dùng `OVERALL_CHAMPION` và `FULL_LEADERBOARD` là mock data cứng.  
 **Giải pháp:** Gọi `getLeaderboard(gameId)` từ `gameService.ts`, lấy `gameId` từ `useSearchParams`.  
 **Kết quả mong đợi:** Champion = `data[0]`, Full standings = toàn bộ `data` array.
 
-#### F2 — StageRoundComplete kết nối API thật
-**Vấn đề:** `StageRoundComplete.tsx` dùng mock `ROUND_STATS`, `TOP_TEAMS`. Nút điều hướng có chữ `[MOCK]`.  
-**Giải pháp:** Cần thêm API `GET /games/{id}/rounds/{round}/leaderboard` (task F14), sau đó nối FE.
-
-#### F3 — PlayerGame navigation khi round/game kết thúc
-**Vấn đề:** Khi game status = `finished` hoặc round status = `finished`, PlayerGame không tự navigate.  
-**Giải pháp:** Trong polling loop của PlayerGame, check `state.status === "finished"` → navigate về `/join`; check `!state.current_round` → hiện màn "Chờ vòng tiếp theo".
-
-#### F4 — StageLeaderBoard navigation
-**Vấn đề:** `StageLeaderBoard.tsx` không có nút/logic để chuyển sang màn tiếp theo.  
-**Giải pháp:** Polling game state trong StageLeaderBoard; nếu game `finished` → `/stage/final`; nếu có round mới `pending` → `/stage/waiting`.
-
 #### F5 — Auto-close câu hỏi khi hết giờ
 **Vấn đề:** Timer đếm ngược ở FE nhưng backend không tự đóng câu hỏi. Admin phải bấm Close thủ công.  
-**Giải pháp:** Dispatch Laravel Job khi `openNextQuestion()` với `delay = time_limit_seconds`. Job gọi `closeCurrentQuestion()`. Cần `QUEUE_CONNECTION=database` và `php artisan queue:work`.
+**Giải pháp:** Trong `GameService::openNextQuestion()`, dispatch `AutoCloseQuestionJob` với delay = `time_limit_seconds`. Job gọi `closeCurrentQuestion()` và broadcast `QuestionClosed`.  
+**Cần:** `QUEUE_CONNECTION=database`, migration `jobs` table, `php artisan queue:work` chạy trong container.
 
 ---
 
@@ -181,12 +187,15 @@ Statistics             ░░░░░░░░░░    0%  ❌
 
 | # | Vấn đề | Mức độ | Ghi chú |
 |---|--------|--------|---------|
-| T1 | `src/sockets/` — orphaned socket code từ branch merge | Thấp | Đã exclude khỏi tsconfig, không ảnh hưởng build |
+| T1 | `src/sockets/` — `useGameSocket.ts` và `register-game-listeners.ts` là orphaned code (hooks cũ, không được import) | Thấp | Đã exclude khỏi tsconfig; components dùng trực tiếp `getGameChannel()` + `channel.listen()` thay vì hook |
 | T2 | `RoomController.index()` trả về paginated nhưng FE dùng flat array qua `GameController.index()` | Thấp | Workaround đang hoạt động, cần refactor |
-| T3 | `getQuestions()` trong FE trả về paginated data, AdminRoom gọi `data.map()` trực tiếp | Trung bình | Có thể gây bug nếu > 20 câu hỏi (trang đầu tiên thôi) |
+| T3 | `getQuestions()` trong FE trả về paginated data, AdminRoom gọi `data.map()` trực tiếp | Trung bình | Có thể gây bug nếu > 20 câu hỏi (chỉ lấy trang đầu) |
 | T4 | Migration `2026_05_25_000001` và `2026_05_25_000002` chưa chạy (untracked) | Cao | Cần kiểm tra và `php artisan migrate` |
 | T5 | `round_results` và `game_results` table — schema có nhưng không dùng | Thấp | Có thể dùng sau cho statistics |
-| T6 | Polling 2s — tốn bandwidth, độ trễ tối đa 2s | Thấp | Sẽ replace bằng Reverb khi ổn định (F18) |
+| T6 | `StageRoundComplete` có UI nhưng không được route đến trong luồng hiện tại | Trung bình | Chờ F14 xong mới wire vào |
+| T7 | `StageFinal` dùng mock data — dễ gây nhầm khi demo | Cao | Fix nhanh (F1), chỉ cần 1 dòng gọi API |
+| T8 | AdminGameControl dùng polling 2s trong khi các màn khác đã dùng WS | Thấp | Admin cần `team_submissions` realtime; cân nhắc thêm data vào `QuestionStarted` event |
+| T9 | `gameStore.ts` được define nhưng không dùng — components quản lý state cục bộ qua `useState` | Thấp | Không gây bug nhưng tạo confusion; cân nhắc xóa hoặc dùng nhất quán |
 
 ---
 
@@ -200,11 +209,16 @@ php artisan migrate --seed   # admin@quiz.com / password
 
 # Frontend
 cd quiz-fe
-cp .env.example .env         # set VITE_API_BASE_URL=http://localhost:8000/api
+cp .env.example .env
+# Set các biến:
+#   VITE_API_BASE_URL=http://localhost:8000/api
+#   VITE_REVERB_APP_KEY=<key>
+#   VITE_REVERB_HOST=localhost
+#   VITE_REVERB_PORT=8080
 npm install && npm run dev
 
 # Build check
-npm run build   # ✅ passes clean as of 2026-05-26
+npm run build   # ✅ passes clean as of 2026-05-27
 ```
 
 ---

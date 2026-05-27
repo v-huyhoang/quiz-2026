@@ -6,7 +6,7 @@
 > ```json
 > { "success": true, "code": 200, "message": "...", "data": {...} }
 > ```
-> **Cập nhật:** 2026-05-26
+> **Cập nhật:** 2026-05-27
 
 ---
 
@@ -17,7 +17,11 @@
 - [Rooms](#3-rooms)
 - [Game Flow — Public](#4-game-flow--public)
 - [Game Flow — Admin](#5-game-flow--admin)
-- [APIs cần tạo mới](#6-apis-cần-tạo-mới-planned)
+- [WebSocket Events (Reverb)](#6-websocket-events-reverb)
+- [APIs cần tạo mới](#7-apis-cần-tạo-mới-planned)
+- [Game State Machine](#8-game-state-machine)
+- [Frontend API Clients](#9-frontend-api-clients)
+- [Error Response Format](#10-error-response-format)
 
 ---
 
@@ -348,6 +352,8 @@ Player join phòng bằng mã phòng.
 ### GET `/games/{id}/state`
 Lấy trạng thái game (public view — ẩn đáp án đúng khi câu hỏi đang mở).
 
+> **Lưu ý sử dụng:** Endpoint này chủ yếu dùng để lấy initial state khi component mount. Các cập nhật real-time sau đó được nhận qua **WebSocket events** (xem [Section 6](#6-websocket-events-reverb)).
+
 **URL param:** `id` — game ID  
 **Response 200:**
 ```json
@@ -480,6 +486,8 @@ Player nộp câu trả lời.
 ### GET `/admin/games/{id}/state`
 Trạng thái game đầy đủ cho admin — bao gồm thông tin submission của từng đội.
 
+> **Lưu ý sử dụng:** `AdminGameControl` dùng endpoint này theo cơ chế **polling 2 giây** (không dùng WebSocket) để luôn có dữ liệu `team_submissions` đầy đủ.
+
 **Response 200:** Giống `GET /games/{id}/state` nhưng:
 - `is_correct` luôn trả về giá trị thật (kể cả khi câu đang `open`)
 - `current_question` có thêm field `team_submissions`:
@@ -518,6 +526,8 @@ Trạng thái game đầy đủ cho admin — bao gồm thông tin submission c�
 ### POST `/admin/games/{id}/start`
 Bắt đầu game (chuyển từ `pending` → `active`).
 
+> **Side effect:** Dispatch WebSocket event `GameStarted` đến tất cả clients.
+
 **Precondition:** `game.status === "pending"`  
 **Response 200:**
 ```json
@@ -552,6 +562,8 @@ Bắt đầu vòng tiếp theo (lấy round `pending` đầu tiên theo `round_n
 ### POST `/admin/games/{id}/open-question`
 Mở câu hỏi tiếp theo trong round đang active (câu `pending` đầu tiên theo `order_number`).
 
+> **Side effect:** Dispatch WebSocket event `QuestionStarted` đến tất cả clients.
+
 **Precondition:** Không có câu nào đang `open`  
 **Response 200:**
 ```json
@@ -568,6 +580,8 @@ Mở câu hỏi tiếp theo trong round đang active (câu `pending` đầu tiê
 
 ### POST `/admin/games/{id}/close-question`
 Đóng câu hỏi đang mở (chuyển `open` → `closed`, ghi `closed_at`).
+
+> **Side effect:** Dispatch WebSocket event `QuestionClosed` — lúc này `is_correct` được reveal cho tất cả clients.
 
 **Precondition:** Có đúng 1 câu hỏi đang `open`  
 **Response 200:**
@@ -586,6 +600,8 @@ Mở câu hỏi tiếp theo trong round đang active (câu `pending` đầu tiê
 ### POST `/admin/games/{id}/finish-round`
 Kết thúc vòng đang active (chuyển `active` → `finished`).
 
+> **Side effect:** Dispatch WebSocket event `RoundFinished` — màn chiếu tự navigate về leaderboard.
+
 **Precondition:** Có round đang `active`  
 **Response 200:**
 ```json
@@ -603,6 +619,8 @@ Kết thúc vòng đang active (chuyển `active` → `finished`).
 ### POST `/admin/games/{id}/finish`
 Kết thúc toàn bộ game (chuyển `active` → `finished`).
 
+> **Side effect:** Dispatch WebSocket event `GameFinished` — tất cả clients tự navigate về màn kết thúc.
+
 **Precondition:** `game.status === "active"`  
 **Response 200:**
 ```json
@@ -617,9 +635,125 @@ Kết thúc toàn bộ game (chuyển `active` → `finished`).
 
 ---
 
-## 6. APIs cần tạo mới (PLANNED)
+## 6. WebSocket Events (Reverb)
 
-### 6.1 GET `/admin/questions/{id}` — Xem chi tiết câu hỏi
+> **Cơ sở hạ tầng:** Laravel Reverb (port 8080) + Laravel Echo (pusher-js) trên FE  
+> **Channel:** `game.{gameId}` — public channel, tất cả clients trong game đều subscribe  
+> **Kết nối FE:** `src/sockets/echo.ts` → `getGameChannel(gameId)` → `channel.listen(".event.name", handler)`
+
+### Danh sách events
+
+| Event (BE class) | Event name (FE listener) | Trigger | Channels |
+|---|---|---|---|
+| `TeamJoined` | `.team.joined` | Player join thành công | `game.{gameId}` |
+| `GameStarted` | `.game.started` | Admin nhấn Start Game | `game.{gameId}`, `stage`, `admin` |
+| `QuestionStarted` | `.question.started` | Admin nhấn Open Question | `game.{gameId}`, `stage`, `admin` |
+| `QuestionClosed` | `.question.closed` | Admin nhấn Close Question | `game.{gameId}`, `stage`, `admin` |
+| `RoundFinished` | `.round.finished` | Admin nhấn Finish Round | `game.{gameId}`, `stage`, `admin` |
+| `GameFinished` | `.game.finished` | Admin nhấn Finish Game | `game.{gameId}`, `stage`, `admin` |
+
+---
+
+### Event Payloads
+
+#### `.team.joined`
+```json
+{
+  "team": {
+    "id": 7,
+    "name": "Neon Knights"
+  }
+}
+```
+
+#### `.game.started`
+```json
+{
+  "game_id": 1,
+  "status": "active"
+}
+```
+
+#### `.question.started`
+```json
+{
+  "round_question_id": 5,
+  "order_number": 3,
+  "time_limit_seconds": 20,
+  "question": {
+    "content": "Hành tinh lớn nhất Hệ Mặt Trời?",
+    "answers": [
+      { "id": 1, "content": "Sao Mộc" },
+      { "id": 2, "content": "Sao Thổ" },
+      { "id": 3, "content": "Trái Đất" },
+      { "id": 4, "content": "Sao Hỏa" }
+    ]
+  }
+}
+```
+> **Lưu ý:** `is_correct` **không có** trong payload này — bảo mật, chỉ reveal khi `question.closed`.
+
+#### `.question.closed`
+```json
+{
+  "question": {
+    "round_question_id": 5,
+    "answers": [
+      { "id": 1, "content": "Sao Mộc", "is_correct": true },
+      { "id": 2, "content": "Sao Thổ", "is_correct": false },
+      { "id": 3, "content": "Trái Đất", "is_correct": false },
+      { "id": 4, "content": "Sao Hỏa", "is_correct": false }
+    ]
+  }
+}
+```
+
+#### `.round.finished`
+```json
+{
+  "round_number": 1
+}
+```
+
+#### `.game.finished`
+```json
+{
+  /* full game object */
+}
+```
+
+---
+
+### Cơ chế FE
+
+```typescript
+// Khởi tạo kết nối
+const channel = getGameChannel(String(gameId)); // từ src/sockets/echo.ts
+
+// Lắng nghe events
+channel.listen(".question.started", (data: QuestionStartedEvent) => { ... });
+channel.listen(".question.closed",  (data: QuestionClosedEvent)  => { ... });
+
+// Cleanup khi component unmount
+getEcho().leave(`game.${gameId}`);
+```
+
+### Màn hình sử dụng WebSocket
+
+| Màn hình | Events lắng nghe | Ghi chú |
+|---|---|---|
+| `PlayerWaiting` | `.team.joined`, `.game.started` | Initial state từ API, sau đó WS |
+| `PlayerGame` | `.question.started`, `.question.closed`, `.game.finished` | Initial state từ API, sau đó WS |
+| `StageWaitting` | `.team.joined`, `.question.started`, `.game.finished` | Initial state từ API, sau đó WS |
+| `StageGame` | `.question.started`, `.question.closed`, `.round.finished`, `.game.finished` | Hoàn toàn WS-driven |
+| `AdminGameControl` | — | Dùng polling 2s (không dùng WS) |
+| `StageLeaderBoard` | — | Chỉ gọi API một lần |
+
+---
+
+## 7. APIs cần tạo mới (PLANNED)
+
+### 7.1 GET `/admin/questions/{id}` — Xem chi tiết câu hỏi
 > **Độ ưu tiên:** 🟡 Trung bình | **Task:** F9
 
 **Response 200:**
@@ -641,7 +775,7 @@ Kết thúc toàn bộ game (chuyển `active` → `finished`).
 
 ---
 
-### 6.2 PUT `/admin/questions/{id}` — Cập nhật câu hỏi
+### 7.2 PUT `/admin/questions/{id}` — Cập nhật câu hỏi
 > **Độ ưu tiên:** 🟡 Trung bình | **Task:** F8
 
 **Request body (partial update):**
@@ -661,7 +795,7 @@ Kết thúc toàn bộ game (chuyển `active` → `finished`).
 
 ---
 
-### 6.3 GET `/games/{id}/rounds/{roundNumber}/leaderboard` — Leaderboard theo vòng
+### 7.3 GET `/games/{id}/rounds/{roundNumber}/leaderboard` — Leaderboard theo vòng
 > **Độ ưu tiên:** 🔴 Cao | **Task:** F6, F14
 
 Cần cho `StageRoundComplete` và hiển thị kết quả từng vòng.
@@ -687,7 +821,7 @@ Cần cho `StageRoundComplete` và hiển thị kết quả từng vòng.
 
 ---
 
-### 6.4 GET `/admin/games/{id}/statistics` — Thống kê game
+### 7.4 GET `/admin/games/{id}/statistics` — Thống kê game
 > **Độ ưu tiên:** 🟡 Trung bình | **Task:** F15
 
 Dùng cho Admin Dashboard.
@@ -720,7 +854,7 @@ Dùng cho Admin Dashboard.
 
 ---
 
-### 6.5 GET `/admin/games/{id}/export` — Export kết quả game ra CSV
+### 7.5 GET `/admin/games/{id}/export` — Export kết quả game ra CSV
 > **Độ ưu tiên:** 🟡 Trung bình | **Task:** F13
 
 **Response:** File download `text/csv`  
@@ -733,7 +867,7 @@ rank,team_name,correct_count,total_time_seconds
 
 ---
 
-### 6.6 POST `/admin/games/{id}/reset` — Reset game về pending
+### 7.6 POST `/admin/games/{id}/reset` — Reset game về pending
 > **Độ ưu tiên:** 🟢 Thấp | **Task:** F23
 
 Reset game để chơi lại: xóa submissions, đặt lại trạng thái rounds và round_questions.
@@ -750,22 +884,22 @@ Reset game để chơi lại: xóa submissions, đặt lại trạng thái round
 
 ---
 
-### 6.7 POST `/admin/games/{id}/auto-close` — Tự động đóng câu hỏi khi hết giờ
-> **Độ ưu tiên:** 🔴 Cao | **Task:** F5 (Internal — không gọi từ FE)
+### 7.7 Auto-close câu hỏi khi hết giờ (Internal)
+> **Độ ưu tiên:** 🔴 Cao | **Task:** F5
 
-Đây là endpoint nội bộ do Laravel Queue Job gọi sau khi hết `time_limit_seconds`.  
-Hoặc implement trực tiếp trong `openNextQuestion()` bằng cách dispatch Job có delay.
+Hiện tại admin phải đóng câu hỏi thủ công. Cần implement Laravel Queue Job để tự động đóng sau `time_limit_seconds`.
 
-**Cơ chế:**
+**Cơ chế đề xuất:**
 ```php
 // Trong GameService::openNextQuestion()
 dispatch(new AutoCloseQuestionJob($rq->id))
     ->delay(now()->addSeconds($question->time_limit_seconds));
 ```
+Yêu cầu: `QUEUE_CONNECTION=database` và `php artisan queue:work` chạy trong container.
 
 ---
 
-## 7. Game State Machine
+## 8. Game State Machine
 
 ### Game Status
 ```
@@ -779,32 +913,37 @@ pending ──[admin: start-round]──► active ──[admin: finish-round]�
 
 ### RoundQuestion Status
 ```
-pending ──[admin: open-question]──► open ──[admin: close-question]──► closed
+pending ──[admin: open-question]──► open ──[admin: close-question / auto-close]──► closed
 ```
 
 ### Luồng hoàn chỉnh
 ```
 1. Admin tạo phòng (POST /admin/rooms)
 2. Player quét QR → join phòng (POST /rooms/{code}/join)
+   → WS event: .team.joined broadcast đến lobby
 3. Admin bắt đầu game (POST /admin/games/{id}/start)
+   → WS event: .game.started → PlayerWaiting & StageWaitting tự navigate
 4. Lặp cho mỗi vòng:
    4a. Admin bắt đầu vòng (POST /admin/games/{id}/start-round)
    4b. Lặp cho mỗi câu hỏi:
        4b1. Admin mở câu hỏi (POST /admin/games/{id}/open-question)
+            → WS event: .question.started → PlayerGame & StageGame hiển thị câu hỏi + countdown
        4b2. Players nộp bài (POST /games/submit) — trong time_limit_seconds
        4b3. Admin đóng câu hỏi (POST /admin/games/{id}/close-question)
-       4b4. Màn chiếu hiển thị đáp án đúng (2-3 giây)
+            → WS event: .question.closed → PlayerGame & StageGame reveal đáp án đúng
    4c. Admin kết thúc vòng (POST /admin/games/{id}/finish-round)
-   4d. Màn chiếu hiển thị leaderboard vòng
+       → WS event: .round.finished → StageGame navigate về /stage/leaderboard
+   4d. Màn chiếu hiển thị leaderboard vòng (StageLeaderBoard gọi API)
 5. Admin kết thúc game (POST /admin/games/{id}/finish)
-6. Màn chiếu hiển thị Final leaderboard
+   → WS event: .game.finished → tất cả clients navigate về màn kết thúc
+6. Màn chiếu hiển thị Final leaderboard (StageFinal)
 ```
 
 ---
 
-## 8. Frontend API Clients
+## 9. Frontend API Clients
 
-Tất cả API call đi qua `quiz-fe/src/services/`:
+### Service files (`quiz-fe/src/services/`)
 
 | File | Endpoints |
 |------|-----------|
@@ -813,14 +952,30 @@ Tất cả API call đi qua `quiz-fe/src/services/`:
 | `roomService.ts` | getRooms, createRoom, deleteRoom |
 | `gameService.ts` | getPublicGameState, getLeaderboard, submitAnswer, getAdminGameState, startGame, startRound, openQuestion, closeQuestion, finishRound, finishGame |
 
-**Axios instance** (`src/services/api.ts`):
+### WebSocket (`quiz-fe/src/sockets/`)
+
+| File | Mục đích |
+|------|----------|
+| `echo.ts` | Khởi tạo Laravel Echo instance, export `getEcho()`, `getGameChannel(id)` |
+
+### Axios instance (`src/services/api.ts`)
 - Base URL: `VITE_API_BASE_URL`
 - Auto-attach `Authorization: Bearer {token}` từ Zustand `useAuthStore`
 - On 401: clear auth + redirect về `/admin/login` hoặc `/join` tùy role
 
+### Kiến trúc Real-time
+
+```
+Components cần real-time:
+  PlayerWaiting, PlayerGame  ──► WebSocket (game.{gameId} channel)
+  StageWaitting, StageGame   ──► WebSocket (game.{gameId} channel)
+  AdminGameControl            ──► Polling 2s (HTTP GET /admin/games/{id}/state)
+  StageLeaderBoard            ──► HTTP one-shot (GET /games/{id}/leaderboard)
+```
+
 ---
 
-## 9. Error Response Format
+## 10. Error Response Format
 
 ```json
 {
