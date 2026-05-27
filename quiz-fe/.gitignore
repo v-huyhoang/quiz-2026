@@ -7,12 +7,26 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
+# Build output
 dist
 dist-ssr
-*.local
 
-# Editor directories and files
+# Dependencies
+node_modules
+
+# Yarn Berry — cache & state (không commit, nhưng .yarnrc.yml thì commit)
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Environment (chỉ ignore file thực, không ignore .env.example)
+.env
+.env.local
+.env.*.local
+
+# Editor
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,4 +36,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-*.env

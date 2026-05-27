@@ -60,7 +60,7 @@ help: ## Display list of main commands
 .PHONY: setup
 setup: ## Install whole project for first time (env + build + composer/yarn + migrate + seed)
 	@echo "$(CYAN)▶ [1/6] Creating .env files...$(RESET)"
-	@[ -f $(BE_DIR)/.env ] || cp $(BE_DIR)/.env.example $(BE_DIR)/.env
+	@[ -f $(BE_DIR)/.env ] || cp $(BE_DIR)/.env.dev $(BE_DIR)/.env
 	@[ -f $(FE_DIR)/.env ] || cp $(FE_DIR)/.env.example $(FE_DIR)/.env
 	@echo "$(CYAN)▶ [2/6] Building and starting Docker (full stack)...$(RESET)"
 	@docker compose $(FULL_COMPOSE) up -d --build
