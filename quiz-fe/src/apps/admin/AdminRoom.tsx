@@ -327,7 +327,7 @@ export const AdminRoom = () => {
                   LAUNCH SESSION
                 </button>
                 <button
-                  onClick={() => window.open(`/stage/waiting?roomCode=${room.accessCode}`, "_blank")}
+                  onClick={() => window.open(`/stage/waiting?gameId=${room.id}`, "_blank")}
                   className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-purple-700 transition-all"
                 >
                   STAGE SCREEN

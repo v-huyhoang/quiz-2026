@@ -196,6 +196,20 @@ class GameController extends Controller
         }
     }
 
+    public function leave(int $id)
+    {
+        $team = request()->user();
+        broadcast(new \App\Events\TeamLeft($id, ['id' => $team->id, 'name' => $team->name]));
+        return $this->successResponse(null, 'Left');
+    }
+
+    public function announce(int $id)
+    {
+        $team = request()->user();
+        broadcast(new TeamJoined($id, ['id' => $team->id, 'name' => $team->name]));
+        return $this->successResponse(null, 'Announced');
+    }
+
     // Legacy methods kept for compatibility
     public function getActive()
     {

@@ -78,7 +78,7 @@ export default function PlayerWaiting() {
 
           <div className="relative z-10 flex flex-col items-center gap-1">
             <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Đội của bạn</p>
-            <p className="text-2xl font-black text-gray-900">{teamName ?? "Unknown Team"}</p>
+            <p className="text-2xl uppercase truncate font-black text-gray-900">{teamName ?? "Unknown Team"}</p>
             <p className="text-xs text-gray-400 font-mono">#{teamId}</p>
           </div>
 
