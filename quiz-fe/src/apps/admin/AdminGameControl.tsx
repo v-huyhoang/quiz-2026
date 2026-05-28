@@ -62,6 +62,27 @@ export default function AdminGameControl() {
     }
   }, []);
 
+  // ── Auto-close question when timer expires ────────────────────────────────────
+  useEffect(() => {
+    const q = gameState?.current_round?.current_question;
+    if (!q || q.status !== "open" || !q.opened_at) return;
+
+    const deadline  = new Date(q.opened_at).getTime() + q.time_limit_seconds * 1000;
+    const remaining = deadline - Date.now();
+
+    if (remaining <= 0) {
+      act(() => closeQuestion(id));
+      return;
+    }
+
+    const timer = setTimeout(() => act(() => closeQuestion(id)), remaining);
+    return () => clearTimeout(timer);
+  }, [
+    gameState?.current_round?.current_question?.round_question_id,
+    gameState?.current_round?.current_question?.status,
+    act, id,
+  ]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f3f4f6] flex items-center justify-center">
@@ -83,12 +104,12 @@ export default function AdminGameControl() {
   const teams    = gameState.teams;
   const submissions = question?.team_submissions ?? [];
 
+  const isLastRound    = !!round && round.round_number === gameState.rounds_total;
   const canStartGame   = gameState.status === "pending";
   const canStartRound  = gameState.status === "active" && !round;
-  const canOpenQ       = !!round && !question && round.status === "active";
   const canCloseQ      = question?.status === "open";
   const canOpenNext    = question?.status === "closed" && round && round.questions_done < round.total_questions;
-  const canFinishRound = !!round && round.status === "active" && question?.status !== "open";
+  const canFinishRound = !isLastRound && !!round && round.status === "active" && question?.status === "closed";
   const canFinishGame  = gameState.status === "active";
 
   return (
@@ -247,15 +268,6 @@ export default function AdminGameControl() {
                         label="Bắt đầu vòng"
                         loading={actionLoading}
                         onClick={() => act(() => startRound(id))}
-                      />
-                    )}
-                    {canOpenQ && (
-                      <CtrlBtn
-                        color="bg-green-500"
-                        icon={<Play size={16} />}
-                        label="Mở câu hỏi"
-                        loading={actionLoading}
-                        onClick={() => act(() => openQuestion(id))}
                       />
                     )}
                     {canCloseQ && (

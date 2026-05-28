@@ -47,8 +47,9 @@ class GameStarted implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
-            'game_id' => $this->game->id,
-            'status'  => $this->game->status,
+            'game_id'      => $this->game->id,
+            'status'       => $this->game->status,
+            'rounds_total' => $this->game->rounds,
         ];
     }
 }
