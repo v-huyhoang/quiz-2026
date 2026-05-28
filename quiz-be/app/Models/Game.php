@@ -30,4 +30,9 @@ class Game extends Model
     {
         return $this->hasMany(Round::class);
     }
+
+    public function teams()
+    {
+        return $this->hasMany(Team::class);
+    }
 }
