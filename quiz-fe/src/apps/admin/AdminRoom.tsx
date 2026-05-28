@@ -273,10 +273,10 @@ export const AdminRoom = () => {
                 <div className="flex justify-between items-start mb-4">
                   <span
                     className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${room.status === "active"
-                        ? "bg-green-100 text-green-600"
-                        : room.status === "finished"
-                          ? "bg-red-100 text-red-500"
-                          : "bg-gray-100 text-gray-500"
+                      ? "bg-green-100 text-green-600"
+                      : room.status === "finished"
+                        ? "bg-red-100 text-red-500"
+                        : "bg-gray-100 text-gray-500"
                       }`}
                   >
                     {room.status}
@@ -321,9 +321,7 @@ export const AdminRoom = () => {
 
               <div className="px-6 py-4 bg-gray-50 flex gap-3">
                 <button
-                  onClick={() =>
-                    navigate(`/admin/game-control?roomId=${room.id}`)
-                  }
+                  onClick={() => navigate(`/admin/game-control/${room.id}`)}
                   className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-primary/90 transition-all"
                 >
                   LAUNCH SESSION
@@ -383,10 +381,10 @@ export const AdminRoom = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               className={`bg-white w-full rounded-2xl p-8 shadow-2xl transition-all duration-300 overflow-y-auto max-h-[90vh] ${step === "step2_questions"
-                  ? "max-w-3xl"
-                  : step === "detail"
-                    ? "max-w-4xl"
-                    : "max-w-xl"
+                ? "max-w-3xl"
+                : step === "detail"
+                  ? "max-w-4xl"
+                  : "max-w-xl"
                 }`}
             >
               <AnimatePresence mode="wait">
@@ -537,8 +535,8 @@ export const AdminRoom = () => {
                           setForm((f) => ({ ...f, questionMode: "random" }))
                         }
                         className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${form.questionMode === "random"
-                            ? "border-primary bg-primary/5 text-primary"
-                            : "border-gray-200 text-gray-400 hover:border-gray-300"
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-gray-200 text-gray-400 hover:border-gray-300"
                           }`}
                       >
                         <Dices size={24} />
@@ -555,8 +553,8 @@ export const AdminRoom = () => {
                           setForm((f) => ({ ...f, questionMode: "manual" }))
                         }
                         className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${form.questionMode === "manual"
-                            ? "border-primary bg-primary/5 text-primary"
-                            : "border-gray-200 text-gray-400 hover:border-gray-300"
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-gray-200 text-gray-400 hover:border-gray-300"
                           }`}
                       >
                         <ListChecks size={24} />
@@ -596,8 +594,8 @@ export const AdminRoom = () => {
                                     key={rNum}
                                     onClick={() => setActiveRoundTab(rNum)}
                                     className={`p-3 rounded-xl border flex justify-between items-center transition-all ${activeRoundTab === rNum
-                                        ? "bg-primary text-white border-primary shadow-md"
-                                        : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                                      ? "bg-primary text-white border-primary shadow-md"
+                                      : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
                                       }`}
                                   >
                                     <span className="font-bold text-sm">
@@ -605,8 +603,8 @@ export const AdminRoom = () => {
                                     </span>
                                     <span
                                       className={`text-xs font-bold px-2 py-0.5 rounded-full ${activeRoundTab === rNum
-                                          ? "bg-white/20"
-                                          : "bg-white border border-gray-200"
+                                        ? "bg-white/20"
+                                        : "bg-white border border-gray-200"
                                         }`}
                                     >
                                       {selectedCount}/{maxQuestions}
@@ -648,14 +646,14 @@ export const AdminRoom = () => {
                                         toggleQuestionSelection(q.id)
                                       }
                                       className={`p-3 rounded-lg border-2 cursor-pointer transition-all flex items-start gap-3 ${isSelected
-                                          ? "border-primary bg-primary/5"
-                                          : "border-transparent bg-white hover:border-gray-200"
+                                        ? "border-primary bg-primary/5"
+                                        : "border-transparent bg-white hover:border-gray-200"
                                         }`}
                                     >
                                       <div
                                         className={`w-5 h-5 rounded border mt-0.5 flex items-center justify-center shrink-0 ${isSelected
-                                            ? "bg-primary border-primary text-white"
-                                            : "border-gray-300"
+                                          ? "bg-primary border-primary text-white"
+                                          : "border-gray-300"
                                           }`}
                                       >
                                         {isSelected && <CheckCheck size={12} />}

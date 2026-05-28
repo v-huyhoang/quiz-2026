@@ -23,9 +23,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      useAuthStore.getState().clearAuth();
-      // Redirect based on role
       const role = useAuthStore.getState().role;
+      useAuthStore.getState().clearAuth();
       window.location.href = role === "admin" ? "/admin/login" : "/join";
     }
     return Promise.reject(error);
