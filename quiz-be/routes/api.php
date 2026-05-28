@@ -7,6 +7,8 @@ Route::post('/rooms/{code}/join', [\App\Http\Controllers\GameController::class, 
 Route::get('/games/{id}/state', [\App\Http\Controllers\GameController::class, 'publicState']);
 Route::get('/games/{id}/leaderboard', [\App\Http\Controllers\GameController::class, 'leaderboard']);
 
+Route::get('/rooms/code/{code}', [\App\Http\Controllers\RoomController::class, 'getByCode']);
+
 // ── Player (authenticated as team via player-token) ───────────────────────────
 Route::middleware('auth:sanctum')->post('/games/submit', [\App\Http\Controllers\GameController::class, 'submitAnswer']);
 

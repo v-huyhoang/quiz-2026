@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Group, UserPlus, Clock } from "lucide-react";
 import { motion } from "motion/react";
+import { useGameStore } from "../../store/gameStore";
 import { useAuthStore } from "../../store/authStore";
 import { getPublicGameState, type GameTeam } from "../../services/gameService";
 import { getGameChannel } from "../../sockets/channels/game-channel";
@@ -14,13 +15,14 @@ export default function PlayerWaiting() {
   const navigate = useNavigate();
 
   const [teams, setTeams] = useState<GameTeam[]>([]);
+  const { gameStatus, currentQuestion } = useGameStore();
 
   // ── Initial state fetch ────────────────────────────────────────────────────
   useEffect(() => {
     if (!gameId) return;
     getPublicGameState(gameId)
       .then((res) => setTeams(res.data.data.teams))
-      .catch(() => {});
+      .catch(() => { });
   }, [gameId]);
 
   // ── WebSocket subscription ─────────────────────────────────────────────────
@@ -44,12 +46,17 @@ export default function PlayerWaiting() {
     };
   }, [gameId, navigate]);
 
+  useEffect(() => {
+    if (gameStatus === "active" || currentQuestion) {
+      navigate("/player/game");
+    }
+  }, [currentQuestion, gameStatus, navigate]);
+
   const emptySlots = MAX_TEAMS - teams.length;
 
   return (
     <div className="min-h-screen bg-surface flex flex-col pt-20">
       <main className="flex-grow w-full max-w-5xl mx-auto px-6 py-12 flex flex-col items-center">
-
         {/* Status banner */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -59,9 +66,13 @@ export default function PlayerWaiting() {
           <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
 
           <div className="relative z-10 flex items-center justify-center gap-3 mb-1">
-            <div className="w-3 h-3 rounded-full bg-primary animate-ping" />
-            <h1 className="text-2xl font-bold text-primary uppercase tracking-widest">
-              Đã kết nối
+            <div
+              className={`w-3 h-3 rounded-full ${gameStatus === "active" ? "bg-green-500" : "bg-primary"} ${gameStatus === "active" ? "animate-pulse" : "animate-ping"}`}
+            />
+            <h1
+              className={`text-2xl font-bold uppercase tracking-widest ${gameStatus === "active" ? "text-green-600" : "text-primary"}`}
+            >
+              {gameStatus === "active" ? "Game has started" : "Đã kết nối"}
             </h1>
           </div>
 
@@ -72,8 +83,21 @@ export default function PlayerWaiting() {
           </div>
 
           <div className="relative z-10 flex items-center gap-2 mt-2">
-            <Clock size={14} className="animate-pulse text-gray-500" />
-            <p className="font-medium text-sm text-gray-500">Chờ Host bắt đầu...</p>
+            <Clock
+              size={14}
+              className={
+                gameStatus === "active"
+                  ? "animate-pulse text-green-600"
+                  : "animate-pulse text-gray-500"
+              }
+            />
+            <p
+              className={`font-medium text-sm ${gameStatus === "active" ? "text-green-600" : "text-gray-500"}`}
+            >
+              {gameStatus === "active"
+                ? "Please wait for question..."
+                : "Chờ Host bắt đầu..."}
+            </p>
           </div>
 
           <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden z-10">
@@ -102,9 +126,8 @@ export default function PlayerWaiting() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.05 }}
-                className={`bg-white border-2 p-4 rounded-xl flex items-center gap-3 shadow-sm ${
-                  team.id === teamId ? "border-primary shadow-primary/20" : "border-primary/30"
-                }`}
+                className={`bg-white border-2 p-4 rounded-xl flex items-center gap-3 shadow-sm ${team.id === teamId ? "border-primary shadow-primary/20" : "border-primary/30"
+                  }`}
               >
                 <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shrink-0 text-sm font-black">
                   {team.name.charAt(0).toUpperCase()}

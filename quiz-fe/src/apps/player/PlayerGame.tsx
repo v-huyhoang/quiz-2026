@@ -29,9 +29,9 @@ interface QuestionClosedEvent {
 export default function PlayerGame() {
   const { gameId } = useAuthStore();
 
-  const [gameState, setGameState]     = useState<GameState | null>(null);
-  const [selectedId, setSelectedId]   = useState<number | null>(null);
-  const [submitting, setSubmitting]   = useState(false);
+  const [gameState, setGameState] = useState<GameState | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
   const submittedRqId = useRef<number | null>(null);
@@ -41,7 +41,7 @@ export default function PlayerGame() {
     if (!gameId) return;
     getPublicGameState(gameId)
       .then((res) => setGameState(res.data.data))
-      .catch(() => {});
+      .catch(() => { });
   }, [gameId]);
 
   // ── WebSocket subscription ────────────────────────────────────────────────────
@@ -61,17 +61,17 @@ export default function PlayerGame() {
           ...prev,
           current_round: prev.current_round
             ? {
-                ...prev.current_round,
-                current_question: {
-                  round_question_id:  data.round_question_id,
-                  order_number:       data.order_number,
-                  content:            data.question.content,
-                  status:             "open",
-                  opened_at:          new Date().toISOString(),
-                  time_limit_seconds: data.time_limit_seconds,
-                  answers:            data.question.answers,
-                },
-              }
+              ...prev.current_round,
+              current_question: {
+                round_question_id: data.round_question_id,
+                order_number: data.order_number,
+                content: data.question.content,
+                status: "open",
+                opened_at: new Date().toISOString(),
+                time_limit_seconds: data.time_limit_seconds,
+                answers: data.question.answers,
+              },
+            }
             : null,
         };
       });
@@ -87,7 +87,7 @@ export default function PlayerGame() {
             questions_done: prev.current_round.questions_done + 1,
             current_question: {
               ...prev.current_round.current_question,
-              status:  "closed",
+              status: "closed",
               answers: data.question.answers,
             },
           },
@@ -106,7 +106,7 @@ export default function PlayerGame() {
 
   // Reset selection when a new question appears
   const question = gameState?.current_round?.current_question ?? null;
-  const rqId     = question?.round_question_id ?? null;
+  const rqId = question?.round_question_id ?? null;
 
   useEffect(() => {
     if (rqId !== null && rqId !== submittedRqId.current) {
@@ -202,9 +202,8 @@ export default function PlayerGame() {
                   }`}
               >
                 <div className="flex items-center gap-4">
-                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border-2 ${
-                    isSelected ? "bg-primary text-white border-primary" : "text-gray-400 border-gray-100"
-                  }`}>
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border-2 ${isSelected ? "bg-primary text-white border-primary" : "text-gray-400 border-gray-100"
+                    }`}>
                     {LABELS[i]}
                   </span>
                   <span className={`font-bold text-lg ${isSelected ? "text-primary" : "text-gray-700"}`}>
@@ -235,9 +234,8 @@ export default function PlayerGame() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className={`group relative flex items-center gap-3 px-7 py-4 rounded-2xl font-bold text-sm tracking-widest uppercase text-white overflow-hidden transition-all ${
-                  selectedId && !submitting ? "bg-primary cursor-pointer" : "bg-gray-300 cursor-not-allowed"
-                }`}
+                className={`group relative flex items-center gap-3 px-7 py-4 rounded-2xl font-bold text-sm tracking-widest uppercase text-white overflow-hidden transition-all ${selectedId && !submitting ? "bg-primary cursor-pointer" : "bg-gray-300 cursor-not-allowed"
+                  }`}
               >
                 {submitting
                   ? <Loader2 size={18} className="animate-spin relative z-10" />
@@ -284,9 +282,8 @@ function QuestionTimer({ openedAt, limitSec }: { openedAt: string; limitSec: num
   }, [left]);
 
   return (
-    <div className={`flex items-center gap-2 font-mono text-xl font-bold px-4 py-2 rounded-lg border shadow-sm transition-colors ${
-      left <= 10 ? "text-red-500 border-red-200 bg-red-50" : "text-primary border-gray-200 bg-white"
-    }`}>
+    <div className={`flex items-center gap-2 font-mono text-xl font-bold px-4 py-2 rounded-lg border shadow-sm transition-colors ${left <= 10 ? "text-red-500 border-red-200 bg-red-50" : "text-primary border-gray-200 bg-white"
+      }`}>
       <Timer size={20} />
       0:{left.toString().padStart(2, "0")}
     </div>
@@ -321,28 +318,25 @@ function ClosedScreen({ question, myAnswerId }: { question: CurrentQuestion; myA
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {question.answers.map((ans, i) => {
             const isCorrect = ans.is_correct === true;
-            const isMine    = myAnswerId === ans.id;
+            const isMine = myAnswerId === ans.id;
             return (
               <div
                 key={ans.id}
-                className={`p-6 rounded-xl border-4 flex items-center gap-4 transition-all ${
-                  isCorrect
+                className={`p-6 rounded-xl border-4 flex items-center gap-4 transition-all ${isCorrect
                     ? "border-green-400 bg-green-50"
                     : isMine
                       ? "border-red-300 bg-red-50"
                       : "border-gray-100 bg-gray-50 opacity-50"
-                }`}
+                  }`}
               >
-                <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border-2 ${
-                  isCorrect ? "bg-green-500 text-white border-green-500"
+                <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border-2 ${isCorrect ? "bg-green-500 text-white border-green-500"
                     : isMine ? "bg-red-400 text-white border-red-400"
-                    : "text-gray-300 border-gray-200"
-                }`}>
+                      : "text-gray-300 border-gray-200"
+                  }`}>
                   {LABELS[i]}
                 </span>
-                <span className={`font-bold text-lg flex-1 ${
-                  isCorrect ? "text-green-800" : isMine ? "text-red-700" : "text-gray-400"
-                }`}>
+                <span className={`font-bold text-lg flex-1 ${isCorrect ? "text-green-800" : isMine ? "text-red-700" : "text-gray-400"
+                  }`}>
                   {ans.content}
                 </span>
                 {isCorrect && <CheckCircle className="text-green-500 shrink-0" size={24} />}

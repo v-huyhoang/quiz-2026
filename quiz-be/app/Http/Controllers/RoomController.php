@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Game;
 use App\Services\RoomService;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
@@ -9,13 +10,12 @@ use Illuminate\Http\Request;
 class RoomController extends Controller
 {
     use ApiResponseTrait;
-    
+
     private const ROOM_PER_PAGE = 10;
-    
+
     public function __construct(
         private readonly RoomService $roomService
-    ) {
-    }
+    ) {}
 
     /**
      * Get all rooms (games)
@@ -80,5 +80,19 @@ class RoomController extends Controller
     public function destroy($id)
     {
         return response()->json($this->roomService->delete($id));
+    }
+
+    /**
+     * Get room details by access code
+     */
+    public function getByCode($code)
+    {
+        $game = Game::where('access_code', strtoupper($code))->first();
+
+        if (!$game) {
+            return $this->resourceNotFoundResponse('Phòng không tồn tại');
+        }
+
+        return $this->successResponse($game, 'Room found');
     }
 }

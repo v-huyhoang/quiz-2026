@@ -137,7 +137,6 @@ migrate: ## Run migrations
 
 .PHONY: migrate-fresh
 migrate-fresh: ## Drop all tables and re-run migrations (⚠ deletes data)
-	@echo "$(RED)⚠ All data will be deleted! Continue? [y/N]$(RESET)" && read ans && [ "$$ans" = "y" ]
 	@docker exec $(APP_CONTAINER) php artisan migrate:fresh --force
 	@echo "$(GREEN)✅ Fresh migrate completed$(RESET)"
 

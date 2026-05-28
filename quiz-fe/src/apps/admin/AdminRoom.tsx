@@ -1,13 +1,30 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Plus, Users, Layout, Clock, Hash,
-  QrCode, Copy, CheckCheck, Loader2, ArrowRight, ArrowLeft, Dices, ListChecks, Trash2
+  Plus,
+  Users,
+  Layout,
+  Clock,
+  Hash,
+  QrCode,
+  Copy,
+  CheckCheck,
+  Loader2,
+  ArrowRight,
+  ArrowLeft,
+  Dices,
+  ListChecks,
+  Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import AdminRoomDetail from "./AdminRoomDetail";
 import { QRCodeSVG } from "qrcode.react";
-import type { Room, RoundQuestionMap, FormState, CreateRoomPayload } from "../../type/room";
+import type {
+  Room,
+  RoundQuestionMap,
+  FormState,
+  CreateRoomPayload,
+} from "../../type/room";
 import { createRoom, getRooms, deleteRoom } from "../../services/roomService";
 import { getQuestions } from "../../services/questionService";
 
@@ -99,7 +116,13 @@ export const AdminRoom = () => {
   };
 
   const handleNextStep1 = () => {
-    if (!form.name.trim() || !form.accessCode.trim() || !form.rounds || !form.questionsPerRound) return;
+    if (
+      !form.name.trim() ||
+      !form.accessCode.trim() ||
+      !form.rounds ||
+      !form.questionsPerRound
+    )
+      return;
 
     // Initialize empty manual array for the entered number of rounds
     const roundsCount = Number(form.rounds);
@@ -119,7 +142,10 @@ export const AdminRoom = () => {
       const selectedIds = prev[activeRoundTab] || [];
       const exists = selectedIds.includes(qId);
       if (exists) {
-        return { ...prev, [activeRoundTab]: selectedIds.filter((id) => id !== qId) };
+        return {
+          ...prev,
+          [activeRoundTab]: selectedIds.filter((id) => id !== qId),
+        };
       } else {
         if (selectedIds.length >= Number(form.questionsPerRound)) return prev;
         return { ...prev, [activeRoundTab]: [...selectedIds, qId] };
@@ -139,10 +165,12 @@ export const AdminRoom = () => {
         question_mode: form.questionMode,
       };
       if (form.questionMode === "manual") {
-        payload.round_questions = Object.entries(manualSelection).map(([roundStr, qIds]) => ({
-          round_number: Number(roundStr),
-          question_ids: qIds,
-        }));
+        payload.round_questions = Object.entries(manualSelection).map(
+          ([roundStr, qIds]) => ({
+            round_number: Number(roundStr),
+            question_ids: qIds,
+          }),
+        );
       }
       const res = await createRoom(payload);
       setNewRoomCode(res.data.data.access_code);
@@ -152,7 +180,7 @@ export const AdminRoom = () => {
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
       const errors = axiosErr?.response?.data?.errors;
-      const msg    = axiosErr?.response?.data?.message;
+      const msg = axiosErr?.response?.data?.message;
       if (errors) {
         const first = Object.values(errors)[0]?.[0];
         setCreateError(first ?? msg ?? "Tạo phòng thất bại. Vui lòng thử lại.");
@@ -190,7 +218,13 @@ export const AdminRoom = () => {
   const handleClose = () => {
     setIsOpen(false);
     setStep("step1_config");
-    setForm({ name: "", rounds: "3", questionsPerRound: "10", accessCode: "", questionMode: "random" });
+    setForm({
+      name: "",
+      rounds: "3",
+      questionsPerRound: "10",
+      accessCode: "",
+      questionMode: "random",
+    });
     setCopied(false);
     setManualSelection({});
     setCreateError("");
@@ -238,13 +272,12 @@ export const AdminRoom = () => {
               <div className="p-6 border-b border-gray-100 bg-gray-50/50">
                 <div className="flex justify-between items-start mb-4">
                   <span
-                    className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${
-                      room.status === "active"
-                        ? "bg-green-100 text-green-600"
-                        : room.status === "finished"
+                    className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${room.status === "active"
+                      ? "bg-green-100 text-green-600"
+                      : room.status === "finished"
                         ? "bg-red-100 text-red-500"
                         : "bg-gray-100 text-gray-500"
-                    }`}
+                      }`}
                   >
                     {room.status}
                   </span>
@@ -256,7 +289,12 @@ export const AdminRoom = () => {
                   {room.name}
                 </h4>
                 <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-2 flex items-center gap-1">
-                  {room.questionMode === "random" ? <Dices size={14} /> : <ListChecks size={14} />} Mode: {room.questionMode}
+                  {room.questionMode === "random" ? (
+                    <Dices size={14} />
+                  ) : (
+                    <ListChecks size={14} />
+                  )}{" "}
+                  Mode: {room.questionMode}
                 </p>
               </div>
 
@@ -283,7 +321,7 @@ export const AdminRoom = () => {
 
               <div className="px-6 py-4 bg-gray-50 flex gap-3">
                 <button
-                  onClick={() => navigate(`/admin/game-control?roomId=${room.id}`)}
+                  onClick={() => navigate(`/admin/game-control/${room.id}`)}
                   className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-primary/90 transition-all"
                 >
                   LAUNCH SESSION
@@ -378,7 +416,9 @@ export const AdminRoom = () => {
                         <input
                           type="text"
                           value={form.name}
-                          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, name: e.target.value }))
+                          }
                           className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors"
                           placeholder="vd. Championship Finals 2024"
                           autoFocus
@@ -392,9 +432,12 @@ export const AdminRoom = () => {
                           </label>
                           <input
                             type="number"
-                            min={1} max={10}
+                            min={1}
+                            max={10}
                             value={form.rounds}
-                            onChange={(e) => setForm((f) => ({ ...f, rounds: e.target.value }))}
+                            onChange={(e) =>
+                              setForm((f) => ({ ...f, rounds: e.target.value }))
+                            }
                             className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-primary"
                           />
                         </div>
@@ -404,9 +447,15 @@ export const AdminRoom = () => {
                           </label>
                           <input
                             type="number"
-                            min={1} max={20}
+                            min={1}
+                            max={20}
                             value={form.questionsPerRound}
-                            onChange={(e) => setForm((f) => ({ ...f, questionsPerRound: e.target.value }))}
+                            onChange={(e) =>
+                              setForm((f) => ({
+                                ...f,
+                                questionsPerRound: e.target.value,
+                              }))
+                            }
                             className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-primary"
                           />
                         </div>
@@ -420,7 +469,12 @@ export const AdminRoom = () => {
                           <input
                             type="text"
                             value={form.accessCode}
-                            onChange={(e) => setForm((f) => ({ ...f, accessCode: e.target.value.toUpperCase() }))}
+                            onChange={(e) =>
+                              setForm((f) => ({
+                                ...f,
+                                accessCode: e.target.value.toUpperCase(),
+                              }))
+                            }
                             className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-lg font-mono font-black focus:outline-none focus:border-primary tracking-widest"
                             placeholder="AUTO"
                             maxLength={10}
@@ -444,7 +498,9 @@ export const AdminRoom = () => {
                         </button>
                         <button
                           onClick={handleNextStep1}
-                          disabled={!form.name.trim() || !form.accessCode.trim()}
+                          disabled={
+                            !form.name.trim() || !form.accessCode.trim()
+                          }
                           className="flex-1 py-4 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all uppercase tracking-widest text-xs shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                           Tiếp tục <ArrowRight size={16} />
@@ -475,27 +531,39 @@ export const AdminRoom = () => {
                     {/* Mode selector */}
                     <div className="flex gap-4 mb-6">
                       <button
-                        onClick={() => setForm((f) => ({ ...f, questionMode: "random" }))}
+                        onClick={() =>
+                          setForm((f) => ({ ...f, questionMode: "random" }))
+                        }
                         className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${form.questionMode === "random"
                           ? "border-primary bg-primary/5 text-primary"
                           : "border-gray-200 text-gray-400 hover:border-gray-300"
                           }`}
                       >
                         <Dices size={24} />
-                        <span className="font-bold uppercase tracking-widest text-xs">Ngẫu nhiên</span>
-                        <span className="text-xs text-center opacity-80 mt-1 lowercase">Hệ thống chọn lúc bắt đầu round</span>
+                        <span className="font-bold uppercase tracking-widest text-xs">
+                          Ngẫu nhiên
+                        </span>
+                        <span className="text-xs text-center opacity-80 mt-1 lowercase">
+                          Hệ thống chọn lúc bắt đầu round
+                        </span>
                       </button>
 
                       <button
-                        onClick={() => setForm((f) => ({ ...f, questionMode: "manual" }))}
+                        onClick={() =>
+                          setForm((f) => ({ ...f, questionMode: "manual" }))
+                        }
                         className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${form.questionMode === "manual"
                           ? "border-primary bg-primary/5 text-primary"
                           : "border-gray-200 text-gray-400 hover:border-gray-300"
                           }`}
                       >
                         <ListChecks size={24} />
-                        <span className="font-bold uppercase tracking-widest text-xs">Tự chọn</span>
-                        <span className="text-xs text-center opacity-80 mt-1 lowercase">Chỉ định từng câu hỏi cho từng round</span>
+                        <span className="font-bold uppercase tracking-widest text-xs">
+                          Tự chọn
+                        </span>
+                        <span className="text-xs text-center opacity-80 mt-1 lowercase">
+                          Chỉ định từng câu hỏi cho từng round
+                        </span>
                       </button>
                     </div>
 
@@ -510,28 +578,41 @@ export const AdminRoom = () => {
                         >
                           {/* Round tabs */}
                           <div className="w-1/3 flex flex-col gap-2">
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Chọn Round</p>
-                            {Array.from({ length: Number(form.rounds) }).map((_, idx) => {
-                              const rNum = idx + 1;
-                              const selectedCount = manualSelection[rNum]?.length || 0;
-                              const maxQuestions = Number(form.questionsPerRound);
-                              return (
-                                <button
-                                  key={rNum}
-                                  onClick={() => setActiveRoundTab(rNum)}
-                                  className={`p-3 rounded-xl border flex justify-between items-center transition-all ${activeRoundTab === rNum
-                                    ? "bg-primary text-white border-primary shadow-md"
-                                    : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
-                                    }`}
-                                >
-                                  <span className="font-bold text-sm">Round {rNum}</span>
-                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${activeRoundTab === rNum ? "bg-white/20" : "bg-white border border-gray-200"
-                                    }`}>
-                                    {selectedCount}/{maxQuestions}
-                                  </span>
-                                </button>
-                              );
-                            })}
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                              Chọn Round
+                            </p>
+                            {Array.from({ length: Number(form.rounds) }).map(
+                              (_, idx) => {
+                                const rNum = idx + 1;
+                                const selectedCount =
+                                  manualSelection[rNum]?.length || 0;
+                                const maxQuestions = Number(
+                                  form.questionsPerRound,
+                                );
+                                return (
+                                  <button
+                                    key={rNum}
+                                    onClick={() => setActiveRoundTab(rNum)}
+                                    className={`p-3 rounded-xl border flex justify-between items-center transition-all ${activeRoundTab === rNum
+                                      ? "bg-primary text-white border-primary shadow-md"
+                                      : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                                      }`}
+                                  >
+                                    <span className="font-bold text-sm">
+                                      Round {rNum}
+                                    </span>
+                                    <span
+                                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${activeRoundTab === rNum
+                                        ? "bg-white/20"
+                                        : "bg-white border border-gray-200"
+                                        }`}
+                                    >
+                                      {selectedCount}/{maxQuestions}
+                                    </span>
+                                  </button>
+                                );
+                              },
+                            )}
                           </div>
 
                           {/* Question list picker */}
@@ -544,7 +625,10 @@ export const AdminRoom = () => {
                             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
                               {fetchingQuestions ? (
                                 <div className="flex items-center justify-center py-8">
-                                  <Loader2 className="animate-spin text-primary" size={24} />
+                                  <Loader2
+                                    className="animate-spin text-primary"
+                                    size={24}
+                                  />
                                 </div>
                               ) : questionBank.length === 0 ? (
                                 <div className="text-center py-8 text-gray-400 text-sm">
@@ -552,23 +636,35 @@ export const AdminRoom = () => {
                                 </div>
                               ) : (
                                 questionBank.map((q) => {
-                                  const isSelected = manualSelection[activeRoundTab]?.includes(q.id);
+                                  const isSelected = manualSelection[
+                                    activeRoundTab
+                                  ]?.includes(q.id);
                                   return (
                                     <div
                                       key={q.id}
-                                      onClick={() => toggleQuestionSelection(q.id)}
+                                      onClick={() =>
+                                        toggleQuestionSelection(q.id)
+                                      }
                                       className={`p-3 rounded-lg border-2 cursor-pointer transition-all flex items-start gap-3 ${isSelected
                                         ? "border-primary bg-primary/5"
                                         : "border-transparent bg-white hover:border-gray-200"
                                         }`}
                                     >
-                                      <div className={`w-5 h-5 rounded border mt-0.5 flex items-center justify-center shrink-0 ${isSelected ? "bg-primary border-primary text-white" : "border-gray-300"
-                                        }`}>
+                                      <div
+                                        className={`w-5 h-5 rounded border mt-0.5 flex items-center justify-center shrink-0 ${isSelected
+                                          ? "bg-primary border-primary text-white"
+                                          : "border-gray-300"
+                                          }`}
+                                      >
                                         {isSelected && <CheckCheck size={12} />}
                                       </div>
                                       <div>
-                                        <p className="text-sm font-semibold text-gray-800">{q.text}</p>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{q.category}</p>
+                                        <p className="text-sm font-semibold text-gray-800">
+                                          {q.text}
+                                        </p>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                                          {q.category}
+                                        </p>
                                       </div>
                                     </div>
                                   );
@@ -599,7 +695,10 @@ export const AdminRoom = () => {
                         className="flex-1 py-4 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all uppercase tracking-widest text-xs shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2"
                       >
                         {loading ? (
-                          <><Loader2 size={16} className="animate-spin" /> Đang tạo...</>
+                          <>
+                            <Loader2 size={16} className="animate-spin" /> Đang
+                            tạo...
+                          </>
                         ) : (
                           "Hoàn tất tạo phòng"
                         )}
@@ -621,7 +720,9 @@ export const AdminRoom = () => {
                       <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-3">
                         <QrCode className="text-primary" size={24} />
                       </div>
-                      <h3 className="text-2xl font-black text-gray-900">{newRoomName}</h3>
+                      <h3 className="text-2xl font-black text-gray-900">
+                        {newRoomName}
+                      </h3>
                       <p className="text-sm text-gray-400 mt-1">
                         Chia sẻ QR to người chơi tham gia
                       </p>
@@ -654,9 +755,13 @@ export const AdminRoom = () => {
                         className="shrink-0 flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/70 transition-colors"
                       >
                         {copied ? (
-                          <><CheckCheck size={14} /> Đã copy</>
+                          <>
+                            <CheckCheck size={14} /> Đã copy
+                          </>
                         ) : (
-                          <><Copy size={14} /> Copy</>
+                          <>
+                            <Copy size={14} /> Copy
+                          </>
                         )}
                       </button>
                     </div>
@@ -672,7 +777,10 @@ export const AdminRoom = () => {
 
                 {/* ── Detail: Room Details ──────────────────────────────────── */}
                 {step === "detail" && selectedRoomId && (
-                  <AdminRoomDetail roomId={selectedRoomId} onClose={handleClose} />
+                  <AdminRoomDetail
+                    roomId={selectedRoomId}
+                    onClose={handleClose}
+                  />
                 )}
               </AnimatePresence>
             </motion.div>
