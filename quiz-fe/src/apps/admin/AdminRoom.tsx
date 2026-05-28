@@ -15,6 +15,7 @@ import {
   Dices,
   ListChecks,
   Trash2,
+  Eye,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import AdminRoomDetail from "./AdminRoomDetail";
@@ -324,13 +325,13 @@ export const AdminRoom = () => {
                   onClick={() => navigate(`/admin/game-control/${room.id}`)}
                   className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-primary/90 transition-all"
                 >
-                  LAUNCH SESSION
+                  Điều khiển
                 </button>
                 <button
                   onClick={() => window.open(`/stage/waiting?roomCode=${room.accessCode}`, "_blank")}
                   className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-purple-700 transition-all"
                 >
-                  STAGE SCREEN
+                  Màn hình stage
                 </button>
                 <button
                   onClick={() => {
@@ -349,7 +350,7 @@ export const AdminRoom = () => {
                   className="py-2 px-3 border border-gray-200 text-gray-500 rounded-lg hover:bg-white transition-all"
                   title="Xem chi tiết"
                 >
-                  <ListChecks size={16} />
+                  <Eye size={16} />
                 </button>
                 {room.status === "pending" && (
                   <button
