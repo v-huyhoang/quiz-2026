@@ -43,30 +43,25 @@ export const AdminRoom = () => {
   const [questionBank, setQuestionBank] = useState<any[]>([]);
   const [fetchingQuestions, setFetchingQuestions] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [createError, setCreateError] = useState("");
 
-  // States for saving results after creation
   const [newRoomCode, setNewRoomCode] = useState("");
   const [newRoomName, setNewRoomName] = useState("");
 
-  // Fetch rooms on mount
   useEffect(() => {
     fetchRooms();
     fetchQuestions();
   }, []);
 
-  // Fetch questions when modal opens
   useEffect(() => {
-    if (isOpen) {
-      fetchQuestions();
-    }
+    if (isOpen) fetchQuestions();
   }, [isOpen]);
 
   const fetchRooms = async () => {
     try {
       setFetching(true);
       const { data } = await getRooms();
-
-      const roomsData = data.map((room: any) => ({
+      const roomsData = data.data.map((room) => ({
         id: String(room.id),
         name: room.name,
         rounds: room.rounds,
@@ -87,15 +82,12 @@ export const AdminRoom = () => {
   const fetchQuestions = async () => {
     try {
       setFetchingQuestions(true);
-
       const { data } = await getQuestions();
-
       const questionsData = data.map((q) => ({
         id: q.id,
         text: q.text,
         category: "General",
       }));
-
       setQuestionBank(questionsData);
     } catch (error) {
       console.error("Failed to fetch questions:", error);
@@ -113,7 +105,6 @@ export const AdminRoom = () => {
     questionMode: "random",
   });
 
-  // State cho mode manual
   const [manualSelection, setManualSelection] = useState<RoundQuestionMap>({});
   const [activeRoundTab, setActiveRoundTab] = useState(1);
 
@@ -142,7 +133,6 @@ export const AdminRoom = () => {
       }
       return nextMap;
     });
-
     setActiveRoundTab(1);
     setStep("step2_questions");
   };
@@ -157,7 +147,6 @@ export const AdminRoom = () => {
           [activeRoundTab]: selectedIds.filter((id) => id !== qId),
         };
       } else {
-        // Only allow selecting up to the specified number of questions
         if (selectedIds.length >= Number(form.questionsPerRound)) return prev;
         return { ...prev, [activeRoundTab]: [...selectedIds, qId] };
       }
@@ -166,7 +155,7 @@ export const AdminRoom = () => {
 
   const handleCreate = async () => {
     setLoading(true);
-
+    setCreateError("");
     try {
       const payload: CreateRoomPayload = {
         name: form.name,
@@ -186,13 +175,18 @@ export const AdminRoom = () => {
       const res = await createRoom(payload);
       setNewRoomCode(res.data.data.access_code);
       setNewRoomName(res.data.data.name);
-
       await fetchRooms();
-
       setStep("step3_qr");
-    } catch (error) {
-      console.error("Failed to create room:", error);
-      alert("Failed to create room. Please try again.");
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
+      const errors = axiosErr?.response?.data?.errors;
+      const msg = axiosErr?.response?.data?.message;
+      if (errors) {
+        const first = Object.values(errors)[0]?.[0];
+        setCreateError(first ?? msg ?? "Tạo phòng thất bại. Vui lòng thử lại.");
+      } else {
+        setCreateError(msg ?? "Tạo phòng thất bại. Vui lòng thử lại.");
+      }
     } finally {
       setLoading(false);
     }
@@ -206,7 +200,6 @@ export const AdminRoom = () => {
 
   const handleDelete = async (roomId: string) => {
     if (!confirm("Are you sure you want to delete this room?")) return;
-
     try {
       await deleteRoom(roomId);
       setRooms((prev) => prev.filter((room) => room.id !== roomId));
@@ -234,6 +227,7 @@ export const AdminRoom = () => {
     });
     setCopied(false);
     setManualSelection({});
+    setCreateError("");
     setSelectedRoomId(null);
   };
 
@@ -261,6 +255,11 @@ export const AdminRoom = () => {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="animate-spin text-primary" size={32} />
         </div>
+      ) : rooms.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
+          <QrCode size={32} className="opacity-30" />
+          <p className="text-sm font-medium">Chưa có phòng nào. Hãy tạo phòng mới.</p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {rooms.map((room) => (
@@ -273,11 +272,12 @@ export const AdminRoom = () => {
               <div className="p-6 border-b border-gray-100 bg-gray-50/50">
                 <div className="flex justify-between items-start mb-4">
                   <span
-                    className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${
-                      room.status === "active"
+                    className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${room.status === "active"
                         ? "bg-green-100 text-green-600"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
+                        : room.status === "finished"
+                          ? "bg-red-100 text-red-500"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
                   >
                     {room.status}
                   </span>
@@ -304,12 +304,8 @@ export const AdminRoom = () => {
                     <Layout size={20} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                      Rounds
-                    </p>
-                    <p className="text-lg font-bold text-gray-900">
-                      {room.rounds}
-                    </p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rounds</p>
+                    <p className="text-lg font-bold text-gray-900">{room.rounds}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -317,12 +313,8 @@ export const AdminRoom = () => {
                     <Hash size={20} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                      Questions
-                    </p>
-                    <p className="text-lg font-bold text-gray-900">
-                      {room.questionsPerRound} / round
-                    </p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Questions</p>
+                    <p className="text-lg font-bold text-gray-900">{room.questionsPerRound} / round</p>
                   </div>
                 </div>
               </div>
@@ -332,17 +324,12 @@ export const AdminRoom = () => {
                   onClick={() =>
                     navigate(`/admin/game-control?roomId=${room.id}`)
                   }
-                  className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm"
+                  className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-primary/90 transition-all"
                 >
                   LAUNCH SESSION
                 </button>
                 <button
-                  onClick={() =>
-                    window.open(
-                      `/stage/waiting?roomCode=${room.accessCode}`,
-                      "_blank",
-                    )
-                  }
+                  onClick={() => window.open(`/stage/waiting?roomCode=${room.accessCode}`, "_blank")}
                   className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-purple-700 transition-all"
                 >
                   STAGE SCREEN
@@ -395,13 +382,12 @@ export const AdminRoom = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className={`bg-white w-full rounded-2xl p-8 shadow-2xl transition-all duration-300 overflow-y-auto max-h-[90vh] ${
-                step === "step2_questions"
+              className={`bg-white w-full rounded-2xl p-8 shadow-2xl transition-all duration-300 overflow-y-auto max-h-[90vh] ${step === "step2_questions"
                   ? "max-w-3xl"
                   : step === "detail"
                     ? "max-w-4xl"
                     : "max-w-xl"
-              }`}
+                }`}
             >
               <AnimatePresence mode="wait">
                 {/* ── Step 1: Config ─────────────────────────────────────── */}
@@ -416,9 +402,7 @@ export const AdminRoom = () => {
                       <div className="flex items-center gap-3">
                         <Users className="text-primary" size={32} />
                         <div>
-                          <h3 className="text-2xl font-black text-gray-900">
-                            New Quiz Room
-                          </h3>
+                          <h3 className="text-2xl font-black text-gray-900">New Quiz Room</h3>
                           <p className="text-sm text-gray-400 font-bold tracking-widest uppercase">
                             Step 1: Configuration
                           </p>
@@ -539,9 +523,7 @@ export const AdminRoom = () => {
                     <div className="flex items-center gap-3 mb-6">
                       <Layout className="text-primary" size={32} />
                       <div>
-                        <h3 className="text-2xl font-black text-gray-900">
-                          Question Selection
-                        </h3>
+                        <h3 className="text-2xl font-black text-gray-900">Question Selection</h3>
                         <p className="text-sm text-gray-400 font-bold tracking-widest uppercase">
                           Step 2: Assign Questions
                         </p>
@@ -554,11 +536,10 @@ export const AdminRoom = () => {
                         onClick={() =>
                           setForm((f) => ({ ...f, questionMode: "random" }))
                         }
-                        className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                          form.questionMode === "random"
+                        className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${form.questionMode === "random"
                             ? "border-primary bg-primary/5 text-primary"
                             : "border-gray-200 text-gray-400 hover:border-gray-300"
-                        }`}
+                          }`}
                       >
                         <Dices size={24} />
                         <span className="font-bold uppercase tracking-widest text-xs">
@@ -573,11 +554,10 @@ export const AdminRoom = () => {
                         onClick={() =>
                           setForm((f) => ({ ...f, questionMode: "manual" }))
                         }
-                        className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                          form.questionMode === "manual"
+                        className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${form.questionMode === "manual"
                             ? "border-primary bg-primary/5 text-primary"
                             : "border-gray-200 text-gray-400 hover:border-gray-300"
-                        }`}
+                          }`}
                       >
                         <ListChecks size={24} />
                         <span className="font-bold uppercase tracking-widest text-xs">
@@ -615,21 +595,19 @@ export const AdminRoom = () => {
                                   <button
                                     key={rNum}
                                     onClick={() => setActiveRoundTab(rNum)}
-                                    className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
-                                      activeRoundTab === rNum
+                                    className={`p-3 rounded-xl border flex justify-between items-center transition-all ${activeRoundTab === rNum
                                         ? "bg-primary text-white border-primary shadow-md"
                                         : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
-                                    }`}
+                                      }`}
                                   >
                                     <span className="font-bold text-sm">
                                       Round {rNum}
                                     </span>
                                     <span
-                                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                        activeRoundTab === rNum
+                                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${activeRoundTab === rNum
                                           ? "bg-white/20"
                                           : "bg-white border border-gray-200"
-                                      }`}
+                                        }`}
                                     >
                                       {selectedCount}/{maxQuestions}
                                     </span>
@@ -669,18 +647,16 @@ export const AdminRoom = () => {
                                       onClick={() =>
                                         toggleQuestionSelection(q.id)
                                       }
-                                      className={`p-3 rounded-lg border-2 cursor-pointer transition-all flex items-start gap-3 ${
-                                        isSelected
+                                      className={`p-3 rounded-lg border-2 cursor-pointer transition-all flex items-start gap-3 ${isSelected
                                           ? "border-primary bg-primary/5"
                                           : "border-transparent bg-white hover:border-gray-200"
-                                      }`}
+                                        }`}
                                     >
                                       <div
-                                        className={`w-5 h-5 rounded border mt-0.5 flex items-center justify-center shrink-0 ${
-                                          isSelected
+                                        className={`w-5 h-5 rounded border mt-0.5 flex items-center justify-center shrink-0 ${isSelected
                                             ? "bg-primary border-primary text-white"
                                             : "border-gray-300"
-                                        }`}
+                                          }`}
                                       >
                                         {isSelected && <CheckCheck size={12} />}
                                       </div>
@@ -702,9 +678,15 @@ export const AdminRoom = () => {
                       )}
                     </AnimatePresence>
 
+                    {createError && (
+                      <p className="mt-4 text-sm text-red-600 font-semibold bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+                        {createError}
+                      </p>
+                    )}
+
                     <div className="flex gap-4 mt-6">
                       <button
-                        onClick={() => setStep("step1_config")}
+                        onClick={() => { setStep("step1_config"); setCreateError(""); }}
                         className="py-4 px-6 border border-gray-200 rounded-xl font-bold text-gray-400 hover:bg-gray-50 transition-all text-xs flex items-center gap-2 uppercase tracking-widest"
                       >
                         <ArrowLeft size={16} /> Quay lại
@@ -748,7 +730,6 @@ export const AdminRoom = () => {
                       </p>
                     </div>
 
-                    {/* QR Code */}
                     <div className="p-4 bg-white border-2 border-gray-100 rounded-2xl shadow-sm">
                       <QRCodeSVG
                         value={joinUrl}
@@ -758,7 +739,6 @@ export const AdminRoom = () => {
                       />
                     </div>
 
-                    {/* Access code badge */}
                     <div className="flex items-center gap-2 bg-primary/5 px-5 py-2 rounded-full">
                       <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
                         Mã phòng:
@@ -768,7 +748,6 @@ export const AdminRoom = () => {
                       </span>
                     </div>
 
-                    {/* Join URL + copy */}
                     <div className="w-full flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
                       <p className="flex-1 text-xs text-gray-500 font-mono truncate">
                         {joinUrl}
@@ -797,6 +776,7 @@ export const AdminRoom = () => {
                     </button>
                   </motion.div>
                 )}
+
                 {/* ── Detail: Room Details ──────────────────────────────────── */}
                 {step === "detail" && selectedRoomId && (
                   <AdminRoomDetail

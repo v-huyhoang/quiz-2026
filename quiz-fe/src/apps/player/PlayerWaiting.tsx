@@ -1,36 +1,57 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Group, UserPlus, Clock } from "lucide-react";
 import { motion } from "motion/react";
-import { useAuthStore } from "../../store/authStore";
 import { useGameStore } from "../../store/gameStore";
-import { useNavigate } from "react-router-dom";
-import { useGameSocket } from "../../sockets/hooks/useGameSocket";
+import { useAuthStore } from "../../store/authStore";
+import { getPublicGameState, type GameTeam } from "../../services/gameService";
+import { getGameChannel } from "../../sockets/channels/game-channel";
+import { getEcho } from "../../sockets/echo";
 
-// Mock teams for Phase 2 (Phase 6 will use Reverb presence channel)
-const MOCK_TEAMS = [
-  { id: 1, name: "Alpha Team" },
-  { id: 2, name: "Neon Knights" },
-  { id: 3, name: "Cyber Punks" },
-  { id: 4, name: "Data Miners" },
-];
 const MAX_TEAMS = 16;
 
 export default function PlayerWaiting() {
   const { teamName, teamId, gameId } = useAuthStore();
-  const { gameStatus, currentQuestion } = useGameStore();
   const navigate = useNavigate();
 
-  // Listen for socket events
-  useGameSocket(gameId?.toString() || "1");
+  const [teams, setTeams] = useState<GameTeam[]>([]);
+  const { gameStatus, currentQuestion } = useGameStore();
 
-  // Redirect to game screen when game starts or question starts
+  // ── Initial state fetch ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!gameId) return;
+    getPublicGameState(gameId)
+      .then((res) => setTeams(res.data.data.teams))
+      .catch(() => { });
+  }, [gameId]);
+
+  // ── WebSocket subscription ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!gameId) return;
+
+    const channel = getGameChannel(String(gameId));
+
+    channel.listen(".team.joined", (data: { team: GameTeam }) => {
+      setTeams((prev) =>
+        prev.some((t) => t.id === data.team.id) ? prev : [...prev, data.team]
+      );
+    });
+
+    channel.listen(".game.started", () => {
+      navigate("/player/game", { replace: true });
+    });
+
+    return () => {
+      getEcho().leave(`game.${gameId}`);
+    };
+  }, [gameId, navigate]);
+
   useEffect(() => {
     if (gameStatus === "active" || currentQuestion) {
       navigate("/player/game");
     }
   }, [currentQuestion, gameStatus, navigate]);
 
-  const teams = MOCK_TEAMS;
   const emptySlots = MAX_TEAMS - teams.length;
 
   return (
@@ -55,14 +76,9 @@ export default function PlayerWaiting() {
             </h1>
           </div>
 
-          {/* Tên team từ authStore */}
           <div className="relative z-10 flex flex-col items-center gap-1">
-            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
-              Đội của bạn
-            </p>
-            <p className="text-2xl font-black text-gray-900">
-              {teamName ?? "Unknown Team"}
-            </p>
+            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Đội của bạn</p>
+            <p className="text-2xl font-black text-gray-900">{teamName ?? "Unknown Team"}</p>
             <p className="text-xs text-gray-400 font-mono">#{teamId}</p>
           </div>
 
@@ -84,10 +100,8 @@ export default function PlayerWaiting() {
             </p>
           </div>
 
-          {/* Progress bar */}
           <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden z-10">
             <motion.div
-              initial={{ width: "0%" }}
               animate={{ width: `${(teams.length / MAX_TEAMS) * 100}%` }}
               transition={{ duration: 0.5 }}
               className="h-full bg-primary rounded-full"
@@ -106,18 +120,14 @@ export default function PlayerWaiting() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Teams đã join */}
             {teams.map((team, index) => (
               <motion.div
                 key={team.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.08 }}
-                className={`bg-white border-2 p-4 rounded-xl flex items-center gap-3 shadow-sm ${
-                  team.id === teamId
-                    ? "border-primary shadow-primary/20"
-                    : "border-primary/30"
-                }`}
+                transition={{ delay: index * 0.05 }}
+                className={`bg-white border-2 p-4 rounded-xl flex items-center gap-3 shadow-sm ${team.id === teamId ? "border-primary shadow-primary/20" : "border-primary/30"
+                  }`}
               >
                 <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shrink-0 text-sm font-black">
                   {team.name.charAt(0).toUpperCase()}
@@ -133,7 +143,6 @@ export default function PlayerWaiting() {
               </motion.div>
             ))}
 
-            {/* Empty slots */}
             {Array.from({ length: emptySlots }).map((_, i) => (
               <div
                 key={`empty-${i}`}
@@ -142,20 +151,15 @@ export default function PlayerWaiting() {
                 <div className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-300">
                   <UserPlus size={16} />
                 </div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  Trống
-                </p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Trống</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Hint */}
         <div className="mt-12 flex items-center gap-2 text-gray-400">
           <Group size={14} />
-          <p className="text-xs font-medium">
-            Game sẽ bắt đầu khi Host ra lệnh
-          </p>
+          <p className="text-xs font-medium">Game sẽ bắt đầu khi Host ra lệnh</p>
         </div>
       </main>
     </div>

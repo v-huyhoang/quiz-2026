@@ -1,67 +1,78 @@
-import { Group, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Group, UserPlus } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect } from "react";
-import { useGameStore } from "../../store/gameStore";
-import { registerStageListeners } from "../../sockets/listeners/register-game-listeners";
+import { getPublicGameState, type GameTeam } from "../../services/gameService";
+import { getGameChannel } from "../../sockets/channels/game-channel";
+import { getEcho } from "../../sockets/echo";
+
+const MAX_TEAMS = 16;
 
 export default function StageWaitting() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const roomCode = searchParams.get("roomCode");
-  const { gameStatus, currentQuestion } = useGameStore();
+  const navigate        = useNavigate();
+  const gameId          = Number(searchParams.get("gameId"));
 
-  // Mount socket listener
+  const [teams, setTeams] = useState<GameTeam[]>([]);
+
+  // ── Initial state fetch ────────────────────────────────────────────────────
   useEffect(() => {
-    registerStageListeners();
-  }, []);
+    if (!gameId) return;
+    getPublicGameState(gameId)
+      .then((res) => setTeams(res.data.data.teams))
+      .catch(() => {});
+  }, [gameId]);
 
-  // Redirect to game screen when question starts
+  // ── WebSocket subscription ─────────────────────────────────────────────────
   useEffect(() => {
-    if (currentQuestion) {
-      navigate('/stage/game');
-    }
-  }, [currentQuestion, navigate]);
+    if (!gameId) return;
 
-  const teams = [
-    { name: "Team Alpha", ready: true },
-    { name: "Neon Knights", ready: true },
-    { name: "Cyber Punks", ready: true },
-    { name: "Data Miners", ready: true },
-  ];
+    const channel = getGameChannel(String(gameId));
+
+    channel.listen(".team.joined", (data: { team: GameTeam }) => {
+      setTeams((prev) =>
+        prev.some((t) => t.id === data.team.id) ? prev : [...prev, data.team]
+      );
+    });
+
+    channel.listen(".question.started", () => {
+      navigate(`/stage/question?gameId=${gameId}`, { replace: true });
+    });
+
+    channel.listen(".game.finished", () => {
+      navigate(`/stage/final?gameId=${gameId}`, { replace: true });
+    });
+
+    return () => {
+      getEcho().leave(`game.${gameId}`);
+    };
+  }, [gameId, navigate]);
+
+  const emptySlots = MAX_TEAMS - teams.length;
 
   return (
     <div className="min-h-screen bg-surface flex flex-col pt-20">
       <main className="flex-grow w-full max-w-5xl mx-auto px-6 py-12 flex flex-col items-center">
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white border border-gray-200 p-8 rounded-xl flex flex-col items-center gap-4 mb-12 w-full text-center relative overflow-hidden shadow-sm"
         >
-          <div className="absolute inset-0 bg-primary-container/5 pointer-events-none"></div>
+          <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
           <div className="relative z-10 flex items-center justify-center gap-3 mb-2">
-            <div className={`w-4 h-4 rounded-full ${gameStatus === 'active' ? 'bg-green-500' : 'bg-primary-container'} ${gameStatus === 'active' ? 'animate-pulse' : 'animate-ping'}`}></div>
-            <h1 className={`text-2xl font-bold uppercase tracking-widest ${gameStatus === 'active' ? 'text-green-600' : 'text-primary'}`}>
-              {gameStatus === 'active' ? 'ROOM IS LIVE' : 'Connected to Arena'}
+            <div className="w-4 h-4 rounded-full bg-primary animate-ping" />
+            <h1 className="text-2xl font-bold text-primary uppercase tracking-widest">
+              Connected to Arena
             </h1>
           </div>
-          {roomCode && (
-            <div className="relative z-10 flex items-center gap-2 mb-2">
-              <span className="text-sm text-gray-500 font-medium">Room Code:</span>
-              <span className="text-3xl font-black text-primary font-mono tracking-widest">
-                {roomCode}
-              </span>
-            </div>
-          )}
-          <p className={`font-medium z-10 ${gameStatus === 'active' ? 'text-green-600' : 'text-gray-500'}`}>
-            {gameStatus === 'active' ? 'Waiting for first question...' : 'Waiting for admin to start...'}
-          </p>
+          <p className="text-gray-500 font-medium z-10">Waiting for admin to start...</p>
           <div className="w-full h-2 bg-gray-100 mt-4 rounded-full overflow-hidden z-10">
             <motion.div
-              initial={{ width: "0%" }}
-              animate={{ width: "33%" }}
-              className="h-full bg-primary-container rounded-full"
-            ></motion.div>
+              animate={{ width: `${(teams.length / MAX_TEAMS) * 100}%` }}
+              transition={{ duration: 0.5 }}
+              className="h-full bg-primary rounded-full"
+            />
           </div>
         </motion.div>
 
@@ -69,22 +80,22 @@ export default function StageWaitting() {
           <div className="flex justify-between items-end">
             <h2 className="text-2xl font-bold text-gray-900">Lobby Roster</h2>
             <div className="text-5xl font-black text-primary">
-              8<span className="text-xl text-gray-300">/16</span>
+              {teams.length}
+              <span className="text-xl text-gray-300">/{MAX_TEAMS}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {teams.map((team, index) => (
               <motion.div
-                key={index}
+                key={team.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-white border-2 border-primary-container p-4 rounded-lg flex items-center gap-4 hover:shadow-md transition-all cursor-pointer"
-                onClick={() => navigate("/quiz")}
+                transition={{ delay: index * 0.08 }}
+                className="bg-white border-2 border-primary/30 p-4 rounded-lg flex items-center gap-4"
               >
-                <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center">
-                  <Group size={24} />
+                <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-black text-lg">
+                  {team.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-gray-900 uppercase tracking-widest">
@@ -95,7 +106,7 @@ export default function StageWaitting() {
               </motion.div>
             ))}
 
-            {[...Array(4)].map((_, i) => (
+            {Array.from({ length: emptySlots }).map((_, i) => (
               <div
                 key={i}
                 className="border-2 border-dashed border-gray-200 bg-gray-50/50 p-4 rounded-lg flex items-center gap-4 opacity-50"
@@ -103,14 +114,15 @@ export default function StageWaitting() {
                 <div className="w-12 h-12 rounded-full border border-gray-300 flex items-center justify-center text-gray-300">
                   <UserPlus size={20} />
                 </div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    Empty Slot
-                  </p>
-                </div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Empty Slot</p>
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="mt-12 flex items-center gap-2 text-gray-400">
+          <Group size={14} />
+          <p className="text-xs font-medium">Game will start when host gives the signal</p>
         </div>
       </main>
     </div>

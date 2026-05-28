@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Round extends Model
 {
@@ -11,6 +12,11 @@ class Round extends Model
     use HasFactory;
 
     protected $fillable = ['game_id', 'round_number', 'status', 'started_at', 'ended_at'];
+
+    public function game(): BelongsTo
+    {
+        return $this->belongsTo(Game::class);
+    }
 
     public function questions()
     {
