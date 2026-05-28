@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useEffect, memo } from "react";
 import { Navbar } from "./parts/Navbar";
 import { motion } from "motion/react";
 import {
@@ -11,8 +11,12 @@ import {
   finishRound, finishGame,
   type GameState,
 } from "../../services/gameService";
+import { QuestionTimer } from "../../components/ui/QuestionTimer";
+import { GridBg } from "../../components/ui/GridBg";
+import { ANSWER_LABELS, getApiErrorMessage } from "../../libs/utils";
+import { usePolling } from "../../hooks/usePolling";
 
-const LABELS = ["A", "B", "C", "D"];
+const LABELS = ANSWER_LABELS;
 
 export default function AdminGameControl() {
   const { gameId } = useParams<{ gameId: string }>();
@@ -25,27 +29,15 @@ export default function AdminGameControl() {
   const [error, setError]          = useState("");
 
   // ── Polling ──────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
-
-    const poll = async () => {
-      if (cancelled) return;
-      try {
-        const res = await getAdminGameState(id);
-        if (!cancelled) {
-          setGameState(res.data.data);
-          setLoading(false);
-        }
-      } catch {
-        if (!cancelled) setLoading(false);
-      }
-      if (!cancelled) setTimeout(poll, 2000);
-    };
-
-    poll();
-    return () => { cancelled = true; };
-  }, [id]);
+  usePolling(
+    useCallback(async () => {
+      const res = await getAdminGameState(id);
+      setGameState(res.data.data);
+      setLoading(false);
+    }, [id]),
+    2000,
+    !!id,
+  );
 
   // ── Action helpers ────────────────────────────────────────────────────────────
   const act = useCallback(async (fn: () => Promise<{ data: { data: GameState } }>) => {
@@ -54,26 +46,20 @@ export default function AdminGameControl() {
     try {
       const res = await fn();
       setGameState(res.data.data);
-    } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setError(msg ?? "Có lỗi xảy ra.");
+    } catch (e) {
+      setError(getApiErrorMessage(e, "Có lỗi xảy ra."));
     } finally {
       setAction(false);
     }
   }, []);
 
-  // ── Auto-close question when timer expires ────────────────────────────────────
+  // ── Auto-close question when timer expires (client-side fallback) ────────────
   useEffect(() => {
     const q = gameState?.current_round?.current_question;
     if (!q || q.status !== "open" || !q.opened_at) return;
 
-    const deadline  = new Date(q.opened_at).getTime() + q.time_limit_seconds * 1000;
-    const remaining = deadline - Date.now();
-
-    if (remaining <= 0) {
-      act(() => closeQuestion(id));
-      return;
-    }
+    const remaining = new Date(q.opened_at).getTime() + q.time_limit_seconds * 1000 - Date.now();
+    if (remaining <= 0) { act(() => closeQuestion(id)); return; }
 
     const timer = setTimeout(() => act(() => closeQuestion(id)), remaining);
     return () => clearTimeout(timer);
@@ -99,9 +85,9 @@ export default function AdminGameControl() {
     );
   }
 
-  const round    = gameState.current_round;
-  const question = round?.current_question ?? null;
-  const teams    = gameState.teams;
+  const round       = gameState.current_round;
+  const question    = round?.current_question ?? null;
+  const teams       = gameState.teams;
   const submissions = question?.team_submissions ?? [];
 
   const isLastRound    = !!round && round.round_number === gameState.rounds_total;
@@ -136,13 +122,7 @@ export default function AdminGameControl() {
                   <p className="text-sm text-gray-500 font-mono">{gameState.access_code}</p>
                 </div>
               </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest ${
-                gameState.status === "active"   ? "bg-green-100 text-green-700"  :
-                gameState.status === "finished" ? "bg-gray-200 text-gray-500"   :
-                "bg-yellow-100 text-yellow-700"
-              }`}>
-                {gameState.status}
-              </span>
+              <StatusBadge status={gameState.status} />
             </div>
 
             {/* Error banner */}
@@ -197,11 +177,18 @@ export default function AdminGameControl() {
                         <span className="text-xs text-gray-400 font-bold">
                           Question {question.order_number} of {round?.total_questions}
                         </span>
-                        {question.status === "open" && (
-                          <QuestionTimer openedAt={question.opened_at!} limitSec={question.time_limit_seconds} />
+                        {question.status === "open" && question.opened_at && (
+                          <QuestionTimer
+                            openedAt={question.opened_at}
+                            limitSec={question.time_limit_seconds}
+                            variant="admin"
+                            urgentThreshold={5}
+                          />
                         )}
                         {question.status === "closed" && (
-                          <span className="text-xs bg-gray-100 text-gray-500 px-3 py-1 rounded-full font-bold uppercase">Đã đóng</span>
+                          <span className="text-xs bg-gray-100 text-gray-500 px-3 py-1 rounded-full font-bold uppercase">
+                            Đã đóng
+                          </span>
                         )}
                       </div>
 
@@ -212,9 +199,7 @@ export default function AdminGameControl() {
                           <div
                             key={ans.id}
                             className={`p-4 rounded-xl border ${
-                              ans.is_correct
-                                ? "bg-green-50 border-green-300"
-                                : "bg-gray-50 border-gray-100"
+                              ans.is_correct ? "bg-green-50 border-green-300" : "bg-gray-50 border-gray-100"
                             }`}
                           >
                             <div className="flex items-center gap-3">
@@ -222,9 +207,7 @@ export default function AdminGameControl() {
                                 {LABELS[i]}
                               </span>
                               <span className="text-sm font-medium text-gray-700 flex-1">{ans.content}</span>
-                              {ans.is_correct && (
-                                <CheckCircle className="text-green-500 shrink-0" size={18} />
-                              )}
+                              {ans.is_correct && <CheckCircle className="text-green-500 shrink-0" size={18} />}
                             </div>
                           </div>
                         ))}
@@ -250,62 +233,13 @@ export default function AdminGameControl() {
                   <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">
                     Điều khiển game
                   </h3>
-
                   <div className="flex flex-wrap gap-3">
-                    {canStartGame && (
-                      <CtrlBtn
-                        color="bg-green-600"
-                        icon={<Play size={16} />}
-                        label="Bắt đầu game"
-                        loading={actionLoading}
-                        onClick={() => act(() => startGame(id))}
-                      />
-                    )}
-                    {canStartRound && (
-                      <CtrlBtn
-                        color="bg-primary"
-                        icon={<Play size={16} />}
-                        label="Bắt đầu vòng"
-                        loading={actionLoading}
-                        onClick={() => act(() => startRound(id))}
-                      />
-                    )}
-                    {canCloseQ && (
-                      <CtrlBtn
-                        color="bg-red-500"
-                        icon={<Pause size={16} />}
-                        label="Đóng câu hỏi"
-                        loading={actionLoading}
-                        onClick={() => act(() => closeQuestion(id))}
-                      />
-                    )}
-                    {canOpenNext && (
-                      <CtrlBtn
-                        color="bg-blue-500"
-                        icon={<SkipForward size={16} />}
-                        label="Câu tiếp theo"
-                        loading={actionLoading}
-                        onClick={() => act(() => openQuestion(id))}
-                      />
-                    )}
-                    {canFinishRound && (
-                      <CtrlBtn
-                        color="bg-gray-800"
-                        icon={<Trophy size={16} />}
-                        label="Kết thúc vòng"
-                        loading={actionLoading}
-                        onClick={() => act(() => finishRound(id))}
-                      />
-                    )}
-                    {canFinishGame && (
-                      <CtrlBtn
-                        color="bg-secondary"
-                        icon={<Trophy size={16} />}
-                        label="Kết thúc game"
-                        loading={actionLoading}
-                        onClick={() => act(() => finishGame(id))}
-                      />
-                    )}
+                    {canStartGame   && <CtrlBtn color="bg-green-600"  icon={<Play size={16} />}        label="Bắt đầu game"   loading={actionLoading} onClick={() => act(() => startGame(id))} />}
+                    {canStartRound  && <CtrlBtn color="bg-primary"    icon={<Play size={16} />}        label="Bắt đầu vòng"   loading={actionLoading} onClick={() => act(() => startRound(id))} />}
+                    {canCloseQ      && <CtrlBtn color="bg-red-500"    icon={<Pause size={16} />}       label="Đóng câu hỏi"   loading={actionLoading} onClick={() => act(() => closeQuestion(id))} />}
+                    {canOpenNext    && <CtrlBtn color="bg-blue-500"   icon={<SkipForward size={16} />} label="Câu tiếp theo"  loading={actionLoading} onClick={() => act(() => openQuestion(id))} />}
+                    {canFinishRound && <CtrlBtn color="bg-gray-800"   icon={<Trophy size={16} />}      label="Kết thúc vòng"  loading={actionLoading} onClick={() => act(() => finishRound(id))} />}
+                    {canFinishGame  && <CtrlBtn color="bg-secondary"  icon={<Trophy size={16} />}      label="Kết thúc game"  loading={actionLoading} onClick={() => act(() => finishGame(id))} />}
                     {gameState.status === "finished" && (
                       <span className="text-sm font-bold text-gray-400 self-center">Game đã kết thúc</span>
                     )}
@@ -338,9 +272,7 @@ export default function AdminGameControl() {
                           key={s.team_id}
                           className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm ${
                             s.submitted
-                              ? s.is_correct
-                                ? "bg-green-50 border-green-200"
-                                : "bg-red-50 border-red-100"
+                              ? s.is_correct ? "bg-green-50 border-green-200" : "bg-red-50 border-red-100"
                               : "bg-gray-50 border-gray-100"
                           }`}
                         >
@@ -381,62 +313,26 @@ export default function AdminGameControl() {
         </main>
       </div>
 
-      <div className="fixed inset-0 pointer-events-none -z-10 opacity-5">
-        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-        </svg>
-      </div>
+      <GridBg size={40} />
     </div>
   );
 }
 
-function QuestionTimer({ openedAt, limitSec }: { openedAt: string; limitSec: number }) {
-  const elapsed = Math.floor((Date.now() - new Date(openedAt).getTime()) / 1000);
-  const [left, setLeft] = useState(Math.max(0, limitSec - elapsed));
+// ── Pure sub-components (memo prevents re-renders from parent polling) ─────────
 
-  useEffect(() => {
-    if (left <= 0) return;
-    const t = setInterval(() => setLeft((p) => Math.max(0, p - 1)), 1000);
-    return () => clearInterval(t);
-  }, [left]);
-
+const StatusBadge = memo(function StatusBadge({ status }: { status: string }) {
   return (
-    <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-black ${
-      left <= 5 ? "bg-red-100 text-red-600" : "bg-orange-50 text-orange-600"
+    <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest ${
+      status === "active"   ? "bg-green-100 text-green-700"  :
+      status === "finished" ? "bg-gray-200 text-gray-500"    :
+      "bg-yellow-100 text-yellow-700"
     }`}>
-      <Clock size={14} className={left <= 5 ? "animate-pulse" : ""} />
-      {left}s
-    </div>
+      {status}
+    </span>
   );
-}
+});
 
-function CtrlBtn({
-  color, icon, label, loading, onClick,
-}: {
-  color: string;
-  icon: React.ReactNode;
-  label: string;
-  loading: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      className={`flex items-center gap-2 ${color} text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all opacity-100 hover:opacity-90 disabled:opacity-50`}
-    >
-      {loading ? <Loader2 size={16} className="animate-spin" /> : icon}
-      {label}
-    </button>
-  );
-}
-
-function StatusCard({
+const StatusCard = memo(function StatusCard({
   icon, label, value, color,
 }: {
   icon: React.ReactNode;
@@ -453,4 +349,25 @@ function StatusCard({
       <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">{label}</p>
     </div>
   );
-}
+});
+
+const CtrlBtn = memo(function CtrlBtn({
+  color, icon, label, loading, onClick,
+}: {
+  color: string;
+  icon: React.ReactNode;
+  label: string;
+  loading: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className={`flex items-center gap-2 ${color} text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all hover:opacity-90 disabled:opacity-50`}
+    >
+      {loading ? <Loader2 size={16} className="animate-spin" /> : icon}
+      {label}
+    </button>
+  );
+});

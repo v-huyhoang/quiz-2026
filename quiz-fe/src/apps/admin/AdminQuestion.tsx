@@ -17,6 +17,7 @@ import type { PaginatedResponse, PaginationMeta } from "../../type/pagination";
 import type { ApiResponse } from "../../type/api";
 import { api } from "../../services/api";
 import { Pagination } from "../../components/Pagination";
+import { getApiErrorMessage } from "../../libs/utils";
 
 const questionSchema = z.object({
   text: z.string().min(1, "Question content is required"),
@@ -55,25 +56,6 @@ const defaultPaginationMeta: PaginationMeta = {
   total: 0,
 };
 
-const getApiErrorMessage = (error: unknown, fallback: string) => {
-  if (error instanceof Error) {
-    const maybeAxiosError = error as {
-      response?: { data?: { message?: string; errors?: Record<string, string[]> } };
-    };
-    const responseMessage = maybeAxiosError.response?.data?.message;
-
-    if (responseMessage) return responseMessage;
-
-    const validationErrors = maybeAxiosError.response?.data?.errors;
-    const firstValidationError = validationErrors
-      ? Object.values(validationErrors)[0]?.[0]
-      : undefined;
-
-    return firstValidationError ?? error.message;
-  }
-
-  return fallback;
-};
 
 export const AdminQuestion = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
