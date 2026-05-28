@@ -334,18 +334,6 @@ export const AdminRoom = () => {
                   Màn hình stage
                 </button>
                 <button
-                  onClick={() => {
-                    setNewRoomCode(room.accessCode);
-                    setNewRoomName(room.name);
-                    setStep("step3_qr");
-                    setIsOpen(true);
-                  }}
-                  className="py-2 px-3 border border-gray-200 text-gray-500 rounded-lg hover:bg-white transition-all"
-                  title="Hiện QR code"
-                >
-                  <QrCode size={16} />
-                </button>
-                <button
                   onClick={() => handleOpenDetail(room.id)}
                   className="py-2 px-3 border border-gray-200 text-gray-500 rounded-lg hover:bg-white transition-all"
                   title="Xem chi tiết"
