@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { getGameChannel } from "../../sockets/channels/game-channel";
+import { getEcho } from "../../sockets/echo";
 import { Navbar } from "./parts/Navbar";
 import { motion } from "motion/react";
 import {
@@ -24,27 +26,54 @@ export default function AdminGameControl() {
   const [actionLoading, setAction] = useState(false);
   const [error, setError]          = useState("");
 
-  // ── Polling ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!id) return;
-    let cancelled = false;
 
-    const poll = async () => {
-      if (cancelled) return;
-      try {
-        const res = await getAdminGameState(id);
-        if (!cancelled) {
-          setGameState(res.data.data);
-          setLoading(false);
-        }
-      } catch {
-        if (!cancelled) setLoading(false);
-      }
-      if (!cancelled) setTimeout(poll, 2000);
+    let cancelled = true;
+
+    getAdminGameState(id)
+      .then((res) => {
+        if (!cancelled) return;
+        setGameState(res.data.data);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) return;
+        setLoading(false);
+      });
+
+    const channel = getGameChannel(String(id));
+
+    // When a team joins, append if not exists
+    channel.listen(".team.joined", (data: { team: any }) => {
+      setGameState((prev) => {
+        if (!prev) return prev;
+        const exists = prev.teams.some((t) => t.id === data.team.id);
+        if (exists) return prev;
+        return { ...prev, teams: [...prev.teams, { id: data.team.id, name: data.team.name }] } as GameState;
+      });
+    });
+
+    // When a team leaves
+    channel.listen(".team.left", (data: { team: any }) => {
+      setGameState((prev) => {
+        if (!prev) return prev;
+        return { ...prev, teams: prev.teams.filter((t) => t.id !== data.team.id) } as GameState;
+      });
+    });
+
+    // For state-changing events, refetch the authoritative game state
+    const refetchOn = [".game.started", ".question.started", ".question.closed", ".game.finished"];
+    refetchOn.forEach((evt) =>
+      channel.listen(evt, () => {
+        getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => {});
+      })
+    );
+
+    return () => {
+      cancelled = false;
+      try { getEcho().leave(`game.${id}`); } catch (e) { /* ignore */ }
     };
-
-    poll();
-    return () => { cancelled = true; };
   }, [id]);
 
   // ── Action helpers ────────────────────────────────────────────────────────────
@@ -124,7 +153,7 @@ export default function AdminGameControl() {
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-4">
                 <button
-                  onClick={() => navigate("/admin")}
+                  onClick={() => navigate("/admin/rooms")}
                   className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors"
                 >
                   <ArrowLeft size={20} />
