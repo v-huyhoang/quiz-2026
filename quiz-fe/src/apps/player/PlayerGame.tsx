@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Timer, CheckCircle, Clock, Loader2 } from "lucide-react";
+import { Timer, CheckCircle, Clock, Loader2, Trophy } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import {
   getPublicGameState,
@@ -18,6 +18,8 @@ interface QuestionStartedEvent {
   round_question_id: number;
   order_number: number;
   time_limit_seconds: number;
+  round_number: number;
+  total_questions: number;
   question: { content: string; answers: GameAnswer[] };
 }
 
@@ -30,6 +32,7 @@ export default function PlayerGame() {
   const { gameId } = useAuthStore();
 
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [nextRound, setNextRound]   = useState(1);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -50,29 +53,35 @@ export default function PlayerGame() {
 
     const channel = getGameChannel(String(gameId));
 
-    channel.listen(".game.started", () => {
-      setGameState((prev) => (prev ? { ...prev, status: "active" } : prev));
+    channel.listen(".game.started", (data: { rounds_total: number }) => {
+      setGameState((prev) =>
+        prev ? { ...prev, status: "active", rounds_total: data.rounds_total } : prev
+      );
     });
 
     channel.listen(".question.started", (data: QuestionStartedEvent) => {
       setGameState((prev) => {
         if (!prev) return prev;
+        const newQuestion = {
+          round_question_id: data.round_question_id,
+          order_number: data.order_number,
+          content: data.question.content,
+          status: "open" as const,
+          opened_at: new Date().toISOString(),
+          time_limit_seconds: data.time_limit_seconds,
+          answers: data.question.answers,
+        };
         return {
           ...prev,
           current_round: prev.current_round
-            ? {
-              ...prev.current_round,
-              current_question: {
-                round_question_id: data.round_question_id,
-                order_number: data.order_number,
-                content: data.question.content,
-                status: "open",
-                opened_at: new Date().toISOString(),
-                time_limit_seconds: data.time_limit_seconds,
-                answers: data.question.answers,
+            ? { ...prev.current_round, current_question: newQuestion }
+            : {
+                round_number: data.round_number,
+                status: "active",
+                questions_done: 0,
+                total_questions: data.total_questions,
+                current_question: newQuestion,
               },
-            }
-            : null,
         };
       });
     });
@@ -95,6 +104,11 @@ export default function PlayerGame() {
       });
     });
 
+    channel.listen(".round.finished", (data: { round_number: number }) => {
+      setNextRound(data.round_number + 1);
+      setGameState((prev) => prev ? { ...prev, current_round: null } : prev);
+    });
+
     channel.listen(".game.finished", () => {
       setGameState((prev) => (prev ? { ...prev, status: "finished" } : prev));
     });
@@ -115,7 +129,8 @@ export default function PlayerGame() {
     }
   }, [rqId]);
 
-  const alreadySubmitted = rqId !== null && submittedRqId.current === rqId;
+  const alreadySubmitted  = rqId !== null && submittedRqId.current === rqId;
+  const isLastQuestion    = (question?.order_number ?? 0) >= (gameState?.current_round?.total_questions ?? 0);
 
   const handleSubmit = async () => {
     if (!question || !selectedId || submitting || alreadySubmitted) return;
@@ -147,7 +162,16 @@ export default function PlayerGame() {
   }
 
   if (gameState.status === "finished") {
-    return <WaitingScreen message="Trò chơi đã kết thúc!" />;
+    return <GameFinished />;
+  }
+
+  if (gameState.status === "active" && !gameState.current_round) {
+    return (
+      <WaitingForRound
+        roundNum={nextRound}
+        totalRounds={gameState.rounds_total}
+      />
+    );
   }
 
   if (!question) {
@@ -155,7 +179,13 @@ export default function PlayerGame() {
   }
 
   if (question.status === "closed") {
-    return <ClosedScreen question={question} myAnswerId={alreadySubmitted ? selectedId : null} />;
+    return (
+      <ClosedScreen
+        question={question}
+        myAnswerId={alreadySubmitted ? selectedId : null}
+        totalQuestions={gameState.current_round?.total_questions ?? 0}
+      />
+    );
   }
 
   return (
@@ -164,9 +194,16 @@ export default function PlayerGame() {
 
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border border-gray-200 px-3 py-1 rounded-full">
-            Câu {question.order_number} / {gameState.current_round?.total_questions}
-          </span>
+          <div className="flex items-center gap-2.5">
+            <span className="text-sm font-black text-gray-900">
+              Câu {question.order_number}
+              <span className="text-gray-400 font-bold"> / {gameState.current_round?.total_questions}</span>
+            </span>
+            <QuestionProgress
+              current={question.order_number}
+              total={gameState.current_round?.total_questions ?? 0}
+            />
+          </div>
           <QuestionTimer openedAt={question.opened_at!} limitSec={question.time_limit_seconds} />
         </div>
 
@@ -251,17 +288,19 @@ export default function PlayerGame() {
                 className="flex items-center gap-3 px-7 py-4 rounded-2xl border-2 border-primary/20 bg-primary/5 text-primary font-bold text-sm tracking-widest uppercase"
               >
                 <Clock size={18} className="shrink-0 animate-pulse" />
-                <span>Đã nộp · Đang chờ câu tiếp theo...</span>
-                <span className="flex gap-1 ml-1">
-                  {[0, 1, 2].map((i) => (
-                    <motion.span
-                      key={i}
-                      className="w-1.5 h-1.5 rounded-full bg-primary"
-                      animate={{ opacity: [0.3, 1, 0.3] }}
-                      transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.3 }}
-                    />
-                  ))}
-                </span>
+                <span>Đã nộp{!isLastQuestion && " · Đang chờ câu tiếp theo..."}</span>
+                {!isLastQuestion && (
+                  <span className="flex gap-1 ml-1">
+                    {[0, 1, 2].map((i) => (
+                      <motion.span
+                        key={i}
+                        className="w-1.5 h-1.5 rounded-full bg-primary"
+                        animate={{ opacity: [0.3, 1, 0.3] }}
+                        transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.3 }}
+                      />
+                    ))}
+                  </span>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -290,6 +329,140 @@ function QuestionTimer({ openedAt, limitSec }: { openedAt: string; limitSec: num
   );
 }
 
+function WaitingForRound({ roundNum, totalRounds }: { roundNum: number; totalRounds: number }) {
+  return (
+    <div className="min-h-screen bg-surface flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Soft glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/6 rounded-full blur-[80px] pointer-events-none" />
+
+      <motion.div
+        className="relative z-10 text-center"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45 }}
+      >
+        {/* Trophy icon */}
+        <motion.div
+          className="w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-7"
+          animate={{ scale: [1, 1.06, 1] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <Trophy size={36} className="text-primary" />
+        </motion.div>
+
+        {/* "Sắp bắt đầu" badge */}
+        <motion.div
+          className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/8 border border-primary/20 rounded-full mb-5"
+          animate={{ opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 2.5, repeat: Infinity }}
+        >
+          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          <span className="text-xs font-black text-primary uppercase tracking-widest">Sắp bắt đầu</span>
+        </motion.div>
+
+        {/* Label */}
+        <p className="text-xs font-black text-gray-400 uppercase tracking-[0.25em] mb-1">
+          Chuẩn bị cho
+        </p>
+
+        {/* Round number */}
+        <p className="text-7xl font-black text-gray-900 leading-none mb-1">
+          Vòng {roundNum}
+        </p>
+        {totalRounds > 0 && (
+          <p className="text-lg font-bold text-gray-400 mb-8">/ {totalRounds}</p>
+        )}
+
+        {/* Dots */}
+        <div className="flex gap-2 justify-center">
+          {[0, 1, 2].map((i) => (
+            <motion.span
+              key={i}
+              className="w-2 h-2 rounded-full bg-primary"
+              animate={{ opacity: [0.25, 1, 0.25] }}
+              transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.35 }}
+            />
+          ))}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function GameFinished() {
+  return (
+    <div className="min-h-screen bg-surface flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Soft glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-yellow-400/10 rounded-full blur-[80px] pointer-events-none" />
+
+      <motion.div
+        className="relative z-10 text-center"
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.55, ease: "easeOut" }}
+      >
+        {/* Floating trophy */}
+        <motion.div
+          className="w-24 h-24 rounded-3xl bg-yellow-50 border-2 border-yellow-200 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-yellow-100"
+          animate={{ y: [0, -10, 0] }}
+          transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <Trophy size={48} className="text-yellow-500" />
+        </motion.div>
+
+        {/* Stars row */}
+        <motion.div
+          className="flex justify-center gap-1.5 mb-6"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+        >
+          {[0, 1, 2, 3, 4].map((i) => (
+            <motion.svg
+              key={i}
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="w-6 h-6 text-yellow-400"
+              animate={{ scale: [1, 1.25, 1] }}
+              transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.18 }}
+            >
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </motion.svg>
+          ))}
+        </motion.div>
+
+        <h2 className="text-4xl font-black text-gray-900 leading-tight mb-2">
+          Trận đấu<br />kết thúc!
+        </h2>
+        <p className="text-base font-bold text-gray-400 mt-3">
+          Cảm ơn đã tham gia! 🎉
+        </p>
+      </motion.div>
+    </div>
+  );
+}
+
+function QuestionProgress({ current, total }: { current: number; total: number }) {
+  if (total <= 1) return null;
+  return (
+    <div className="flex items-center gap-1">
+      {Array.from({ length: total }, (_, i) => {
+        const n = i + 1;
+        return (
+          <div
+            key={n}
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              n === current ? "w-5 bg-primary" :
+              n <  current  ? "w-2 bg-primary/30" :
+                              "w-2 bg-gray-200"
+            }`}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 function WaitingScreen({ message }: { message: string }) {
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center">
@@ -301,13 +474,22 @@ function WaitingScreen({ message }: { message: string }) {
   );
 }
 
-function ClosedScreen({ question, myAnswerId }: { question: CurrentQuestion; myAnswerId: number | null }) {
+function ClosedScreen({ question, myAnswerId, totalQuestions }: { question: CurrentQuestion; myAnswerId: number | null; totalQuestions: number }) {
+  const isLast = totalQuestions > 0 && question.order_number >= totalQuestions;
+
   return (
     <div className="min-h-screen bg-surface flex flex-col pt-20">
       <main className="flex-grow w-full max-w-4xl mx-auto px-6 py-12">
-        <div className="mb-6 text-center">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2.5">
+            <span className="text-sm font-black text-gray-900">
+              Câu {question.order_number}
+              <span className="text-gray-400 font-bold"> / {totalQuestions}</span>
+            </span>
+            <QuestionProgress current={question.order_number} total={totalQuestions} />
+          </div>
           <span className="text-xs font-black text-gray-400 uppercase tracking-widest border border-gray-200 px-3 py-1 rounded-full">
-            Câu hỏi đã đóng — Đáp án
+            Đáp án
           </span>
         </div>
 
@@ -345,19 +527,21 @@ function ClosedScreen({ question, myAnswerId }: { question: CurrentQuestion; myA
           })}
         </div>
 
-        <div className="mt-10 text-center">
-          <p className="text-sm font-bold text-gray-400">Chờ câu hỏi tiếp theo...</p>
-          <span className="flex gap-1.5 justify-center mt-3">
-            {[0, 1, 2].map((i) => (
-              <motion.span
-                key={i}
-                className="w-2 h-2 rounded-full bg-primary"
-                animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.3 }}
-              />
-            ))}
-          </span>
-        </div>
+        {!isLast && (
+          <div className="mt-10 text-center">
+            <p className="text-sm font-bold text-gray-400">Chờ câu hỏi tiếp theo...</p>
+            <span className="flex gap-1.5 justify-center mt-3">
+              {[0, 1, 2].map((i) => (
+                <motion.span
+                  key={i}
+                  className="w-2 h-2 rounded-full bg-primary"
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.3 }}
+                />
+              ))}
+            </span>
+          </div>
+        )}
       </main>
     </div>
   );

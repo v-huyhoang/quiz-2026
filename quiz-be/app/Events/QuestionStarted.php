@@ -56,10 +56,15 @@ class QuestionStarted implements ShouldBroadcastNow
      */
     public function broadcastWith(): array
     {
+        $round = $this->roundQuestion->round;
+        $totalQuestions = \App\Models\RoundQuestion::where('round_id', $round->id)->count();
+
         return [
             'round_question_id' => $this->roundQuestion->id,
             'round_id' => $this->roundQuestion->round_id,
-            'game_id' => $this->roundQuestion->round->game_id,
+            'game_id' => $round->game_id,
+            'round_number' => $round->round_number,
+            'total_questions' => $totalQuestions,
             'order_number' => $this->roundQuestion->order_number,
             'question' => $this->questionData,
             'time_limit_seconds' => $this->questionData['time_limit_seconds'],

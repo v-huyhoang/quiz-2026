@@ -103,6 +103,22 @@ class GameController extends Controller
     {
         try {
             $this->gameService->startNextRound($id);
+
+            $rq = $this->gameService->openNextQuestion($id);
+
+            $questionData = [
+                'id'                 => $rq->question->id,
+                'content'            => $rq->question->content,
+                'time_limit_seconds' => $rq->question->time_limit_seconds,
+                'answers'            => $rq->question->answers->map(fn ($a) => [
+                    'id'         => $a->id,
+                    'content'    => $a->content,
+                    'is_correct' => null,
+                ])->all(),
+            ];
+
+            broadcast(new QuestionStarted($rq, $questionData));
+
             return $this->successResponse($this->gameService->getAdminState($id), 'Round started');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
