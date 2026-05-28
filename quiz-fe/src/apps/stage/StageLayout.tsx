@@ -9,9 +9,9 @@ export default function StageLayout() {
           <div className="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
           <span className="text-xs font-black uppercase tracking-widest text-gray-900">Live Stage</span>
         </div>
-        <div className="bg-primary px-4 py-2 rounded-xl shadow-md text-white">
+        {/* <div className="bg-primary px-4 py-2 rounded-xl shadow-md text-white">
           <span className="text-xs font-black uppercase tracking-widest">Round 01 / 03</span>
-        </div>
+        </div> */}
       </div>
       
       <Outlet />
