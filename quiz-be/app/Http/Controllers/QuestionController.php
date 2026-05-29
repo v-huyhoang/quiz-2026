@@ -27,7 +27,7 @@ class QuestionController extends Controller
     public function index(Request $request)
     {
         return $this->successResponse(
-            $this->questionService->paginate(self::QUESTIONS_PER_PAGE),
+        $this->questionService->paginate(self::QUESTIONS_PER_PAGE),
             'Questions retrieved successfully'
         );
     }

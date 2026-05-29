@@ -4,25 +4,32 @@ import { UserPlus, Layers, HelpCircle, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
 import { getPublicGameState, type GameTeam, type GameState } from "../../services/gameService";
+import { getRoomByCode } from "../../services/roomService";
 import { getGameChannel } from "../../sockets/channels/game-channel";
 import { getEcho } from "../../sockets/echo";
 
 const MAX_TEAMS = 16;
+const APP_URL = import.meta.env.VITE_APP_URL ?? "http://localhost:5173";
 
 export default function StageWaitting() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const gameId = Number(searchParams.get("gameId"));
+  const roomCode = searchParams.get("room") ?? "";
 
+  const [gameId, setGameId] = useState<number | null>(null);
   const [gameInfo, setGameInfo] = useState<Pick<GameState, "name" | "access_code" | "rounds_total" | "questions_per_round"> | null>(null);
   const [teams, setTeams]           = useState<GameTeam[]>([]);
   const [lastJoined, setLastJoined] = useState<string | null>(null);
   const [lastLeft, setLastLeft]     = useState<string | null>(null);
 
-  // ── Initial state fetch ────────────────────────────────────────────────────
+  // ── Fetch room info by code then load game state ───────────────────────────
   useEffect(() => {
-    if (!gameId) return;
-    getPublicGameState(gameId)
+    if (!roomCode) return;
+    getRoomByCode(roomCode)
+      .then((room) => {
+        setGameId(room.id);
+        return getPublicGameState(room.id);
+      })
       .then((res) => {
         const d = res.data.data;
         setTeams(d.teams);
@@ -33,8 +40,8 @@ export default function StageWaitting() {
           questions_per_round: d.questions_per_round,
         });
       })
-      .catch(() => { });
-  }, [gameId]);
+      .catch(() => {});
+  }, [roomCode]);
 
   // ── WebSocket subscription ─────────────────────────────────────────────────
   useEffect(() => {
@@ -74,7 +81,7 @@ export default function StageWaitting() {
   }, [gameId, navigate]);
 
   const joinUrl = gameInfo
-    ? `${window.location.origin}/join?room=${gameInfo.access_code}`
+    ? `${APP_URL}/join?room=${gameInfo.access_code}`
     : "";
 
   const emptySlots = Math.max(0, MAX_TEAMS - teams.length);
@@ -196,7 +203,7 @@ export default function StageWaitting() {
                 </div>
 
                 <p className="text-[11px] text-gray-400 font-medium text-center leading-relaxed">
-                  Truy cập <span className="font-bold text-gray-600">{window.location.host}/join</span><br />
+                  Truy cập <span className="font-bold text-gray-600 break-all">{APP_URL}/join?room={gameInfo.access_code}</span><br />
                   hoặc quét mã QR bên trên
                 </p>
               </>

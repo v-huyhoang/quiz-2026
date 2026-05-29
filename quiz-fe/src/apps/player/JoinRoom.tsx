@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Users, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuthStore } from "../../store/authStore";
-import { joinRoom, getRoomByCode } from "../../services/roomService";
+import { joinRoom } from "../../services/roomService";
 
 export default function JoinRoom() {
   const [searchParams] = useSearchParams();
