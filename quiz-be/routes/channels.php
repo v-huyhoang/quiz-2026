@@ -6,11 +6,15 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
 
-// Game channel - for players to listen to game-specific events
+// Game channel - public broadcast events (questions, game state, etc.)
 Broadcast::channel('game.{gameId}', function ($user, $gameId) {
-    // Allow all authenticated users to join game channels
-    // You can add additional authorization logic here if needed
     return true;
+});
+
+// Presence channel - tracks which teams are currently connected
+Broadcast::channel('presence-game.{gameId}', function ($team, $gameId) {
+    if ((int) $team->game_id !== (int) $gameId) return false;
+    return ['id' => $team->id, 'name' => $team->name];
 });
 
 // Stage channel - for stage display screen

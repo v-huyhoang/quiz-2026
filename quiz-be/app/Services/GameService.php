@@ -116,12 +116,13 @@ class GameService
         }
 
         return [
-            'status'        => $game->status,
-            'name'          => $game->name,
-            'access_code'   => $game->access_code,
-            'rounds_total'  => $game->rounds,
-            'teams'         => $teams->map(fn ($t) => ['id' => $t->id, 'name' => $t->name])->all(),
-            'current_round' => $currentRound,
+            'status'              => $game->status,
+            'name'                => $game->name,
+            'access_code'         => $game->access_code,
+            'rounds_total'        => $game->rounds,
+            'questions_per_round' => $game->questions_per_round,
+            'teams'               => $teams->map(fn ($t) => ['id' => $t->id, 'name' => $t->name])->all(),
+            'current_round'       => $currentRound,
         ];
     }
 
