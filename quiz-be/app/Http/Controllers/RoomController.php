@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\CreateRoomRequest;
+use App\Http\Requests\UpdateRoomRequest;
 use App\Models\Game;
 use App\Services\RoomService;
 use App\Traits\ApiResponseTrait;
-use Illuminate\Http\Request;
 
 class RoomController extends Controller
 {
@@ -31,21 +32,11 @@ class RoomController extends Controller
     /**
      * Create a new room (game)
      */
-    public function store(Request $request)
+    public function store(CreateRoomRequest $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'rounds' => 'required|integer|min:1|max:10',
-            'questions_per_round' => 'required|integer|min:1|max:20',
-            'access_code' => 'required|string|max:10|unique:games,access_code',
-            'question_mode' => 'required|in:random,manual',
-            'round_questions' => 'array',
-            'round_questions.*.round_number' => 'required|integer',
-            'round_questions.*.question_ids' => 'required|array',
-        ]);
+        $result = $this->roomService->create($request->validated());
 
-        $result = $this->roomService->create($request->all());
-        return response()->json($result, 201);
+        return $this->successResponse($result, 'Room created successfully');
     }
 
     /**
@@ -59,18 +50,14 @@ class RoomController extends Controller
     /**
      * Update a room
      */
-    public function update(Request $request, $id)
+    public function update(UpdateRoomRequest $request, $id)
     {
-        $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'round_questions' => 'sometimes|array',
-            'round_questions.*.round_number' => 'required_with:round_questions|integer',
-            'round_questions.*.question_ids' => 'required_with:round_questions|array',
-            'round_questions.*.question_ids.*' => 'required_with:round_questions|exists:questions,id',
-        ]);
-
-        return response()->json(
-            $this->roomService->update($id, $request->only(['name', 'round_questions']))
+        return $this->successResponse(
+            $this->roomService->update(
+                $id,
+                $request->validated()
+            ),
+            'Room updated successfully'
         );
     }
 
@@ -79,7 +66,10 @@ class RoomController extends Controller
      */
     public function destroy($id)
     {
-        return response()->json($this->roomService->delete($id));
+        return $this->successResponse(
+            $this->roomService->delete($id),
+            'Room deleted successfully'
+        );
     }
 
     /**

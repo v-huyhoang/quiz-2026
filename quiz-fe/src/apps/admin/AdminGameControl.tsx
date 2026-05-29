@@ -15,6 +15,7 @@ import { QuestionTimer } from "../../components/ui/QuestionTimer";
 import { GridBg } from "../../components/ui/GridBg";
 import { ANSWER_LABELS, getApiErrorMessage } from "../../libs/utils";
 import { usePolling } from "../../hooks/usePolling";
+import { useGameSocket } from "../../hooks/useGameSocket";
 
 const LABELS = ANSWER_LABELS;
 
@@ -28,7 +29,7 @@ export default function AdminGameControl() {
   const [actionLoading, setAction] = useState(false);
   const [error, setError]          = useState("");
 
-  // ── Polling ──────────────────────────────────────────────────────────────────
+  // ── Polling — keeps state in sync every 2s ───────────────────────────────────
   usePolling(
     useCallback(async () => {
       const res = await getAdminGameState(id);
@@ -38,6 +39,23 @@ export default function AdminGameControl() {
     2000,
     !!id,
   );
+
+  // ── Real-time team presence via WebSocket ─────────────────────────────────────
+  useGameSocket(id || null, {
+    ".team.joined": (data: { team: { id: number; name: string } }) => {
+      setGameState((prev) => {
+        if (!prev) return prev;
+        if (prev.teams.some((t) => t.id === data.team.id)) return prev;
+        return { ...prev, teams: [...prev.teams, { id: data.team.id, name: data.team.name }] };
+      });
+    },
+    ".team.left": (data: { team: { id: number } }) => {
+      setGameState((prev) => {
+        if (!prev) return prev;
+        return { ...prev, teams: prev.teams.filter((t) => t.id !== data.team.id) };
+      });
+    },
+  });
 
   // ── Action helpers ────────────────────────────────────────────────────────────
   const act = useCallback(async (fn: () => Promise<{ data: { data: GameState } }>) => {
@@ -110,7 +128,7 @@ export default function AdminGameControl() {
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-4">
                 <button
-                  onClick={() => navigate("/admin")}
+                  onClick={() => navigate("/admin/rooms")}
                   className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors"
                 >
                   <ArrowLeft size={20} />

@@ -1,30 +1,37 @@
-import { useEffect, useState, useCallback, memo } from "react";
+import { useCallback, memo, useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { UserPlus, Layers, HelpCircle, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
 import { getPublicGameState, type GameTeam, type GameState } from "../../services/gameService";
+import { getRoomByCode } from "../../services/roomService";
 import { GridBg } from "../../components/ui/GridBg";
 import { useGameSocket } from "../../hooks/useGameSocket";
 
 const MAX_TEAMS = 16;
+const APP_URL = import.meta.env.VITE_APP_URL ?? "http://localhost:5173";
 
 type GameInfo = Pick<GameState, "name" | "access_code" | "rounds_total" | "questions_per_round">;
 
 export default function StageWaitting() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const gameId = Number(searchParams.get("gameId"));
+  const roomCode = searchParams.get("room") ?? "";
 
+  const [gameId, setGameId]         = useState<number | null>(null);
   const [gameInfo, setGameInfo]     = useState<GameInfo | null>(null);
   const [teams, setTeams]           = useState<GameTeam[]>([]);
   const [lastJoined, setLastJoined] = useState<string | null>(null);
   const [lastLeft, setLastLeft]     = useState<string | null>(null);
 
-  // ── Initial state fetch ────────────────────────────────────────────────────
+  // ── Fetch room by code then load initial game state ────────────────────────
   useEffect(() => {
-    if (!gameId) return;
-    getPublicGameState(gameId)
+    if (!roomCode) return;
+    getRoomByCode(roomCode)
+      .then((room) => {
+        setGameId(room.id);
+        return getPublicGameState(room.id);
+      })
       .then((res) => {
         const d = res.data.data;
         setTeams(d.teams);
@@ -36,13 +43,13 @@ export default function StageWaitting() {
         });
       })
       .catch(() => {});
-  }, [gameId]);
+  }, [roomCode]);
 
   const clearJoined = useCallback(() => setLastJoined(null), []);
   const clearLeft   = useCallback(() => setLastLeft(null), []);
 
   // ── WebSocket subscription ─────────────────────────────────────────────────
-  useGameSocket(gameId || null, {
+  useGameSocket(gameId, {
     ".team.joined": (data: { team: GameTeam }) => {
       setTeams((prev) =>
         prev.some((t) => t.id === data.team.id) ? prev : [...prev, data.team]
@@ -66,7 +73,7 @@ export default function StageWaitting() {
     },
   });
 
-  const joinUrl    = gameInfo ? `${window.location.origin}/join?room=${gameInfo.access_code}` : "";
+  const joinUrl    = gameInfo ? `${APP_URL}/join?room=${gameInfo.access_code}` : "";
   const emptySlots = Math.max(0, MAX_TEAMS - teams.length);
 
   return (
@@ -145,7 +152,7 @@ export default function StageWaitting() {
                   </p>
                 </div>
                 <p className="text-[11px] text-gray-400 font-medium text-center leading-relaxed">
-                  Truy cập <span className="font-bold text-gray-600">{window.location.host}/join</span><br />
+                  Truy cập <span className="font-bold text-gray-600 break-all">{APP_URL}/join?room={gameInfo.access_code}</span><br />
                   hoặc quét mã QR bên trên
                 </p>
               </>
