@@ -124,17 +124,14 @@ class RoomService
             }
 
             return [
-                'success' => true,
-                'data' => [
-                    'id' => $game->id,
-                    'name' => $game->name,
-                    'access_code' => $game->access_code,
-                    'rounds' => $game->rounds,
-                    'questions_per_round' => $game->questions_per_round,
-                    'question_mode' => $game->question_mode,
-                    'status' => $game->status,
-                    'join_url' => url("/join?room={$game->access_code}"),
-                ],
+                'id' => $game->id,
+                'name' => $game->name,
+                'access_code' => $game->access_code,
+                'rounds' => $game->rounds,
+                'questions_per_round' => $game->questions_per_round,
+                'question_mode' => $game->question_mode,
+                'status' => $game->status,
+                'join_url' => url("/join?room={$game->access_code}"),
             ];
         });
     }
@@ -154,7 +151,7 @@ class RoomService
                     $roundNumber = $roundQuestions['round_number'] ?? null;
                     $questionIds = $roundQuestions['question_ids'] ?? null;
 
-                    if (! $roundNumber || ! is_array($questionIds)) {
+                    if (!$roundNumber || !is_array($questionIds)) {
                         continue;
                     }
 
@@ -162,7 +159,7 @@ class RoomService
                         ->where('round_number', $roundNumber)
                         ->first();
 
-                    if (! $round) {
+                    if (!$round) {
                         continue;
                     }
 
