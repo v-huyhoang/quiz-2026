@@ -31,6 +31,9 @@ export default function PlayerWaiting() {
         prev.some((t) => t.id === data.team.id) ? prev : [...prev, data.team]
       );
     },
+    ".team.left": (data: { team: GameTeam }) => {
+      setTeams((prev) => prev.filter((t) => t.id !== data.team.id));
+    },
     ".game.started": () => {
       navigate("/player/game", { replace: true });
     },

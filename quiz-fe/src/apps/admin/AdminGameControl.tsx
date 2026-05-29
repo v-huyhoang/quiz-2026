@@ -14,7 +14,6 @@ import {
 import { QuestionTimer } from "../../components/ui/QuestionTimer";
 import { GridBg } from "../../components/ui/GridBg";
 import { ANSWER_LABELS, getApiErrorMessage } from "../../libs/utils";
-import { usePolling } from "../../hooks/usePolling";
 import { useGameSocket } from "../../hooks/useGameSocket";
 
 const LABELS = ANSWER_LABELS;
@@ -29,18 +28,15 @@ export default function AdminGameControl() {
   const [actionLoading, setAction] = useState(false);
   const [error, setError]          = useState("");
 
-  // ── Polling — keeps state in sync every 2s ───────────────────────────────────
-  usePolling(
-    useCallback(async () => {
-      const res = await getAdminGameState(id);
-      setGameState(res.data.data);
-      setLoading(false);
-    }, [id]),
-    2000,
-    !!id,
-  );
+  // ── Initial fetch ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!id) return;
+    getAdminGameState(id)
+      .then((res) => { setGameState(res.data.data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [id]);
 
-  // ── Real-time team presence via WebSocket ─────────────────────────────────────
+  // ── Real-time updates via WebSocket ───────────────────────────────────────────
   useGameSocket(id || null, {
     ".team.joined": (data: { team: { id: number; name: string } }) => {
       setGameState((prev) => {
@@ -55,6 +51,10 @@ export default function AdminGameControl() {
         return { ...prev, teams: prev.teams.filter((t) => t.id !== data.team.id) };
       });
     },
+    ".game.started":    () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => {}),
+    ".question.started": () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => {}),
+    ".question.closed": () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => {}),
+    ".game.finished":   () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => {}),
   });
 
   // ── Action helpers ────────────────────────────────────────────────────────────
