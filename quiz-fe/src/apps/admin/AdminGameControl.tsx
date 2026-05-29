@@ -110,7 +110,7 @@ export default function AdminGameControl() {
 
   const isLastRound    = !!round && round.round_number === gameState.rounds_total;
   const canStartGame   = gameState.status === "pending";
-  const canStartRound  = gameState.status === "active" && !round;
+  const canStartRound  = gameState.status === "active" && (!round || round.status === "finished");
   const canCloseQ      = question?.status === "open";
   const canOpenNext    = question?.status === "closed" && round && round.questions_done < round.total_questions;
   const canFinishRound = !isLastRound && !!round && round.status === "active" && question?.status === "closed";
