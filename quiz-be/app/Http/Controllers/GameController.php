@@ -199,6 +199,7 @@ class GameController extends Controller
     public function leave(int $id)
     {
         $team = request()->user();
+        $team->update(['is_present' => false]);
         broadcast(new \App\Events\TeamLeft($id, ['id' => $team->id, 'name' => $team->name]));
         return $this->successResponse(null, 'Left');
     }
@@ -206,6 +207,7 @@ class GameController extends Controller
     public function announce(int $id)
     {
         $team = request()->user();
+        $team->update(['is_present' => true]);
         broadcast(new TeamJoined($id, ['id' => $team->id, 'name' => $team->name]));
         return $this->successResponse(null, 'Announced');
     }

@@ -56,19 +56,13 @@ class GameService
 
     private function buildState(Game $game, bool $isAdmin): array
     {
-        $teams = $game->teams()->get(['id', 'name']);
+        $teams = $game->teams()->where('is_present', true)->get(['id', 'name']);
 
         $activeRound = $game->rounds()
             ->whereIn('status', ['active', 'finished'])
-            ->orderByRaw("
-                CASE
-                    WHEN status = 'active' THEN 1
-                    WHEN status = 'finished' THEN 2
-                END
-            ")
+            ->orderByRaw("CASE WHEN status = 'active' THEN 1 WHEN status = 'finished' THEN 2 END")
             ->orderByDesc('round_number')
             ->first();
-
         $currentRound = null;
 
         if ($activeRound) {
@@ -82,7 +76,6 @@ class GameService
 
             $currentQuestion = null;
 
-            // Chỉ trả question khi round đang active
             if ($activeRound->status === 'active') {
 
                 $currentRQ = RoundQuestion::where('round_id', $activeRound->id)

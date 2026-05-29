@@ -13,7 +13,7 @@ class Team extends Authenticatable
     /** @use HasFactory<\Database\Factories\TeamFactory> */
     use HasFactory, HasApiTokens;
 
-    protected $fillable = ['game_id', 'name'];
+    protected $fillable = ['game_id', 'name', 'is_present'];
 
     public function game(): BelongsTo
     {
