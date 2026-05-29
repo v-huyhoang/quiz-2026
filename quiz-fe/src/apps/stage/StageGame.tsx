@@ -60,10 +60,21 @@ export default function StageGame() {
         setGameStatus(state.status);
         setRoundsTotal(state.rounds_total);
         const round = state.current_round;
+        // if (round) {
+        //   setRoundNum(round.round_number);
+        //   setTotalQ(round.total_questions);
+        //   setQuestion(round.current_question);
+        // }
         if (round) {
-          setRoundNum(round.round_number);
           setTotalQ(round.total_questions);
-          setQuestion(round.current_question);
+
+          if (round.status === "finished") {
+            setRoundNum(round.round_number + 1);
+            setQuestion(null);
+          } else {
+            setRoundNum(round.round_number);
+            setQuestion(round.current_question);
+          }
         }
       })
       .catch(() => { });
@@ -228,11 +239,10 @@ export default function StageGame() {
                   : "bg-white border-gray-200"
                   }`}
               >
-                <span className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-black shrink-0 border-2 ${
-                  revealed && isCorrect
+                <span className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-black shrink-0 border-2 ${revealed && isCorrect
                     ? "bg-green-500 text-white border-green-500"
                     : "bg-gray-100 border-gray-300 text-gray-600"
-                }`}>
+                  }`}>
                   {LABELS[i]}
                 </span>
                 <span className={`text-2xl md:text-3xl font-bold flex-1 ${revealed && isCorrect ? "text-green-800" : "text-gray-900"
