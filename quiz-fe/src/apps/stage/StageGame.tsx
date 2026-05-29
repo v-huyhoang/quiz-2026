@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Timer, CheckCircle, Trophy, Star } from "lucide-react";
+import { CheckCircle, Trophy, Star } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { getPublicGameState, type CurrentQuestion, type GameAnswer } from "../../services/gameService";
-import { getGameChannel } from "../../sockets/channels/game-channel";
-import { getEcho } from "../../sockets/echo";
 import StageRoundComplete from "./StageRoundComplete";
 
-const LABELS = ["A", "B", "C", "D"];
+import { QuestionTimer } from "../../components/ui/QuestionTimer";
+import { GridBg } from "../../components/ui/GridBg";
+import { ANSWER_LABELS } from "../../libs/utils";
+import { useGameSocket } from "../../hooks/useGameSocket";
+
+const LABELS = ANSWER_LABELS;
 
 interface GameStartedEvent {
   game_id: number;
@@ -66,20 +69,15 @@ export default function StageGame() {
       .catch(() => { });
   }, [gameId]);
 
-  // ── WebSocket subscription ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!gameId) return;
-
-    const channel = getGameChannel(String(gameId));
-
-    channel.listen(".game.started", (data: GameStartedEvent) => {
+  // ── WebSocket subscription (hook handles subscribe/unsubscribe) ────────────
+  useGameSocket(gameId || null, {
+    ".game.started": (data: GameStartedEvent) => {
       setGameStatus("active");
       setRoundsTotal(data.rounds_total);
       setRoundNum(1);
       setQuestion(null);
-    });
-
-    channel.listen(".question.started", (data: QuestionStartedEvent) => {
+    },
+    ".question.started": (data: QuestionStartedEvent) => {
       setRoundNum(data.round_number);
       setTotalQ(data.total_questions);
       setQuestion({
@@ -91,33 +89,25 @@ export default function StageGame() {
         time_limit_seconds: data.time_limit_seconds,
         answers: data.question.answers,
       });
-    });
-
-    channel.listen(".question.closed", (data: QuestionClosedEvent) => {
+    },
+    ".question.closed": (data: QuestionClosedEvent) => {
       setQuestion((prev) =>
         prev ? { ...prev, status: "closed", answers: data.question.answers } : prev
       );
-    });
-
-    channel.listen(".round.finished", (data: RoundFinishedEvent) => {
+    },
+    ".round.finished": (data: RoundFinishedEvent) => {
       console.debug("[StageGame] .round.finished", data);
 
       setShowRoundComplete(true);
       console.debug("[StageGame] setShowRoundComplete(true)");
 
       setQuestion(null);
-
       setRoundNum(data.round_number + 1);
-    });
-
-    channel.listen(".game.finished", () => {
+    },
+    ".game.finished": () => {
       setGameStatus("finished");
-    });
-
-    return () => {
-      getEcho().leave(`game.${gameId}`);
-    };
-  }, [gameId]);
+    },
+  });
 
   // ── Screens ────────────────────────────────────────────────────────────────
   if (gameStatus === "finished") {
@@ -185,9 +175,12 @@ export default function StageGame() {
               QUESTION {question.order_number} / {totalQ}
             </span>
           </div>
-
           {question.status === "open" && question.opened_at && (
-            <StageTimer openedAt={question.opened_at} limitSec={question.time_limit_seconds} />
+            <QuestionTimer
+              openedAt={question.opened_at}
+              limitSec={question.time_limit_seconds}
+              variant="stage"
+            />
           )}
           {question.status === "closed" && (
             <span className="text-sm font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-4 py-2 rounded-2xl">
@@ -235,27 +228,24 @@ export default function StageGame() {
                   : "bg-white border-gray-200"
                   }`}
               >
-                <span className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-black shrink-0 border-2 ${revealed && isCorrect
-                  ? "bg-green-500 text-white border-green-500"
-                  : "bg-gray-100 border-gray-300 text-gray-600"
-                  }`}>
+                <span className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-black shrink-0 border-2 ${
+                  revealed && isCorrect
+                    ? "bg-green-500 text-white border-green-500"
+                    : "bg-gray-100 border-gray-300 text-gray-600"
+                }`}>
                   {LABELS[i]}
                 </span>
                 <span className={`text-2xl md:text-3xl font-bold flex-1 ${revealed && isCorrect ? "text-green-800" : "text-gray-900"
                   }`}>
                   {ans.content}
                 </span>
-                {revealed && isCorrect && (
-                  <CheckCircle size={32} className="text-green-500 shrink-0" />
-                )}
+                {revealed && isCorrect && <CheckCircle size={32} className="text-green-500 shrink-0" />}
               </motion.div>
             );
           })}
         </motion.div>
-
-        {/* Grid background */}
-        <GridBg />
       </main>
+      <GridBg />
     </div>
   );
 }
@@ -363,48 +353,10 @@ function StageGameFinished() {
         <h1 className="text-6xl md:text-8xl font-black text-gray-900 leading-tight tracking-tight mb-6">
           TRẬN ĐẤU<br />KẾT THÚC!
         </h1>
-        <p className="text-2xl md:text-3xl font-bold text-gray-400">
-          Cảm ơn đã tham gia!
-        </p>
+        <p className="text-2xl md:text-3xl font-bold text-gray-400">Cảm ơn đã tham gia!</p>
       </motion.div>
 
       <GridBg />
-    </div>
-  );
-}
-
-// ── Shared grid background ─────────────────────────────────────────────────────
-function GridBg() {
-  return (
-    <div className="fixed inset-0 pointer-events-none -z-10 opacity-5">
-      <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-            <path d="M 60 0 L 0 0 0 60" fill="none" stroke="currentColor" strokeWidth="1" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-      </svg>
-    </div>
-  );
-}
-
-// ── Stage countdown timer ──────────────────────────────────────────────────────
-function StageTimer({ openedAt, limitSec }: { openedAt: string; limitSec: number }) {
-  const elapsed = Math.floor((Date.now() - new Date(openedAt).getTime()) / 1000);
-  const [left, setLeft] = useState(Math.max(0, limitSec - elapsed));
-
-  useEffect(() => {
-    if (left <= 0) return;
-    const t = setInterval(() => setLeft((p) => Math.max(0, p - 1)), 1000);
-    return () => clearInterval(t);
-  }, [left]);
-
-  return (
-    <div className={`flex items-center gap-3 font-mono text-4xl font-black px-8 py-4 rounded-2xl border shadow-lg transition-all ${left <= 10 ? "text-red-500 border-red-300 bg-red-50" : "text-secondary border-gray-200 bg-white"
-      }`}>
-      <Timer size={32} />
-      0:{left.toString().padStart(2, "0")}
     </div>
   );
 }

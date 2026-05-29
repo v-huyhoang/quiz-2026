@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Timer, CheckCircle, Clock, Loader2, Trophy } from "lucide-react";
+import { CheckCircle, Clock, Loader2, Trophy } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import {
   getPublicGameState,
@@ -9,10 +9,10 @@ import {
   type GameState,
   type GameAnswer,
 } from "../../services/gameService";
-import { getGameChannel } from "../../sockets/channels/game-channel";
-import { getEcho } from "../../sockets/echo";
-
-const LABELS = ["A", "B", "C", "D"];
+import { QuestionTimer } from "../../components/ui/QuestionTimer";
+import { LoadingScreen } from "../../components/ui/LoadingScreen";
+import { ANSWER_LABELS, getApiErrorMessage } from "../../libs/utils";
+import { useGameSocket } from "../../hooks/useGameSocket";
 
 interface QuestionStartedEvent {
   round_question_id: number;
@@ -39,34 +39,29 @@ export default function PlayerGame() {
 
   const submittedRqId = useRef<number | null>(null);
 
-  // ── Initial state fetch (once on mount) ──────────────────────────────────────
+  // ── Initial state fetch ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!gameId) return;
     getPublicGameState(gameId)
       .then((res) => setGameState(res.data.data))
-      .catch(() => { });
+      .catch(() => {});
   }, [gameId]);
 
   // ── WebSocket subscription ────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!gameId) return;
-
-    const channel = getGameChannel(String(gameId));
-
-    channel.listen(".game.started", (data: { rounds_total: number }) => {
+  useGameSocket(gameId, {
+    ".game.started": (data: { rounds_total: number }) => {
       setGameState((prev) =>
         prev ? { ...prev, status: "active", rounds_total: data.rounds_total } : prev
       );
-    });
-
-    channel.listen(".question.started", (data: QuestionStartedEvent) => {
+    },
+    ".question.started": (data: QuestionStartedEvent) => {
       setGameState((prev) => {
         if (!prev) return prev;
-        const newQuestion = {
+        const newQuestion: CurrentQuestion = {
           round_question_id: data.round_question_id,
           order_number: data.order_number,
           content: data.question.content,
-          status: "open" as const,
+          status: "open",
           opened_at: new Date().toISOString(),
           time_limit_seconds: data.time_limit_seconds,
           answers: data.question.answers,
@@ -84,9 +79,8 @@ export default function PlayerGame() {
               },
         };
       });
-    });
-
-    channel.listen(".question.closed", (data: QuestionClosedEvent) => {
+    },
+    ".question.closed": (data: QuestionClosedEvent) => {
       setGameState((prev) => {
         if (!prev?.current_round?.current_question) return prev;
         return {
@@ -102,25 +96,19 @@ export default function PlayerGame() {
           },
         };
       });
-    });
-
-    channel.listen(".round.finished", (data: { round_number: number }) => {
+    },
+    ".round.finished": (data: { round_number: number }) => {
       setNextRound(data.round_number + 1);
       setGameState((prev) => prev ? { ...prev, current_round: null } : prev);
-    });
-
-    channel.listen(".game.finished", () => {
-      setGameState((prev) => (prev ? { ...prev, status: "finished" } : prev));
-    });
-
-    return () => {
-      getEcho().leave(`game.${gameId}`);
-    };
-  }, [gameId]);
+    },
+    ".game.finished": () => {
+      setGameState((prev) => prev ? { ...prev, status: "finished" } : prev);
+    },
+  });
 
   // Reset selection when a new question appears
   const question = gameState?.current_round?.current_question ?? null;
-  const rqId = question?.round_question_id ?? null;
+  const rqId     = question?.round_question_id ?? null;
 
   useEffect(() => {
     if (rqId !== null && rqId !== submittedRqId.current) {
@@ -129,8 +117,8 @@ export default function PlayerGame() {
     }
   }, [rqId]);
 
-  const alreadySubmitted  = rqId !== null && submittedRqId.current === rqId;
-  const isLastQuestion    = (question?.order_number ?? 0) >= (gameState?.current_round?.total_questions ?? 0);
+  const alreadySubmitted = rqId !== null && submittedRqId.current === rqId;
+  const isLastQuestion   = (question?.order_number ?? 0) >= (gameState?.current_round?.total_questions ?? 0);
 
   const handleSubmit = async () => {
     if (!question || !selectedId || submitting || alreadySubmitted) return;
@@ -142,41 +130,25 @@ export default function PlayerGame() {
       await submitAnswer(question.round_question_id, selectedId);
       submittedRqId.current = question.round_question_id;
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
       if ((e as { response?: { status?: number } })?.response?.status === 409) {
         submittedRqId.current = question.round_question_id;
       } else {
-        setSubmitError(msg ?? "Không thể nộp. Thử lại.");
+        setSubmitError(getApiErrorMessage(e, "Không thể nộp. Thử lại."));
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (!gameState) {
-    return (
-      <div className="min-h-screen bg-surface flex items-center justify-center">
-        <Loader2 size={32} className="animate-spin text-primary" />
-      </div>
-    );
-  }
+  if (!gameState) return <LoadingScreen />;
 
-  if (gameState.status === "finished") {
-    return <GameFinished />;
-  }
+  if (gameState.status === "finished") return <GameFinished />;
 
   if (gameState.status === "active" && !gameState.current_round) {
-    return (
-      <WaitingForRound
-        roundNum={nextRound}
-        totalRounds={gameState.rounds_total}
-      />
-    );
+    return <WaitingForRound roundNum={nextRound} totalRounds={gameState.rounds_total} />;
   }
 
-  if (!question) {
-    return <WaitingScreen message="Chờ câu hỏi tiếp theo..." />;
-  }
+  if (!question) return <LoadingScreen message="Chờ câu hỏi tiếp theo..." />;
 
   if (question.status === "closed") {
     return (
@@ -204,7 +176,7 @@ export default function PlayerGame() {
               total={gameState.current_round?.total_questions ?? 0}
             />
           </div>
-          <QuestionTimer openedAt={question.opened_at!} limitSec={question.time_limit_seconds} />
+          <QuestionTimer openedAt={question.opened_at!} limitSec={question.time_limit_seconds} variant="player" />
         </div>
 
         {/* Question text */}
@@ -239,9 +211,10 @@ export default function PlayerGame() {
                   }`}
               >
                 <div className="flex items-center gap-4">
-                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border-2 ${isSelected ? "bg-primary text-white border-primary" : "text-gray-400 border-gray-100"
-                    }`}>
-                    {LABELS[i]}
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border-2 ${
+                    isSelected ? "bg-primary text-white border-primary" : "text-gray-400 border-gray-100"
+                  }`}>
+                    {ANSWER_LABELS[i]}
                   </span>
                   <span className={`font-bold text-lg ${isSelected ? "text-primary" : "text-gray-700"}`}>
                     {ans.content}
@@ -253,7 +226,6 @@ export default function PlayerGame() {
           })}
         </div>
 
-        {/* Error */}
         {submitError && (
           <p className="mt-4 text-center text-red-500 text-sm font-semibold">{submitError}</p>
         )}
@@ -271,8 +243,9 @@ export default function PlayerGame() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className={`group relative flex items-center gap-3 px-7 py-4 rounded-2xl font-bold text-sm tracking-widest uppercase text-white overflow-hidden transition-all ${selectedId && !submitting ? "bg-primary cursor-pointer" : "bg-gray-300 cursor-not-allowed"
-                  }`}
+                className={`group relative flex items-center gap-3 px-7 py-4 rounded-2xl font-bold text-sm tracking-widest uppercase text-white overflow-hidden transition-all ${
+                  selectedId && !submitting ? "bg-primary cursor-pointer" : "bg-gray-300 cursor-not-allowed"
+                }`}
               >
                 {submitting
                   ? <Loader2 size={18} className="animate-spin relative z-10" />
@@ -289,18 +262,7 @@ export default function PlayerGame() {
               >
                 <Clock size={18} className="shrink-0 animate-pulse" />
                 <span>Đã nộp{!isLastQuestion && " · Đang chờ câu tiếp theo..."}</span>
-                {!isLastQuestion && (
-                  <span className="flex gap-1 ml-1">
-                    {[0, 1, 2].map((i) => (
-                      <motion.span
-                        key={i}
-                        className="w-1.5 h-1.5 rounded-full bg-primary"
-                        animate={{ opacity: [0.3, 1, 0.3] }}
-                        transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.3 }}
-                      />
-                    ))}
-                  </span>
-                )}
+                {!isLastQuestion && <PulsingDots />}
               </motion.div>
             )}
           </AnimatePresence>
@@ -310,38 +272,54 @@ export default function PlayerGame() {
   );
 }
 
-function QuestionTimer({ openedAt, limitSec }: { openedAt: string; limitSec: number }) {
-  const elapsed = Math.floor((Date.now() - new Date(openedAt).getTime()) / 1000);
-  const [left, setLeft] = useState(Math.max(0, limitSec - elapsed));
+// ── Pure sub-components ───────────────────────────────────────────────────────
 
-  useEffect(() => {
-    if (left <= 0) return;
-    const t = setInterval(() => setLeft((p) => Math.max(0, p - 1)), 1000);
-    return () => clearInterval(t);
-  }, [left]);
-
+const PulsingDots = memo(function PulsingDots() {
   return (
-    <div className={`flex items-center gap-2 font-mono text-xl font-bold px-4 py-2 rounded-lg border shadow-sm transition-colors ${left <= 10 ? "text-red-500 border-red-200 bg-red-50" : "text-primary border-gray-200 bg-white"
-      }`}>
-      <Timer size={20} />
-      0:{left.toString().padStart(2, "0")}
+    <span className="flex gap-1 ml-1">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          className="w-1.5 h-1.5 rounded-full bg-primary"
+          animate={{ opacity: [0.3, 1, 0.3] }}
+          transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.3 }}
+        />
+      ))}
+    </span>
+  );
+});
+
+const QuestionProgress = memo(function QuestionProgress({ current, total }: { current: number; total: number }) {
+  if (total <= 1) return null;
+  return (
+    <div className="flex items-center gap-1">
+      {Array.from({ length: total }, (_, i) => {
+        const n = i + 1;
+        return (
+          <div
+            key={n}
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              n === current ? "w-5 bg-primary" :
+              n <  current  ? "w-2 bg-primary/30" :
+                              "w-2 bg-gray-200"
+            }`}
+          />
+        );
+      })}
     </div>
   );
-}
+});
 
 function WaitingForRound({ roundNum, totalRounds }: { roundNum: number; totalRounds: number }) {
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Soft glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/6 rounded-full blur-[80px] pointer-events-none" />
-
       <motion.div
         className="relative z-10 text-center"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
       >
-        {/* Trophy icon */}
         <motion.div
           className="w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-7"
           animate={{ scale: [1, 1.06, 1] }}
@@ -350,7 +328,6 @@ function WaitingForRound({ roundNum, totalRounds }: { roundNum: number; totalRou
           <Trophy size={36} className="text-primary" />
         </motion.div>
 
-        {/* "Sắp bắt đầu" badge */}
         <motion.div
           className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/8 border border-primary/20 rounded-full mb-5"
           animate={{ opacity: [0.7, 1, 0.7] }}
@@ -360,20 +337,10 @@ function WaitingForRound({ roundNum, totalRounds }: { roundNum: number; totalRou
           <span className="text-xs font-black text-primary uppercase tracking-widest">Sắp bắt đầu</span>
         </motion.div>
 
-        {/* Label */}
-        <p className="text-xs font-black text-gray-400 uppercase tracking-[0.25em] mb-1">
-          Chuẩn bị cho
-        </p>
+        <p className="text-xs font-black text-gray-400 uppercase tracking-[0.25em] mb-1">Chuẩn bị cho</p>
+        <p className="text-7xl font-black text-gray-900 leading-none mb-1">Vòng {roundNum}</p>
+        {totalRounds > 0 && <p className="text-lg font-bold text-gray-400 mb-8">/ {totalRounds}</p>}
 
-        {/* Round number */}
-        <p className="text-7xl font-black text-gray-900 leading-none mb-1">
-          Vòng {roundNum}
-        </p>
-        {totalRounds > 0 && (
-          <p className="text-lg font-bold text-gray-400 mb-8">/ {totalRounds}</p>
-        )}
-
-        {/* Dots */}
         <div className="flex gap-2 justify-center">
           {[0, 1, 2].map((i) => (
             <motion.span
@@ -392,16 +359,13 @@ function WaitingForRound({ roundNum, totalRounds }: { roundNum: number; totalRou
 function GameFinished() {
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Soft glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-yellow-400/10 rounded-full blur-[80px] pointer-events-none" />
-
       <motion.div
         className="relative z-10 text-center"
         initial={{ opacity: 0, scale: 0.85 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.55, ease: "easeOut" }}
       >
-        {/* Floating trophy */}
         <motion.div
           className="w-24 h-24 rounded-3xl bg-yellow-50 border-2 border-yellow-200 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-yellow-100"
           animate={{ y: [0, -10, 0] }}
@@ -410,7 +374,6 @@ function GameFinished() {
           <Trophy size={48} className="text-yellow-500" />
         </motion.div>
 
-        {/* Stars row */}
         <motion.div
           className="flex justify-center gap-1.5 mb-6"
           initial={{ opacity: 0, y: 8 }}
@@ -431,50 +394,22 @@ function GameFinished() {
           ))}
         </motion.div>
 
-        <h2 className="text-4xl font-black text-gray-900 leading-tight mb-2">
-          Trận đấu<br />kết thúc!
-        </h2>
-        <p className="text-base font-bold text-gray-400 mt-3">
-          Cảm ơn đã tham gia! 🎉
-        </p>
+        <h2 className="text-4xl font-black text-gray-900 leading-tight mb-2">Trận đấu<br />kết thúc!</h2>
+        <p className="text-base font-bold text-gray-400 mt-3">Cảm ơn đã tham gia! 🎉</p>
       </motion.div>
     </div>
   );
 }
 
-function QuestionProgress({ current, total }: { current: number; total: number }) {
-  if (total <= 1) return null;
-  return (
-    <div className="flex items-center gap-1">
-      {Array.from({ length: total }, (_, i) => {
-        const n = i + 1;
-        return (
-          <div
-            key={n}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              n === current ? "w-5 bg-primary" :
-              n <  current  ? "w-2 bg-primary/30" :
-                              "w-2 bg-gray-200"
-            }`}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-function WaitingScreen({ message }: { message: string }) {
-  return (
-    <div className="min-h-screen bg-surface flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin mx-auto mb-4" />
-        <p className="text-gray-500 font-bold">{message}</p>
-      </div>
-    </div>
-  );
-}
-
-function ClosedScreen({ question, myAnswerId, totalQuestions }: { question: CurrentQuestion; myAnswerId: number | null; totalQuestions: number }) {
+function ClosedScreen({
+  question,
+  myAnswerId,
+  totalQuestions,
+}: {
+  question: CurrentQuestion;
+  myAnswerId: number | null;
+  totalQuestions: number;
+}) {
   const isLast = totalQuestions > 0 && question.order_number >= totalQuestions;
 
   return (
@@ -500,25 +435,28 @@ function ClosedScreen({ question, myAnswerId, totalQuestions }: { question: Curr
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {question.answers.map((ans, i) => {
             const isCorrect = ans.is_correct === true;
-            const isMine = myAnswerId === ans.id;
+            const isMine    = myAnswerId === ans.id;
             return (
               <div
                 key={ans.id}
-                className={`p-6 rounded-xl border-4 flex items-center gap-4 transition-all ${isCorrect
+                className={`p-6 rounded-xl border-4 flex items-center gap-4 transition-all ${
+                  isCorrect
                     ? "border-green-400 bg-green-50"
                     : isMine
                       ? "border-red-300 bg-red-50"
                       : "border-gray-100 bg-gray-50 opacity-50"
-                  }`}
+                }`}
               >
-                <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border-2 ${isCorrect ? "bg-green-500 text-white border-green-500"
+                <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border-2 ${
+                  isCorrect ? "bg-green-500 text-white border-green-500"
                     : isMine ? "bg-red-400 text-white border-red-400"
                       : "text-gray-300 border-gray-200"
-                  }`}>
-                  {LABELS[i]}
+                }`}>
+                  {ANSWER_LABELS[i]}
                 </span>
-                <span className={`font-bold text-lg flex-1 ${isCorrect ? "text-green-800" : isMine ? "text-red-700" : "text-gray-400"
-                  }`}>
+                <span className={`font-bold text-lg flex-1 ${
+                  isCorrect ? "text-green-800" : isMine ? "text-red-700" : "text-gray-400"
+                }`}>
                   {ans.content}
                 </span>
                 {isCorrect && <CheckCircle className="text-green-500 shrink-0" size={24} />}

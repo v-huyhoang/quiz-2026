@@ -9,8 +9,20 @@ Route::get('/games/{id}/leaderboard', [\App\Http\Controllers\GameController::cla
 
 Route::get('/rooms/code/{code}', [\App\Http\Controllers\RoomController::class, 'getByCode']);
 
+// ── Broadcasting auth (presence channels for players) ────────────────────────
+Route::middleware('auth:sanctum')->post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
+    return \Illuminate\Support\Facades\Broadcast::auth($request);
+});
+
+// ── Reverb webhooks (member_added / member_removed on presence channels) ─────
+Route::post('/reverb/webhook', [\App\Http\Controllers\ReverbWebhookController::class, 'handle']);
+
 // ── Player (authenticated as team via player-token) ───────────────────────────
-Route::middleware('auth:sanctum')->post('/games/submit', [\App\Http\Controllers\GameController::class, 'submitAnswer']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/games/submit', [\App\Http\Controllers\GameController::class, 'submitAnswer']);
+    Route::post('/games/{id}/leave', [\App\Http\Controllers\GameController::class, 'leave']);
+    Route::post('/games/{id}/announce', [\App\Http\Controllers\GameController::class, 'announce']);
+});
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
 Route::group(['prefix' => 'admin'], function () {
