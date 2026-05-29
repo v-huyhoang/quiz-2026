@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Navbar } from "./parts/Navbar";
-import { LayoutDashboard, BookOpen, Layers, Play } from "lucide-react";
+import { LayoutDashboard, BookOpen, Layers } from "lucide-react";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
