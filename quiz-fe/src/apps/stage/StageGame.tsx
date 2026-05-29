@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { getPublicGameState, type CurrentQuestion, type GameAnswer } from "../../services/gameService";
 import { getGameChannel } from "../../sockets/channels/game-channel";
 import { getEcho } from "../../sockets/echo";
+import StageRoundComplete from "./StageRoundComplete";
 
 const LABELS = ["A", "B", "C", "D"];
 
@@ -34,13 +35,18 @@ interface RoundFinishedEvent {
 
 export default function StageGame() {
   const [searchParams] = useSearchParams();
-  const gameId          = Number(searchParams.get("gameId"));
+  const gameId = Number(searchParams.get("gameId"));
 
-  const [gameStatus, setGameStatus]   = useState<string>("pending");
-  const [question, setQuestion]       = useState<CurrentQuestion | null>(null);
-  const [roundNum, setRoundNum]       = useState(1);
-  const [totalQ, setTotalQ]           = useState(0);
+  const [gameStatus, setGameStatus] = useState<string>("pending");
+  const [question, setQuestion] = useState<CurrentQuestion | null>(null);
+  const [roundNum, setRoundNum] = useState(1);
+  const [totalQ, setTotalQ] = useState(0);
   const [roundsTotal, setRoundsTotal] = useState(0);
+  const [showRoundComplete, setShowRoundComplete] = useState(false);
+
+  useEffect(() => {
+    console.debug("[StageGame] showRoundComplete:", showRoundComplete);
+  }, [showRoundComplete]);
 
   // ── Initial state fetch ────────────────────────────────────────────────────
   useEffect(() => {
@@ -57,7 +63,7 @@ export default function StageGame() {
           setQuestion(round.current_question);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [gameId]);
 
   // ── WebSocket subscription ─────────────────────────────────────────────────
@@ -77,13 +83,13 @@ export default function StageGame() {
       setRoundNum(data.round_number);
       setTotalQ(data.total_questions);
       setQuestion({
-        round_question_id:  data.round_question_id,
-        order_number:       data.order_number,
-        content:            data.question.content,
-        status:             "open",
-        opened_at:          new Date().toISOString(),
+        round_question_id: data.round_question_id,
+        order_number: data.order_number,
+        content: data.question.content,
+        status: "open",
+        opened_at: new Date().toISOString(),
         time_limit_seconds: data.time_limit_seconds,
-        answers:            data.question.answers,
+        answers: data.question.answers,
       });
     });
 
@@ -94,7 +100,13 @@ export default function StageGame() {
     });
 
     channel.listen(".round.finished", (data: RoundFinishedEvent) => {
+      console.debug("[StageGame] .round.finished", data);
+
+      setShowRoundComplete(true);
+      console.debug("[StageGame] setShowRoundComplete(true)");
+
       setQuestion(null);
+
       setRoundNum(data.round_number + 1);
     });
 
@@ -109,26 +121,58 @@ export default function StageGame() {
 
   // ── Screens ────────────────────────────────────────────────────────────────
   if (gameStatus === "finished") {
-    return <StageGameFinished />;
+    const popupNode = showRoundComplete ? (
+      <div className="fixed right-4 sm:right-12 top-10 w-[600px] max-w-[92vw] z-[9999] pointer-events-auto">
+        <div className="w-full h-full bg-transparent rounded-lg shadow-xl overflow-hidden">
+          <StageRoundComplete isPopup />
+        </div>
+      </div>
+    ) : null;
+
+    return (
+      <>
+        {popupNode}
+        <StageGameFinished />
+      </>
+    );
   }
 
+  // Note: `StageRoundComplete` will be rendered as a persistent left popup below
+
+  const popupNode = showRoundComplete ? (
+    <div className="fixed right-4 sm:right-12 top-10 w-[600px] max-w-[92vw] z-[9999] pointer-events-auto">
+      <div className="w-full h-full bg-transparent rounded-lg shadow-xl overflow-hidden">
+        <StageRoundComplete isPopup />
+      </div>
+    </div>
+  ) : null;
+
   if (gameStatus === "active" && !question) {
-    return <StageWaitingForRound roundNum={roundNum} roundsTotal={roundsTotal} />;
+    return (
+      <>
+        {popupNode}
+        <StageWaitingForRound roundNum={roundNum} roundsTotal={roundsTotal} />
+      </>
+    );
   }
 
   if (!question) {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin mx-auto mb-4" />
-          <p className="text-gray-400 font-bold tracking-widest uppercase text-sm">Đang tải...</p>
+      <>
+        {popupNode}
+        <div className="min-h-screen bg-surface flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin mx-auto mb-4" />
+            <p className="text-gray-400 font-bold tracking-widest uppercase text-sm">Đang tải...</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
     <div className="min-h-screen bg-surface flex flex-col pt-20">
+      {popupNode}
       <main className="flex-grow w-full max-w-6xl mx-auto px-6 py-12 flex flex-col justify-center">
 
         {/* Header */}
@@ -176,7 +220,7 @@ export default function StageGame() {
         >
           {question.answers.map((ans, i) => {
             const isCorrect = ans.is_correct === true;
-            const revealed  = question.status === "closed";
+            const revealed = question.status === "closed";
 
             return (
               <motion.div
@@ -184,24 +228,21 @@ export default function StageGame() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 + i * 0.08 }}
-                className={`border-4 rounded-2xl p-8 flex items-center gap-6 shadow-lg transition-all ${
-                  revealed
-                    ? isCorrect
-                      ? "bg-green-50 border-green-400"
-                      : "bg-gray-50 border-gray-200 opacity-50"
-                    : "bg-white border-gray-200"
-                }`}
+                className={`border-4 rounded-2xl p-8 flex items-center gap-6 shadow-lg transition-all ${revealed
+                  ? isCorrect
+                    ? "bg-green-50 border-green-400"
+                    : "bg-gray-50 border-gray-200 opacity-50"
+                  : "bg-white border-gray-200"
+                  }`}
               >
-                <span className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-black shrink-0 border-2 ${
-                  revealed && isCorrect
-                    ? "bg-green-500 text-white border-green-500"
-                    : "bg-gray-100 border-gray-300 text-gray-600"
-                }`}>
+                <span className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-black shrink-0 border-2 ${revealed && isCorrect
+                  ? "bg-green-500 text-white border-green-500"
+                  : "bg-gray-100 border-gray-300 text-gray-600"
+                  }`}>
                   {LABELS[i]}
                 </span>
-                <span className={`text-2xl md:text-3xl font-bold flex-1 ${
-                  revealed && isCorrect ? "text-green-800" : "text-gray-900"
-                }`}>
+                <span className={`text-2xl md:text-3xl font-bold flex-1 ${revealed && isCorrect ? "text-green-800" : "text-gray-900"
+                  }`}>
                   {ans.content}
                 </span>
                 {revealed && isCorrect && (
@@ -360,9 +401,8 @@ function StageTimer({ openedAt, limitSec }: { openedAt: string; limitSec: number
   }, [left]);
 
   return (
-    <div className={`flex items-center gap-3 font-mono text-4xl font-black px-8 py-4 rounded-2xl border shadow-lg transition-all ${
-      left <= 10 ? "text-red-500 border-red-300 bg-red-50" : "text-secondary border-gray-200 bg-white"
-    }`}>
+    <div className={`flex items-center gap-3 font-mono text-4xl font-black px-8 py-4 rounded-2xl border shadow-lg transition-all ${left <= 10 ? "text-red-500 border-red-300 bg-red-50" : "text-secondary border-gray-200 bg-white"
+      }`}>
       <Timer size={32} />
       0:{left.toString().padStart(2, "0")}
     </div>
