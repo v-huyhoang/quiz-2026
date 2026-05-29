@@ -11,7 +11,8 @@ function buildEcho(token?: string): Echo<'reverb'> {
   const port     = Number(import.meta.env.VITE_REVERB_PORT ?? (scheme === 'https' ? 443 : 80));
   const forceTLS = scheme === 'https';
 
-  const config: ConstructorParameters<typeof Echo>[0] = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const config: any = {
     broadcaster: 'reverb',
     key: import.meta.env.VITE_REVERB_APP_KEY,
     wsHost: import.meta.env.VITE_REVERB_HOST,
