@@ -56,7 +56,7 @@ class GameService
 
     private function buildState(Game $game, bool $isAdmin): array
     {
-        $teams       = $game->teams()->get(['id', 'name']);
+        $teams       = $game->teams()->where('is_present', true)->get(['id', 'name']);
         $activeRound = $game->rounds()->where('status', 'active')->first();
         $currentRound = null;
 
