@@ -170,9 +170,11 @@ class GameService
 
     // ── Player: submit answer ─────────────────────────────────────────────────
 
-    public function submitAnswer(int $teamId, int $rqId, int $answerId): void
+    public function submitAnswer(int $teamId, int $rqId, int $answerId, ?int $clientResponseTimeMs = null): bool
     {
-        DB::transaction(function () use ($teamId, $rqId, $answerId) {
+        $isCorrect = false;
+
+        DB::transaction(function () use ($teamId, $rqId, $answerId, $clientResponseTimeMs, &$isCorrect) {
             $exists = Submission::where('team_id', $teamId)
                 ->where('round_question_id', $rqId)
                 ->lockForUpdate()
@@ -188,16 +190,20 @@ class GameService
             }
 
             $answer = Answer::findOrFail($answerId);
-            $ms = $rq->opened_at ? now()->diffInMilliseconds($rq->opened_at) : 0;
+            // Use client-provided time when available; fall back to server-side calculation
+            $ms = $clientResponseTimeMs ?? ($rq->opened_at ? now()->diffInMilliseconds($rq->opened_at) : 0);
+            $isCorrect = (bool) $answer->is_correct;
 
             Submission::create([
                 'team_id'           => $teamId,
                 'round_question_id' => $rqId,
                 'answer_id'         => $answerId,
-                'is_correct'        => (bool) $answer->is_correct,
+                'is_correct'        => $isCorrect,
                 'response_time_ms'  => $ms,
             ]);
         });
+
+        return $isCorrect;
     }
 
     // ── Admin: game lifecycle ─────────────────────────────────────────────────
@@ -290,6 +296,45 @@ class GameService
         }
 
         $game->update(['status' => 'finished', 'ended_at' => now()]);
+    }
+
+    // ── Round results ─────────────────────────────────────────────────────────
+
+    public function getRoundResults(int $id): array
+    {
+        $game = Game::findOrFail($id);
+
+        return $game->rounds()->orderBy('round_number')->get()->map(function (Round $round) {
+            $topTeams = DB::table('submissions as s')
+                ->join('round_questions as rq', 's.round_question_id', '=', 'rq.id')
+                ->join('teams as t', 's.team_id', '=', 't.id')
+                ->select(
+                    't.id as team_id',
+                    't.name as team_name',
+                    DB::raw('SUM(s.is_correct) as correct_count'),
+                    DB::raw('SUM(CASE WHEN s.is_correct = 1 THEN s.response_time_ms ELSE 0 END) as total_time_ms')
+                )
+                ->where('rq.round_id', $round->id)
+                ->groupBy('t.id', 't.name')
+                ->orderByDesc('correct_count')
+                ->orderBy('total_time_ms')
+                ->limit(20)
+                ->get()
+                ->values()
+                ->map(fn($entry, $i) => [
+                    'rank'               => $i + 1,
+                    'team_id'            => $entry->team_id,
+                    'team_name'          => $entry->team_name,
+                    'correct_count'      => (int) $entry->correct_count,
+                    'total_time_seconds' => round($entry->total_time_ms / 1000, 2),
+                ])
+                ->all();
+
+            return [
+                'round_number' => $round->round_number,
+                'top_teams'    => $topTeams,
+            ];
+        })->all();
     }
 
     // ── Legacy compatibility ──────────────────────────────────────────────────

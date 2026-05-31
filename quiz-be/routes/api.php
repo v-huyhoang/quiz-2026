@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 Route::post('/rooms/{code}/join', [\App\Http\Controllers\GameController::class, 'join']);
 Route::get('/games/{id}/state', [\App\Http\Controllers\GameController::class, 'publicState']);
 Route::get('/games/{id}/leaderboard', [\App\Http\Controllers\GameController::class, 'leaderboard']);
+Route::get('/games/{id}/round-results', [\App\Http\Controllers\GameController::class, 'roundResults']);
 
 Route::get('/rooms/code/{code}', [\App\Http\Controllers\RoomController::class, 'getByCode']);
 
@@ -41,6 +42,7 @@ Route::group(['prefix' => 'admin'], function () {
 
         // Game flow controls
         Route::get('/games/{id}/state', [\App\Http\Controllers\GameController::class, 'adminState']);
+        Route::get('/games/{id}/round-results', [\App\Http\Controllers\GameController::class, 'roundResults']);
         Route::post('/games/{id}/start', [\App\Http\Controllers\GameController::class, 'start']);
         Route::post('/games/{id}/start-round', [\App\Http\Controllers\GameController::class, 'startRound']);
         Route::post('/games/{id}/open-question', [\App\Http\Controllers\GameController::class, 'openQuestion']);
