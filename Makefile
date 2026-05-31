@@ -40,6 +40,7 @@ help: ## Display list of main commands
 	@echo "$(YELLOW)▶ Libraries & Packages$(RESET)"
 	@echo "  $(GREEN)fe-install$(RESET)               Install frontend libraries (run on both local machine and container)"
 	@echo "  $(GREEN)be-composer$(RESET)              Run composer install in backend container"
+	@echo "  $(GREEN)be-services$(RESET)              Start/restart Reverb WebSocket + queue worker (needed after be-composer)"
 	@echo ""
 	@echo "$(YELLOW)▶ Database & Artisan$(RESET)"
 	@echo "  $(GREEN)migrate$(RESET)                  Run migrations"
@@ -64,8 +65,9 @@ setup: ## Install whole project for first time (env + build + composer/yarn + mi
 	@[ -f $(FE_DIR)/.env ] || cp $(FE_DIR)/.env.example $(FE_DIR)/.env
 	@echo "$(CYAN)▶ [2/6] Building and starting Docker (full stack)...$(RESET)"
 	@docker compose $(FULL_COMPOSE) up -d --build
-	@echo "$(CYAN)▶ [3/6] Running composer install...$(RESET)"
-	@docker exec $(APP_CONTAINER) composer install --no-interaction --prefer-dist --optimize-autoloader
+	@echo "$(CYAN)▶ [3/6] Running composer install + starting Reverb/queue...$(RESET)"
+	@docker exec $(APP_CONTAINER) composer install --no-interaction --prefer-dist
+	@docker exec $(APP_CONTAINER) supervisorctl start reverb queue 2>/dev/null || true
 	@echo "$(CYAN)▶ [4/6] Installing frontend dependencies (yarn install)...$(RESET)"
 	@echo "$(CYAN)   - Running yarn install on local machine...$(RESET)"
 	@cd $(FE_DIR) && yarn install
@@ -117,13 +119,23 @@ fe-install: ## Install frontend libraries (run on both local machine and contain
 	@cd $(FE_DIR) && yarn install
 	@echo "$(CYAN)▶ Installing inside container (yarn install)...$(RESET)"
 	@docker exec $(FE_CONTAINER) yarn install
+	@echo "$(CYAN)▶ Clearing Vite dep cache so new packages are picked up...$(RESET)"
+	@docker exec $(FE_CONTAINER) rm -rf /app/node_modules/.vite
+	@docker restart $(FE_CONTAINER)
 	@echo "$(GREEN)✅ Frontend libraries installed successfully$(RESET)"
 
 .PHONY: be-composer
 be-composer: ## Run composer install in backend container
 	@echo "$(CYAN)▶ Running composer install...$(RESET)"
-	@docker exec $(APP_CONTAINER) composer install --no-interaction --prefer-dist --optimize-autoloader
+	@docker exec $(APP_CONTAINER) composer install --no-interaction --prefer-dist
 	@echo "$(GREEN)✅ Composer install completed$(RESET)"
+
+.PHONY: be-services
+be-services: ## Start/restart Reverb WebSocket server and queue worker
+	@echo "$(CYAN)▶ Starting Reverb and queue worker...$(RESET)"
+	@docker exec $(APP_CONTAINER) supervisorctl start reverb queue 2>/dev/null || \
+		docker exec $(APP_CONTAINER) supervisorctl restart reverb queue
+	@echo "$(GREEN)✅ Reverb and queue are running$(RESET)"
 
 # ============================================================
 #  DATABASE & ARTISAN
