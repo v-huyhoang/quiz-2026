@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
 use App\Events\GameFinished;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\Events\GameStarted;
 use App\Events\QuestionClosed;
 use App\Events\QuestionStarted;
@@ -73,6 +74,8 @@ class GameController extends Controller
         try {
             $isCorrect = $this->gameService->submitAnswer($team->id, $request->round_question_id, $request->answer_id, $request->response_time_ms);
             return $this->successResponse(['is_correct' => $isCorrect], 'Answer submitted');
+        } catch (ModelNotFoundException $e) {
+            return $this->resourceNotFoundResponse('Question or answer not found');
         } catch (\Exception $e) {
             $status = str_contains($e->getMessage(), 'Already') ? HttpStatus::Conflict->value : HttpStatus::UnprocessableEntity->value;
             return $this->errorResponse($e->getMessage(), null, $status);

@@ -14,8 +14,8 @@ class SubmitAnswerRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'round_question_id' => 'required|integer|exists:round_questions,id',
-            'answer_id'         => 'required|integer|exists:answers,id',
+            'round_question_id' => 'required|integer',
+            'answer_id'         => 'required|integer',
             'response_time_ms'  => 'nullable|integer|min:0',
         ];
     }
