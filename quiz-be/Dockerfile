@@ -48,6 +48,8 @@ RUN composer dump-autoload --optimize \
 
 COPY nginx/default.conf /etc/nginx/sites-available/default
 COPY docker/supervisor/*.conf /etc/supervisor/conf.d/
+COPY docker/php-fpm.conf /usr/local/etc/php-fpm.d/zzz-custom.conf
+COPY docker/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
 EXPOSE 80 8080
 
