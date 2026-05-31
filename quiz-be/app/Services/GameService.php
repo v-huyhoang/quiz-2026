@@ -10,6 +10,7 @@ use App\Models\RoundQuestion;
 use App\Models\Submission;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Redis;
 
 class GameService
 {
@@ -30,6 +31,7 @@ class GameService
         $team  = $game->teams()->create(['name' => $teamName]);
         $token = $team->createToken('player-token')->plainTextToken;
 
+        $this->presenceAdd($game->id, $team->id, $team->name);
         $this->invalidatePublicState($game->id);
 
         return [
@@ -64,9 +66,39 @@ class GameService
         Cache::forget("game:state:public:{$gameId}");
     }
 
+    // ── Redis presence helpers ────────────────────────────────────────────────
+
+    private function presenceKey(int $gameId): string
+    {
+        return "game:presence:{$gameId}";
+    }
+
+    public function presenceAdd(int $gameId, int $teamId, string $teamName): void
+    {
+        Redis::hset($this->presenceKey($gameId), $teamId, $teamName);
+        Redis::expire($this->presenceKey($gameId), 86400);
+    }
+
+    public function presenceRemove(int $gameId, int $teamId): void
+    {
+        Redis::hdel($this->presenceKey($gameId), $teamId);
+    }
+
+    private function getPresenceTeams(int $gameId): ?array
+    {
+        $raw = Redis::hgetall($this->presenceKey($gameId));
+        if (empty($raw)) {
+            return null;
+        }
+        return collect($raw)->map(fn ($name, $id) => ['id' => (int) $id, 'name' => $name])->values()->all();
+    }
+
     private function buildState(Game $game, bool $isAdmin): array
     {
-        $teams = $game->teams()->where('is_present', true)->get(['id', 'name']);
+        $redisTeams = $this->getPresenceTeams($game->id);
+        $teams = $redisTeams !== null
+            ? collect($redisTeams)
+            : $game->teams()->where('is_present', true)->get(['id', 'name']);
 
         $activeRound = $game->rounds()
             ->whereIn('status', ['active', 'finished'])
