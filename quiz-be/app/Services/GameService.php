@@ -8,6 +8,7 @@ use App\Models\Question;
 use App\Models\Round;
 use App\Models\RoundQuestion;
 use App\Models\Submission;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class GameService
@@ -29,6 +30,8 @@ class GameService
         $team  = $game->teams()->create(['name' => $teamName]);
         $token = $team->createToken('player-token')->plainTextToken;
 
+        $this->invalidatePublicState($game->id);
+
         return [
             'token'     => $token,
             'team_id'   => $team->id,
@@ -46,12 +49,19 @@ class GameService
 
     public function getPublicState(int $id): array
     {
-        return $this->buildState(Game::findOrFail($id), isAdmin: false);
+        return Cache::remember("game:state:public:{$id}", 30, fn () =>
+            $this->buildState(Game::findOrFail($id), isAdmin: false)
+        );
     }
 
     public function getAdminState(int $id): array
     {
         return $this->buildState(Game::findOrFail($id), isAdmin: true);
+    }
+
+    public function invalidatePublicState(int $gameId): void
+    {
+        Cache::forget("game:state:public:{$gameId}");
     }
 
     private function buildState(Game $game, bool $isAdmin): array
@@ -219,6 +229,7 @@ class GameService
         }
 
         $game->update(['status' => 'active', 'started_at' => now()]);
+        $this->invalidatePublicState($gameId);
         return $game->fresh();
     }
 
@@ -249,6 +260,7 @@ class GameService
         }
 
         $round->update(['status' => 'active', 'started_at' => now()]);
+        $this->invalidatePublicState($gameId);
     }
 
     public function openNextQuestion(int $gameId): RoundQuestion
@@ -265,6 +277,7 @@ class GameService
             ->firstOrFail();
 
         $rq->update(['status' => 'open', 'opened_at' => now()]);
+        $this->invalidatePublicState($gameId);
 
         return $rq->load(['question.answers', 'round']);
     }
@@ -278,6 +291,7 @@ class GameService
             ->firstOrFail();
 
         $rq->update(['status' => 'closed', 'closed_at' => now()]);
+        $this->invalidatePublicState($gameId);
 
         return $rq->load(['question.answers', 'round']);
     }
@@ -286,6 +300,7 @@ class GameService
     {
         $round = Game::findOrFail($gameId)->rounds()->where('status', 'active')->firstOrFail();
         $round->update(['status' => 'finished', 'ended_at' => now()]);
+        $this->invalidatePublicState($gameId);
         return $round;
     }
 
@@ -298,6 +313,7 @@ class GameService
         }
 
         $game->update(['status' => 'finished', 'ended_at' => now()]);
+        $this->invalidatePublicState($gameId);
     }
 
     // ── Round results ─────────────────────────────────────────────────────────

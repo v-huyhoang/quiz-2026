@@ -203,6 +203,7 @@ class GameController extends Controller
     {
         $team = request()->user();
         $team->update(['is_present' => false]);
+        $this->gameService->invalidatePublicState($id);
         broadcast(new \App\Events\TeamLeft($id, ['id' => $team->id, 'name' => $team->name]));
         return $this->successResponse(null, 'Left');
     }
@@ -220,6 +221,7 @@ class GameController extends Controller
     {
         $team = request()->user();
         $team->update(['is_present' => true]);
+        $this->gameService->invalidatePublicState($id);
         broadcast(new TeamJoined($id, ['id' => $team->id, 'name' => $team->name]));
         return $this->successResponse(null, 'Announced');
     }
