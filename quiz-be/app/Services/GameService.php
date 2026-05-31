@@ -145,27 +145,29 @@ class GameService
 
     public function getLeaderboard(int $id): array
     {
-        $teams = Game::findOrFail($id)->teams()->get();
+        Game::findOrFail($id);
 
-        $ranked = $teams->map(function ($team) {
-            $subs    = Submission::where('team_id', $team->id)->get();
-            $correct = $subs->where('is_correct', true)->count();
-            $totalMs = $subs->where('is_correct', true)->sum('response_time_ms');
+        $rows = DB::table('teams as t')
+            ->leftJoin('submissions as s', 's.team_id', '=', 't.id')
+            ->where('t.game_id', $id)
+            ->select(
+                't.id as team_id',
+                't.name as team_name',
+                DB::raw('SUM(CASE WHEN s.is_correct = 1 THEN 1 ELSE 0 END) as correct_count'),
+                DB::raw('SUM(CASE WHEN s.is_correct = 1 THEN s.response_time_ms ELSE 0 END) as total_time_ms')
+            )
+            ->groupBy('t.id', 't.name')
+            ->orderByDesc('correct_count')
+            ->orderBy('total_time_ms')
+            ->get();
 
-            return [
-                'team_id'            => $team->id,
-                'team_name'          => $team->name,
-                'correct_count'      => $correct,
-                'total_time_seconds' => round($totalMs / 1000, 2),
-            ];
-        })->sort(function ($a, $b) {
-            if ($a['correct_count'] !== $b['correct_count']) {
-                return $b['correct_count'] - $a['correct_count'];
-            }
-            return $a['total_time_seconds'] <=> $b['total_time_seconds'];
-        })->values()->map(fn($entry, $i) => array_merge($entry, ['rank' => $i + 1]))->all();
-
-        return $ranked;
+        return $rows->values()->map(fn ($r, $i) => [
+            'rank'               => $i + 1,
+            'team_id'            => $r->team_id,
+            'team_name'          => $r->team_name,
+            'correct_count'      => (int) $r->correct_count,
+            'total_time_seconds' => round($r->total_time_ms / 1000, 2),
+        ])->all();
     }
 
     // ── Player: submit answer ─────────────────────────────────────────────────
