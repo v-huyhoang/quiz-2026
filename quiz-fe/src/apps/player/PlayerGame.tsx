@@ -1,13 +1,15 @@
-import { useState, useEffect, useRef, memo } from "react";
+import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { CheckCircle, Clock, Loader2, Trophy } from "lucide-react";
+import { CheckCircle, Clock, Loader2, Trophy, XCircle } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import {
   getPublicGameState,
+  getPublicRoundResults,
   submitAnswer,
   type CurrentQuestion,
   type GameState,
   type GameAnswer,
+  type RoundResult,
 } from "../../services/gameService";
 import { QuestionTimer } from "../../components/ui/QuestionTimer";
 import { LoadingScreen } from "../../components/ui/LoadingScreen";
@@ -20,6 +22,7 @@ interface QuestionStartedEvent {
   time_limit_seconds: number;
   round_number: number;
   total_questions: number;
+  opened_at: string;
   question: { content: string; answers: GameAnswer[] };
 }
 
@@ -27,6 +30,30 @@ interface QuestionClosedEvent {
   round_question_id: number;
   question: { answers: GameAnswer[] };
 }
+
+// ── LocalStorage helpers ──────────────────────────────────────────────────────
+
+interface CorrectAnswerRecord {
+  round_question_id: number;
+  response_time_ms: number;
+}
+
+function lsKey(gameId: number, roundNumber: number) {
+  return `quiz_correct_${gameId}_round_${roundNumber}`;
+}
+
+function saveCorrectAnswer(gameId: number, roundNumber: number, rqId: number, responseTimeMs: number) {
+  try {
+    const key = lsKey(gameId, roundNumber);
+    const existing: CorrectAnswerRecord[] = JSON.parse(localStorage.getItem(key) ?? "[]");
+    if (!existing.find((r) => r.round_question_id === rqId)) {
+      existing.push({ round_question_id: rqId, response_time_ms: responseTimeMs });
+      localStorage.setItem(key, JSON.stringify(existing));
+    }
+  } catch {}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function PlayerGame() {
   const { gameId } = useAuthStore();
@@ -38,6 +65,7 @@ export default function PlayerGame() {
   const [submitError, setSubmitError] = useState("");
 
   const submittedRqId = useRef<number | null>(null);
+  const [submitResult, setSubmitResult] = useState<"correct" | "incorrect" | null>(null);
 
   // ── Initial state fetch ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -62,21 +90,20 @@ export default function PlayerGame() {
           order_number: data.order_number,
           content: data.question.content,
           status: "open",
-          opened_at: new Date().toISOString(),
+          opened_at: data.opened_at ?? new Date().toISOString(),
           time_limit_seconds: data.time_limit_seconds,
           answers: data.question.answers,
         };
+        const isSameRound = prev.current_round?.round_number === data.round_number;
         return {
           ...prev,
-          current_round: prev.current_round
-            ? { ...prev.current_round, current_question: newQuestion }
-            : {
-                round_number: data.round_number,
-                status: "active",
-                questions_done: 0,
-                total_questions: data.total_questions,
-                current_question: newQuestion,
-              },
+          current_round: {
+            round_number: data.round_number,
+            status: "active",
+            questions_done: isSameRound ? (prev.current_round?.questions_done ?? 0) : 0,
+            total_questions: data.total_questions,
+            current_question: newQuestion,
+          },
         };
       });
     },
@@ -114,21 +141,36 @@ export default function PlayerGame() {
     if (rqId !== null && rqId !== submittedRqId.current) {
       setSelectedId(null);
       setSubmitError("");
+      setSubmitResult(null);
     }
   }, [rqId]);
 
   const alreadySubmitted = rqId !== null && submittedRqId.current === rqId;
   const isLastQuestion   = (question?.order_number ?? 0) >= (gameState?.current_round?.total_questions ?? 0);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!question || !selectedId || submitting || alreadySubmitted) return;
 
     setSubmitting(true);
     setSubmitError("");
 
+    const responseTimeMs = question.opened_at
+      ? Date.now() - new Date(question.opened_at).getTime()
+      : 0;
+
     try {
-      await submitAnswer(question.round_question_id, selectedId);
+      const res = await submitAnswer(question.round_question_id, selectedId, responseTimeMs);
+      const isCorrect = res.data.data?.is_correct ?? false;
       submittedRqId.current = question.round_question_id;
+      setSubmitResult(isCorrect ? "correct" : "incorrect");
+      if (isCorrect) {
+        saveCorrectAnswer(
+          gameId!,
+          gameState?.current_round?.round_number ?? 0,
+          question.round_question_id,
+          responseTimeMs,
+        );
+      }
     } catch (e: unknown) {
       if ((e as { response?: { status?: number } })?.response?.status === 409) {
         submittedRqId.current = question.round_question_id;
@@ -138,14 +180,14 @@ export default function PlayerGame() {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [question, selectedId, submitting, alreadySubmitted, gameState, gameId]);
 
   if (!gameState) return <LoadingScreen />;
 
-  if (gameState.status === "finished") return <GameFinished />;
+  if (gameState.status === "finished") return <GameFinished gameId={gameId!} totalRounds={gameState.rounds_total} />;
 
   if (gameState.status === "active" && !gameState.current_round) {
-    return <WaitingForRound roundNum={nextRound} totalRounds={gameState.rounds_total} />;
+    return <WaitingForRound roundNum={nextRound} totalRounds={gameState.rounds_total} gameId={gameId!} />;
   }
 
   if (!question) return <LoadingScreen message="Chờ câu hỏi tiếp theo..." />;
@@ -252,6 +294,44 @@ export default function PlayerGame() {
                   : <CheckCircle size={18} className="relative z-10 shrink-0" />}
                 <span className="relative z-10">{submitting ? "Đang nộp..." : "Submit"}</span>
               </motion.button>
+            ) : submitResult === "correct" ? (
+              <motion.div
+                key="correct"
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-col items-center gap-3"
+              >
+                <div className="flex items-center gap-3 px-7 py-4 rounded-2xl border-2 border-green-300 bg-green-50 text-green-700 font-bold text-sm tracking-widest uppercase">
+                  <CheckCircle size={18} className="shrink-0 text-green-500" />
+                  <span>Chính xác!</span>
+                </div>
+                {!isLastQuestion && (
+                  <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    <Clock size={14} className="animate-pulse" />
+                    <span>Chờ câu tiếp theo</span>
+                    <PulsingDots />
+                  </div>
+                )}
+              </motion.div>
+            ) : submitResult === "incorrect" ? (
+              <motion.div
+                key="incorrect"
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-col items-center gap-3"
+              >
+                <div className="flex items-center gap-3 px-7 py-4 rounded-2xl border-2 border-red-200 bg-red-50 text-red-600 font-bold text-sm tracking-widest uppercase">
+                  <XCircle size={18} className="shrink-0" />
+                  <span>Sai rồi!</span>
+                </div>
+                {!isLastQuestion && (
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    Cố lên ở câu tiếp theo nhé 💪
+                  </p>
+                )}
+              </motion.div>
             ) : (
               <motion.div
                 key="waiting"
@@ -261,7 +341,7 @@ export default function PlayerGame() {
                 className="flex items-center gap-3 px-7 py-4 rounded-2xl border-2 border-primary/20 bg-primary/5 text-primary font-bold text-sm tracking-widest uppercase"
               >
                 <Clock size={18} className="shrink-0 animate-pulse" />
-                <span>Đã nộp{!isLastQuestion && " · Đang chờ câu tiếp theo..."}</span>
+                <span>Đã nộp{!isLastQuestion && " · Đang chờ..."}</span>
                 {!isLastQuestion && <PulsingDots />}
               </motion.div>
             )}
@@ -310,12 +390,34 @@ const QuestionProgress = memo(function QuestionProgress({ current, total }: { cu
   );
 });
 
-function WaitingForRound({ roundNum, totalRounds }: { roundNum: number; totalRounds: number }) {
+function WaitingForRound({
+  roundNum,
+  totalRounds,
+  gameId,
+}: {
+  roundNum: number;
+  totalRounds: number;
+  gameId: number;
+}) {
+  const [completedRounds, setCompletedRounds] = useState<RoundResult[]>([]);
+
+  useEffect(() => {
+    if (!gameId || roundNum <= 1) return;
+    getPublicRoundResults(gameId)
+      .then((res) => {
+        const all = res.data.data ?? [];
+        setCompletedRounds(all.filter((r) => r.round_number < roundNum));
+      })
+      .catch(() => {});
+  }, [gameId, roundNum]);
+
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center p-6 relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/6 rounded-full blur-[80px] pointer-events-none" />
+    <div className="min-h-screen bg-surface flex flex-col relative overflow-hidden">
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/6 rounded-full blur-[80px] pointer-events-none" />
+
+      {/* Waiting animation */}
       <motion.div
-        className="relative z-10 text-center"
+        className="flex-shrink-0 flex flex-col items-center justify-center pt-20 pb-10 relative z-10"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
@@ -339,7 +441,7 @@ function WaitingForRound({ roundNum, totalRounds }: { roundNum: number; totalRou
 
         <p className="text-xs font-black text-gray-400 uppercase tracking-[0.25em] mb-1">Chuẩn bị cho</p>
         <p className="text-7xl font-black text-gray-900 leading-none mb-1">Vòng {roundNum}</p>
-        {totalRounds > 0 && <p className="text-lg font-bold text-gray-400 mb-8">/ {totalRounds}</p>}
+        {totalRounds > 0 && <p className="text-lg font-bold text-gray-400 mb-6">/ {totalRounds}</p>}
 
         <div className="flex gap-2 justify-center">
           {[0, 1, 2].map((i) => (
@@ -352,51 +454,160 @@ function WaitingForRound({ roundNum, totalRounds }: { roundNum: number; totalRou
           ))}
         </div>
       </motion.div>
+
+      {/* Previous rounds results */}
+      {completedRounds.length > 0 && (
+        <div className="flex-grow w-full max-w-lg mx-auto px-6 pb-10 relative z-10">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] mb-4">
+            Kết quả các vòng trước
+          </p>
+          <div className="flex flex-col gap-4">
+            {completedRounds.map((round) => (
+              <div
+                key={round.round_number}
+                className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm"
+              >
+                <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+                  <span className="text-xs font-black text-primary uppercase tracking-widest">
+                    Round {round.round_number}
+                  </span>
+                </div>
+                {round.top_teams.length === 0 ? (
+                  <p className="px-5 py-3 text-xs text-gray-400">Chưa có dữ liệu</p>
+                ) : (
+                  round.top_teams.map((team) => (
+                    <div
+                      key={team.rank}
+                      className="flex items-center justify-between px-5 py-3 border-b last:border-b-0"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className={`w-7 h-7 rounded-full text-xs flex items-center justify-center font-black ${
+                            team.rank === 1
+                              ? "bg-yellow-100 text-yellow-700"
+                              : team.rank === 2
+                                ? "bg-gray-100 text-gray-600"
+                                : team.rank === 3
+                                  ? "bg-orange-100 text-orange-600"
+                                  : "bg-blue-50 text-blue-600"
+                          }`}
+                        >
+                          {team.rank}
+                        </span>
+                        <span className="text-sm font-bold text-gray-900 truncate max-w-[130px]">
+                          {team.team_name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-xs font-bold text-green-600">
+                          {team.correct_count} đúng
+                        </span>
+                        <span className="text-xs font-mono text-gray-400">
+                          {team.total_time_seconds.toFixed(1)}s
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function GameFinished() {
+function GameFinished({ gameId, totalRounds }: { gameId: number; totalRounds: number }) {
+  const roundResults = Array.from({ length: totalRounds }, (_, i) => {
+    const roundNum = i + 1;
+    try {
+      const entries: CorrectAnswerRecord[] = JSON.parse(
+        localStorage.getItem(lsKey(gameId, roundNum)) ?? "[]"
+      );
+      const totalMs = entries.reduce((sum, e) => sum + e.response_time_ms, 0);
+      return { round_number: roundNum, correct_count: entries.length, total_time_seconds: totalMs / 1000 };
+    } catch {
+      return { round_number: roundNum, correct_count: 0, total_time_seconds: 0 };
+    }
+  });
+
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center p-6 relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-yellow-400/10 rounded-full blur-[80px] pointer-events-none" />
+    <div className="min-h-screen bg-surface flex flex-col relative overflow-hidden">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-yellow-400/8 rounded-full blur-[80px] pointer-events-none" />
+
+      {/* Header */}
       <motion.div
-        className="relative z-10 text-center"
+        className="flex-shrink-0 flex flex-col items-center pt-16 pb-8 relative z-10"
         initial={{ opacity: 0, scale: 0.85 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.55, ease: "easeOut" }}
       >
         <motion.div
-          className="w-24 h-24 rounded-3xl bg-yellow-50 border-2 border-yellow-200 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-yellow-100"
-          animate={{ y: [0, -10, 0] }}
+          className="w-20 h-20 rounded-3xl bg-yellow-50 border-2 border-yellow-200 flex items-center justify-center mb-5 shadow-lg shadow-yellow-100"
+          animate={{ y: [0, -8, 0] }}
           transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
         >
-          <Trophy size={48} className="text-yellow-500" />
+          <Trophy size={40} className="text-yellow-500" />
         </motion.div>
 
         <motion.div
-          className="flex justify-center gap-1.5 mb-6"
+          className="flex justify-center gap-1 mb-4"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
+          transition={{ delay: 0.2 }}
         >
           {[0, 1, 2, 3, 4].map((i) => (
             <motion.svg
               key={i}
               viewBox="0 0 24 24"
               fill="currentColor"
-              className="w-6 h-6 text-yellow-400"
-              animate={{ scale: [1, 1.25, 1] }}
-              transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.18 }}
+              className="w-5 h-5 text-yellow-400"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.15 }}
             >
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </motion.svg>
           ))}
         </motion.div>
 
-        <h2 className="text-4xl font-black text-gray-900 leading-tight mb-2">Trận đấu<br />kết thúc!</h2>
-        <p className="text-base font-bold text-gray-400 mt-3">Cảm ơn đã tham gia! 🎉</p>
+        <h2 className="text-3xl font-black text-gray-900 leading-tight text-center mb-1">
+          Trận đấu kết thúc!
+        </h2>
+        <p className="text-sm font-bold text-gray-400">Cảm ơn đã tham gia!</p>
       </motion.div>
+
+      {/* Per-round personal stats from localStorage */}
+      <div className="flex-grow w-full max-w-lg mx-auto px-6 pb-12 relative z-10">
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] mb-4">
+          Kết quả của bạn
+        </p>
+        <div className="flex flex-col gap-3">
+          {roundResults.map((round) => (
+            <div
+              key={round.round_number}
+              className="bg-white border border-gray-200 rounded-2xl px-5 py-4 flex items-center justify-between shadow-sm"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <span className="text-xs font-black text-primary">{round.round_number}</span>
+                </div>
+                <span className="text-sm font-black text-gray-700 uppercase tracking-wide">
+                  Round {round.round_number}
+                </span>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className={`text-sm font-bold ${round.correct_count > 0 ? "text-green-600" : "text-gray-400"}`}>
+                  {round.correct_count} đúng
+                </span>
+                <span className="text-sm font-mono text-gray-400">
+                  {round.total_time_seconds.toFixed(1)}s
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
