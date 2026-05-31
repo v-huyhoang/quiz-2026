@@ -16,6 +16,10 @@ import {
   ListChecks,
   Trash2,
   Eye,
+  Trophy,
+  Medal,
+  Timer,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import AdminRoomDetail from "./AdminRoomDetail";
@@ -28,6 +32,12 @@ import type {
 } from "../../type/room";
 import { createRoom, getRooms, deleteRoom } from "../../services/roomService";
 import { getQuestions } from "../../services/questionService";
+import {
+  getPublicGameState,
+  getRoundResults,
+  type GameTeam,
+  type RoundResult,
+} from "../../services/gameService";
 
 const APP_URL = import.meta.env.VITE_APP_URL ?? "http://localhost:5173";
 
@@ -45,6 +55,12 @@ export const AdminRoom = () => {
   const [fetchingQuestions, setFetchingQuestions] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [createError, setCreateError] = useState("");
+
+  const [resultsRoom, setResultsRoom] = useState<Room | null>(null);
+  const [resultsLoading, setResultsLoading] = useState(false);
+  const [resultsRoundData, setResultsRoundData] = useState<RoundResult[]>([]);
+  const [resultsTeams, setResultsTeams] = useState<GameTeam[]>([]);
+  const [activeResultsRound, setActiveResultsRound] = useState(1);
 
   const [newRoomCode, setNewRoomCode] = useState("");
   const [newRoomName, setNewRoomName] = useState("");
@@ -216,6 +232,35 @@ export const AdminRoom = () => {
     setIsOpen(true);
   };
 
+  const handleOpenResults = async (room: Room) => {
+    setResultsRoom(room);
+    setResultsLoading(true);
+    setResultsRoundData([]);
+    setResultsTeams([]);
+    setActiveResultsRound(1);
+    try {
+      const [stateRes, roundRes] = await Promise.all([
+        getPublicGameState(room.id),
+        getRoundResults(room.id),
+      ]);
+      setResultsTeams(stateRes.data.data?.teams ?? []);
+      setResultsRoundData(roundRes.data.data ?? []);
+      if ((roundRes.data.data ?? []).length > 0) {
+        setActiveResultsRound(roundRes.data.data![0].round_number);
+      }
+    } catch (err) {
+      console.error("Failed to fetch game results:", err);
+    } finally {
+      setResultsLoading(false);
+    }
+  };
+
+  const handleCloseResults = () => {
+    setResultsRoom(null);
+    setResultsRoundData([]);
+    setResultsTeams([]);
+  };
+
   const handleClose = () => {
     setIsOpen(false);
     setStep("step1_config");
@@ -321,18 +366,29 @@ export const AdminRoom = () => {
               </div>
 
               <div className="px-6 py-4 bg-gray-50 flex gap-3">
-                <button
-                  onClick={() => navigate(`/admin/game-control/${room.id}`)}
-                  className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-primary/90 transition-all"
-                >
-                  Điều khiển
-                </button>
-                <button
-                  onClick={() => window.open(`/stage/waiting?room=${room.accessCode}`, "_blank")}
-                  className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-purple-700 transition-all"
-                >
-                  Màn hình stage
-                </button>
+                {room.status !== "finished" ? (
+                  <>
+                    <button
+                      onClick={() => navigate(`/admin/game-control/${room.id}`)}
+                      className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-primary/90 transition-all"
+                    >
+                      Điều khiển
+                    </button>
+                    <button
+                      onClick={() => window.open(`/stage/waiting?room=${room.accessCode}`, "_blank")}
+                      className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-purple-700 transition-all"
+                    >
+                      Màn hình stage
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => handleOpenResults(room)}
+                    className="flex-1 py-2 bg-amber-500 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-amber-600 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Trophy size={14} /> Xem kết quả
+                  </button>
+                )}
                 <button
                   onClick={() => handleOpenDetail(room.id)}
                   className="py-2 px-3 border border-gray-200 text-gray-500 rounded-lg hover:bg-white transition-all"
@@ -340,7 +396,7 @@ export const AdminRoom = () => {
                 >
                   <Eye size={16} />
                 </button>
-                {room.status === "pending" && (
+                {(room.status === "pending" || room.status === "finished") && (
                   <button
                     onClick={() => handleDelete(room.id)}
                     className="py-2 px-3 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-all"
@@ -409,7 +465,7 @@ export const AdminRoom = () => {
                             setForm((f) => ({ ...f, name: e.target.value }))
                           }
                           className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors"
-                          placeholder="vd. Championship Finals 2024"
+                          placeholder="vd. Championship Finals 2026"
                           autoFocus
                         />
                       </div>
@@ -772,6 +828,160 @@ export const AdminRoom = () => {
                   />
                 )}
               </AnimatePresence>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Results Modal */}
+      <AnimatePresence>
+        {resultsRoom && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-6"
+            onClick={(e) => e.target === e.currentTarget && handleCloseResults()}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 bg-amber-50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-100 rounded-xl">
+                    <Trophy className="text-amber-500" size={22} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-gray-900">{resultsRoom.name}</h3>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Kết quả game</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleCloseResults}
+                  className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 p-7 flex flex-col gap-7">
+                {resultsLoading ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="animate-spin text-amber-500" size={32} />
+                  </div>
+                ) : (
+                  <>
+                    {/* Teams list */}
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <Users size={12} /> Danh sách đội tham gia ({resultsTeams.length})
+                      </p>
+                      {resultsTeams.length === 0 ? (
+                        <p className="text-sm text-gray-400">Không có dữ liệu</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {resultsTeams.map((team) => (
+                            <span
+                              key={team.id}
+                              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-bold"
+                            >
+                              {team.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Per-round results */}
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <Medal size={12} /> Top 5 theo từng round
+                      </p>
+                      {resultsRoundData.length === 0 ? (
+                        <p className="text-sm text-gray-400">Không có dữ liệu</p>
+                      ) : (
+                        <>
+                          {/* Round tabs */}
+                          <div className="flex gap-2 mb-4">
+                            {resultsRoundData.map((rd) => (
+                              <button
+                                key={rd.round_number}
+                                onClick={() => setActiveResultsRound(rd.round_number)}
+                                className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${activeResultsRound === rd.round_number
+                                    ? "bg-primary text-white shadow-sm"
+                                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                  }`}
+                              >
+                                Round {rd.round_number}
+                              </button>
+                            ))}
+                          </div>
+                          {/* Top 5 for active round */}
+                          {resultsRoundData
+                            .filter((rd) => rd.round_number === activeResultsRound)
+                            .map((rd) => (
+                              <div key={rd.round_number} className="flex flex-col gap-2">
+                                {rd.top_teams.length === 0 ? (
+                                  <p className="text-sm text-gray-400">Chưa có kết quả</p>
+                                ) : (
+                                  rd.top_teams.map((entry) => (
+                                    <div
+                                      key={entry.team_id}
+                                      className={`flex items-center gap-4 px-5 py-3.5 rounded-xl border ${entry.rank === 1
+                                          ? "bg-amber-50 border-amber-200"
+                                          : entry.rank === 2
+                                            ? "bg-gray-50 border-gray-200"
+                                            : entry.rank === 3
+                                              ? "bg-orange-50 border-orange-200"
+                                              : "bg-white border-gray-100"
+                                        }`}
+                                    >
+                                      <span
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${entry.rank === 1
+                                            ? "bg-amber-400 text-white"
+                                            : entry.rank === 2
+                                              ? "bg-gray-400 text-white"
+                                              : entry.rank === 3
+                                                ? "bg-orange-400 text-white"
+                                                : "bg-gray-100 text-gray-500"
+                                          }`}
+                                      >
+                                        {entry.rank}
+                                      </span>
+                                      <span className="flex-1 font-bold text-gray-800 text-sm">{entry.team_name}</span>
+                                      <div className="flex items-center gap-1 text-xs font-bold text-green-600">
+                                        <CheckCheck size={13} />
+                                        {entry.correct_count} đúng
+                                      </div>
+                                      <div className="flex items-center gap-1 text-xs font-bold text-gray-400">
+                                        <Timer size={13} />
+                                        {entry.total_time_seconds}s
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            ))}
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-7 py-5 border-t border-gray-100 bg-gray-50">
+                <button
+                  onClick={() => window.open(`/stage/final?gameId=${resultsRoom.id}`, "_blank")}
+                  className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-purple-700 transition-all flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <Layout size={16} /> Hiển thị kết quả trên màn hình Stage
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
