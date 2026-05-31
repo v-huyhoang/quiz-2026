@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CheckCircle, Trophy, Star } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { getPublicGameState, type CurrentQuestion, type GameAnswer } from "../../services/gameService";
+import { getPublicGameState, getPublicRoundResults, type CurrentQuestion, type GameAnswer, type RoundResult } from "../../services/gameService";
 import StageRoundComplete from "./StageRoundComplete";
 
 import { QuestionTimer } from "../../components/ui/QuestionTimer";
@@ -24,6 +24,7 @@ interface QuestionStartedEvent {
   time_limit_seconds: number;
   round_number: number;
   total_questions: number;
+  opened_at: string;
   question: { content: string; answers: GameAnswer[] };
 }
 
@@ -46,6 +47,7 @@ export default function StageGame() {
   const [totalQ, setTotalQ] = useState(0);
   const [roundsTotal, setRoundsTotal] = useState(0);
   const [showRoundComplete, setShowRoundComplete] = useState(false);
+  const [completedRoundNum, setCompletedRoundNum] = useState(0);
 
   useEffect(() => {
     console.debug("[StageGame] showRoundComplete:", showRoundComplete);
@@ -89,6 +91,7 @@ export default function StageGame() {
       setQuestion(null);
     },
     ".question.started": (data: QuestionStartedEvent) => {
+      setShowRoundComplete(false);
       setRoundNum(data.round_number);
       setTotalQ(data.total_questions);
       setQuestion({
@@ -96,7 +99,7 @@ export default function StageGame() {
         order_number: data.order_number,
         content: data.question.content,
         status: "open",
-        opened_at: new Date().toISOString(),
+        opened_at: data.opened_at ?? new Date().toISOString(),
         time_limit_seconds: data.time_limit_seconds,
         answers: data.question.answers,
       });
@@ -107,11 +110,8 @@ export default function StageGame() {
       );
     },
     ".round.finished": (data: RoundFinishedEvent) => {
-      console.debug("[StageGame] .round.finished", data);
-
+      setCompletedRoundNum(data.round_number);
       setShowRoundComplete(true);
-      console.debug("[StageGame] setShowRoundComplete(true)");
-
       setQuestion(null);
       setRoundNum(data.round_number + 1);
     },
@@ -125,7 +125,7 @@ export default function StageGame() {
     const popupNode = showRoundComplete ? (
       <div className="fixed right-4 sm:right-12 top-10 w-[600px] max-w-[92vw] z-[9999] pointer-events-auto">
         <div className="w-full h-full bg-transparent rounded-lg shadow-xl overflow-hidden">
-          <StageRoundComplete isPopup />
+          <StageRoundComplete isPopup gameId={gameId} completedRound={completedRoundNum} />
         </div>
       </div>
     ) : null;
@@ -143,7 +143,7 @@ export default function StageGame() {
   const popupNode = showRoundComplete ? (
     <div className="fixed right-4 sm:right-12 top-10 w-[600px] max-w-[92vw] z-[9999] pointer-events-auto">
       <div className="w-full h-full bg-transparent rounded-lg shadow-xl overflow-hidden">
-        <StageRoundComplete isPopup />
+        <StageRoundComplete isPopup gameId={gameId} completedRound={completedRoundNum} />
       </div>
     </div>
   ) : null;
@@ -152,7 +152,7 @@ export default function StageGame() {
     return (
       <>
         {popupNode}
-        <StageWaitingForRound roundNum={roundNum} roundsTotal={roundsTotal} />
+        <StageWaitingForRound roundNum={roundNum} roundsTotal={roundsTotal} gameId={gameId} />
       </>
     );
   }
@@ -261,21 +261,35 @@ export default function StageGame() {
 }
 
 // ── Waiting for round (Stage — large screen) ──────────────────────────────────
-function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; roundsTotal: number }) {
-  return (
-    <div className="min-h-screen bg-surface flex flex-col items-center justify-center overflow-hidden relative">
-      {/* Soft glow blob */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-primary/6 rounded-full blur-[100px] pointer-events-none" />
+function StageWaitingForRound({
+  roundNum,
+  roundsTotal,
+  gameId,
+}: {
+  roundNum: number;
+  roundsTotal: number;
+  gameId: number;
+}) {
+  const [completedRounds, setCompletedRounds] = useState<RoundResult[]>([]);
 
-      <motion.div
-        className="relative z-10 text-center px-8"
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-      >
-        {/* "Sắp bắt đầu" badge */}
+  useEffect(() => {
+    if (!gameId || roundNum <= 1) return;
+    getPublicRoundResults(gameId)
+      .then((res) => {
+        const all = res.data.data ?? [];
+        setCompletedRounds(all.filter((r) => r.round_number < roundNum));
+      })
+      .catch(() => {});
+  }, [gameId, roundNum]);
+
+  return (
+    <div className="min-h-screen bg-surface flex flex-col overflow-auto relative">
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-primary/6 rounded-full blur-[100px] pointer-events-none" />
+
+      {/* Round number section */}
+      <div className="flex flex-col items-center justify-center py-16 relative z-10">
         <motion.div
-          className="inline-flex items-center gap-2.5 px-6 py-2.5 bg-primary/8 border border-primary/20 rounded-full mb-14"
+          className="inline-flex items-center gap-2.5 px-6 py-2.5 bg-primary/8 border border-primary/20 rounded-full mb-10"
           animate={{ opacity: [0.65, 1, 0.65] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
         >
@@ -283,14 +297,10 @@ function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; rou
           <span className="text-sm font-black text-primary uppercase tracking-[0.2em]">Sắp bắt đầu</span>
         </motion.div>
 
-        {/* "Vòng đấu" label */}
-        <p className="text-base font-black text-gray-400 uppercase tracking-[0.35em] mb-3">
-          Vòng đấu
-        </p>
+        <p className="text-base font-black text-gray-400 uppercase tracking-[0.35em] mb-3">Vòng đấu</p>
 
-        {/* Giant round number */}
         <motion.p
-          className="text-[180px] md:text-[220px] font-black leading-none text-gray-900 tracking-tight select-none"
+          className="text-[160px] md:text-[200px] font-black leading-none text-gray-900 tracking-tight select-none"
           animate={{ scale: [1, 1.012, 1] }}
           transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
         >
@@ -298,10 +308,9 @@ function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; rou
         </motion.p>
 
         {roundsTotal > 0 && (
-          <p className="text-3xl font-bold text-gray-300 -mt-6 mb-14">/ {roundsTotal}</p>
+          <p className="text-3xl font-bold text-gray-300 -mt-4 mb-10">/ {roundsTotal}</p>
         )}
 
-        {/* Dots */}
         <div className="flex gap-4 justify-center">
           {[0, 1, 2].map((i) => (
             <motion.div
@@ -312,7 +321,70 @@ function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; rou
             />
           ))}
         </div>
-      </motion.div>
+      </div>
+
+      {/* Previous rounds leaderboard */}
+      {completedRounds.length > 0 && (
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-8 pb-16">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-6 text-center">
+            Kết quả các vòng trước
+          </p>
+          <div
+            className={`grid gap-6 ${
+              completedRounds.length === 1 ? "grid-cols-1 max-w-2xl mx-auto" : "grid-cols-2"
+            }`}
+          >
+            {completedRounds.map((round) => (
+              <div
+                key={round.round_number}
+                className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm"
+              >
+                <div className="px-6 py-4 bg-primary/5 border-b border-primary/10 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                  <span className="text-sm font-black text-primary uppercase tracking-widest">
+                    Round {round.round_number}
+                  </span>
+                </div>
+                {round.top_teams.length === 0 ? (
+                  <p className="px-6 py-4 text-sm text-gray-400">Chưa có dữ liệu</p>
+                ) : (
+                  round.top_teams.map((team) => (
+                    <div
+                      key={team.rank}
+                      className="flex items-center justify-between px-6 py-4 border-b last:border-b-0"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`w-9 h-9 rounded-full text-sm flex items-center justify-center font-black ${
+                            team.rank === 1
+                              ? "bg-yellow-100 text-yellow-700"
+                              : team.rank === 2
+                                ? "bg-gray-100 text-gray-600"
+                                : team.rank === 3
+                                  ? "bg-orange-100 text-orange-600"
+                                  : "bg-blue-50 text-blue-600"
+                          }`}
+                        >
+                          {team.rank}
+                        </span>
+                        <span className="text-base font-black text-gray-900">{team.team_name}</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm font-bold text-green-600">
+                          {team.correct_count} đúng
+                        </span>
+                        <span className="text-sm font-mono text-gray-400">
+                          {team.total_time_seconds.toFixed(2)}s
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <GridBg />
     </div>
