@@ -16,6 +16,7 @@ class SubmitAnswerRequest extends FormRequest
         return [
             'round_question_id' => 'required|integer|exists:round_questions,id',
             'answer_id'         => 'required|integer|exists:answers,id',
+            'response_time_ms'  => 'nullable|integer|min:0',
         ];
     }
 }
