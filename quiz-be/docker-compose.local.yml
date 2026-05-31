@@ -6,6 +6,25 @@ services:
     container_name: quiz-be-local
     ports:
       - "8000:80"
+    volumes:
+      - .:/var/www/html
+    env_file:
+      - .env
+    environment:
+      - REVERB_HOST=reverb
+    depends_on:
+      - mysql
+      - redis
+      - reverb
+    restart: unless-stopped
+
+  reverb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: quiz-reverb-local
+    command: php /var/www/html/artisan reverb:start --host=0.0.0.0 --port=8080
+    ports:
       - "8080:8080"
     volumes:
       - .:/var/www/html
