@@ -3,7 +3,8 @@
 use Illuminate\Support\Facades\Route;
 
 // ── Public: player join + game state ─────────────────────────────────────────
-Route::post('/rooms/{code}/join', [\App\Http\Controllers\GameController::class, 'join']);
+// join: 10/min per IP — prevents access-code brute-force
+Route::middleware('throttle:10,1')->post('/rooms/{code}/join', [\App\Http\Controllers\GameController::class, 'join']);
 Route::get('/games/{id}/state', [\App\Http\Controllers\GameController::class, 'publicState']);
 Route::get('/games/{id}/leaderboard', [\App\Http\Controllers\GameController::class, 'leaderboard']);
 Route::get('/games/{id}/round-results', [\App\Http\Controllers\GameController::class, 'roundResults']);
@@ -20,7 +21,8 @@ Route::post('/reverb/webhook', [\App\Http\Controllers\ReverbWebhookController::c
 
 // ── Player (authenticated as team via player-token) ───────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/games/submit', [\App\Http\Controllers\GameController::class, 'submitAnswer']);
+    // submit: 20/min per team — allows retries on flaky connections, blocks spam
+    Route::middleware('throttle:20,1')->post('/games/submit', [\App\Http\Controllers\GameController::class, 'submitAnswer']);
     Route::post('/games/{id}/leave', [\App\Http\Controllers\GameController::class, 'leave']);
     Route::post('/games/{id}/announce', [\App\Http\Controllers\GameController::class, 'announce']);
 });
