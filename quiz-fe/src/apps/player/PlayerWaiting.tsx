@@ -5,8 +5,6 @@ import { motion } from "motion/react";
 import { useGameStore } from "../../store/gameStore";
 import { useAuthStore } from "../../store/authStore";
 import { getPublicGameState, type GameTeam } from "../../services/gameService";
-import { getGameChannel } from "../../sockets/channels/game-channel";
-import { getEcho } from "../../sockets/echo";
 import backgroundImage from "../../assets/background.png";
 import logoImage from "../../assets/logo.png";
 import { useGameSocket } from "../../hooks/useGameSocket";

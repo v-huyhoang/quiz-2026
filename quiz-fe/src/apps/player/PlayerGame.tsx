@@ -9,8 +9,6 @@ import {
   type GameState,
   type GameAnswer,
 } from "../../services/gameService";
-import { getGameChannel } from "../../sockets/channels/game-channel";
-import { getEcho } from "../../sockets/echo";
 import backgroundImage from "../../assets/background.png";
 
 const LABELS = ["A", "B", "C", "D"];
@@ -479,7 +477,7 @@ function WaitingForRound({
                     <span className="text-xs font-black text-primary">{round.round_number}</span>
                   </div>
                   <span className="text-sm font-black text-gray-700 uppercase tracking-wide">
-                    Round {round.round_number}
+                    Vòng {round.round_number}
                   </span>
                 </div>
                 <div className="flex items-center gap-4">
