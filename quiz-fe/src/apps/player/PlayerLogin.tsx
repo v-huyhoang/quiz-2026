@@ -2,6 +2,7 @@ import React from "react";
 import { LogIn, Group, Key } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
+import backgroundImage from "../../assets/background.png";
 
 export default function PlayerLogin() {
   const navigate = useNavigate();
@@ -12,7 +13,10 @@ export default function PlayerLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div 
+      className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+      >
       {/* Background elements */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary-container/10 rounded-full blur-[120px]"></div>
 
@@ -39,7 +43,7 @@ export default function PlayerLogin() {
           <form onSubmit={handleLogin} className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Group size={12} /> Team ID
+                <Group size={12} /> Mã đội
               </label>
               <input
                 type="text"
@@ -50,7 +54,7 @@ export default function PlayerLogin() {
 
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Key size={12} /> Access Code
+                <Key size={12} /> Mật khẩu
               </label>
               <input
                 type="password"

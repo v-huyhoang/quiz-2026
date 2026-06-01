@@ -9,6 +9,9 @@ import {
   type GameState,
   type GameAnswer,
 } from "../../services/gameService";
+import backgroundImage from "../../assets/background.png";
+
+const LABELS = ["A", "B", "C", "D"];
 import { QuestionTimer } from "../../components/ui/QuestionTimer";
 import { LoadingScreen } from "../../components/ui/LoadingScreen";
 import { ANSWER_LABELS, getApiErrorMessage } from "../../libs/utils";
@@ -201,7 +204,10 @@ export default function PlayerGame() {
   }
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col pt-20">
+    <div 
+      className="min-h-screen flex flex-col"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+    >
       <main className="flex-grow w-full max-w-4xl mx-auto px-6 py-12">
 
         {/* Header */}
@@ -246,7 +252,7 @@ export default function PlayerGame() {
                   ${isSelected
                     ? "border-primary bg-primary/5 ring-4 ring-primary/10"
                     : alreadySubmitted
-                      ? "border-gray-100 bg-gray-50 opacity-40"
+                      ? "border-gray-200 bg-gray-50 opacity-40"
                       : "border-white bg-white hover:border-primary/20 shadow-sm"
                   }`}
               >
@@ -290,7 +296,7 @@ export default function PlayerGame() {
                 {submitting
                   ? <Loader2 size={18} className="animate-spin relative z-10" />
                   : <CheckCircle size={18} className="relative z-10 shrink-0" />}
-                <span className="relative z-10">{submitting ? "Đang nộp..." : "Submit"}</span>
+                <span className="relative z-10">{submitting ? "Đang gửi..." : "Chốt kèo"}</span>
               </motion.button>
             ) : submitResult === "correct" ? (
               <motion.div
@@ -409,7 +415,10 @@ function WaitingForRound({
   });
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col relative overflow-hidden">
+    <div 
+      className="min-h-screen flex flex-col relative overflow-hidden"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+    >
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/6 rounded-full blur-[80px] pointer-events-none" />
 
       {/* Waiting animation */}
@@ -469,7 +478,7 @@ function WaitingForRound({
                     <span className="text-xs font-black text-primary">{round.round_number}</span>
                   </div>
                   <span className="text-sm font-black text-gray-700 uppercase tracking-wide">
-                    Round {round.round_number}
+                    Vòng {round.round_number}
                   </span>
                 </div>
                 <div className="flex items-center gap-4">
@@ -504,7 +513,10 @@ function GameFinished({ gameId, totalRounds }: { gameId: number; totalRounds: nu
   });
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col relative overflow-hidden">
+    <div 
+      className="min-h-screen flex flex-col relative overflow-hidden"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+    >
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-yellow-400/8 rounded-full blur-[80px] pointer-events-none" />
 
       {/* Header */}
@@ -595,7 +607,10 @@ function ClosedScreen({
   const isLast = totalQuestions > 0 && question.order_number >= totalQuestions;
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col pt-20">
+    <div 
+      className="min-h-screen flex flex-col"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+    >
       <main className="flex-grow w-full max-w-4xl mx-auto px-6 py-12">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2.5">
@@ -626,8 +641,8 @@ function ClosedScreen({
                     ? "border-green-400 bg-green-50"
                     : isMine
                       ? "border-red-300 bg-red-50"
-                      : "border-gray-100 bg-gray-50 opacity-50"
-                }`}
+                      : "border-gray-200 bg-gray-50 opacity-50"
+                  }`}
               >
                 <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border-2 ${
                   isCorrect ? "bg-green-500 text-white border-green-500"

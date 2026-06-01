@@ -26,4 +26,18 @@
   .card {
     @apply bg-surface border border-surface-container-highest shadow-sm rounded-xl overflow-hidden;
   }
+  .btn {
+    background: radial-gradient(circle at bottom left, #00053a 0%, transparent 45%), 
+                linear-gradient(180deg, #229cee, #062b63 45%, #000a5a);
+    color: white;
+    font-weight: 500;
+    border-radius: 0.25rem;
+    padding: 0.625rem 1rem;
+    transition: opacity 0.2s;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  }
+
+  .btn:hover {
+    opacity: 0.9;
+  }
 }

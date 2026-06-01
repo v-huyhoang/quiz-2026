@@ -65,7 +65,7 @@ export default function StageRoundComplete({
           <h1
             className={`${isPopup ? "text-3xl" : "text-4xl"} font-black text-gray-900 tracking-tighter mb-2`}
           >
-            Round {completedRound || "?"} Complete
+            Vòng {completedRound || "?"} Hoàn thành
           </h1>
           <p className="text-gray-500 font-medium uppercase tracking-[0.3em] text-sm">
             Kết quả vòng này

@@ -5,6 +5,9 @@ import { motion, AnimatePresence } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
 import { getPublicGameState, type GameTeam, type GameState } from "../../services/gameService";
 import { getRoomByCode } from "../../services/roomService";
+import backgroundImage from "../../assets/background.png";
+import waveImage from "../../assets/wave.png";
+import Header from "../../components/Header";
 import { GridBg } from "../../components/ui/GridBg";
 import { useGameSocket } from "../../hooks/useGameSocket";
 
@@ -77,14 +80,19 @@ export default function StageWaitting() {
   const emptySlots = Math.max(0, MAX_TEAMS - teams.length);
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col">
+    <div
+      className="min-h-screen bg-surface flex flex-col relative overflow-hidden"
+      style={{
+        backgroundImage: `
+          url(${backgroundImage})
+        `,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
       {/* Top bar */}
-      <header className="w-full px-10 py-5 flex items-center justify-between border-b border-gray-100 bg-white/70 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-primary animate-ping" />
-          <span className="text-xs font-black text-primary uppercase tracking-[0.25em]">Sảnh chờ</span>
-        </div>
-      </header>
+      <Header title="Sảnh chờ" />
 
       <main className="flex-grow w-full max-w-7xl mx-auto px-8 py-10 grid grid-cols-[1fr_320px] gap-10">
 
@@ -103,10 +111,10 @@ export default function StageWaitting() {
               <span className="text-sm font-bold text-gray-500 uppercase tracking-widest">Đội đã tham gia</span>
               <span className="text-4xl font-black text-primary tabular-nums">
                 {teams.length}
-                <span className="text-xl text-gray-300 font-bold">/{MAX_TEAMS}</span>
+                <span className="text-xl text-gray-400 font-bold">/{MAX_TEAMS}</span>
               </span>
             </div>
-            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-gray-300 rounded-full overflow-hidden">
               <motion.div
                 animate={{ width: `${(teams.length / MAX_TEAMS) * 100}%` }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
@@ -121,7 +129,15 @@ export default function StageWaitting() {
               <StageTeamCard key={team.id} team={team} index={index} />
             ))}
             {Array.from({ length: emptySlots }).map((_, i) => (
-              <StageEmptySlot key={`empty-${i}`} />
+              <div
+                key={`empty-${i}`}
+                className="border-2 border-dashed border-gray-400 bg-gray-50/40 p-3 rounded-xl flex items-center gap-3 opacity-40"
+              >
+                <div className="w-10 h-10 rounded-full border border-gray-900 flex items-center justify-center text-gray-300 shrink-0">
+                  <UserPlus className="text-gray-900" size={16} />
+                </div>
+                <p className="text-[10px] font-bold text-gray-900 uppercase tracking-widest">Trống</p>
+              </div>
             ))}
           </div>
         </div>
@@ -134,7 +150,8 @@ export default function StageWaitting() {
             transition={{ delay: 0.1 }}
             className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col items-center gap-4 shadow-md w-full"
           >
-            <p className="text-xs font-black text-gray-400 uppercase tracking-[0.25em]">Quét để tham gia</p>
+            <p className="text-[16px] font-black text-gray-400 uppercase tracking-[0.25em]">Quét để tham gia</p>
+
             <div className="p-3 bg-white rounded-xl border-2 border-gray-100">
               {joinUrl ? (
                 <QRCodeSVG value={joinUrl} size={200} bgColor="#ffffff" fgColor="#1a1a2e" level="M" />
@@ -146,8 +163,8 @@ export default function StageWaitting() {
             {gameInfo && (
               <>
                 <div className="w-full border-t border-gray-100 pt-4 flex flex-col items-center gap-1">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Mã phòng</p>
-                  <p className="text-4xl font-black text-primary font-mono tracking-widest">
+                  <p className="text-[14px] font-bold text-gray-400 uppercase tracking-[0.2em]">Mã phòng</p>
+                  <p className="text-4xl font-extrabold text-primary font-mono tracking-widest">
                     {gameInfo.access_code}
                   </p>
                 </div>
@@ -166,7 +183,7 @@ export default function StageWaitting() {
               transition={{ delay: 0.2 }}
               className="bg-white border border-gray-200 rounded-2xl p-5 w-full shadow-sm"
             >
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] mb-4">
+              <p className="text-[14px] text-center font-black text-gray-400 uppercase tracking-[0.25em] mb-6">
                 Thông tin trò chơi
               </p>
               <div className="space-y-3">

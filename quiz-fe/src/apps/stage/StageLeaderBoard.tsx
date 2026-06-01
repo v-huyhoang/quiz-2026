@@ -36,16 +36,16 @@ export default function StageLeaderBoard() {
         <div className="flex justify-between items-end mb-12">
           <div>
             <h1 className="text-5xl font-black text-gray-900 tracking-tighter mb-2">
-              Leaderboard
+              Bảng xếp hạng
             </h1>
             <p className="text-gray-500 font-medium uppercase tracking-[0.3em] flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              LIVE STANDINGS
+              XẾP HẠNG SỐNG
             </p>
           </div>
           <div className="flex flex-col items-end">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-              TEAMS
+              ĐỘI
             </span>
             <div className="text-3xl font-black text-secondary">
               {entries.length}
@@ -87,14 +87,14 @@ export default function StageLeaderBoard() {
                     {team.team_name}
                   </h3>
                   <span className="text-xs font-bold text-gray-400 tracking-widest flex items-center gap-1">
-                    <CheckCircle2 size={12} /> {team.correct_count} CORRECT
+                    <CheckCircle2 size={12} /> {team.correct_count} CÂU ĐÚNG
                   </span>
                 </div>
               </div>
 
               <div className="text-right relative z-10">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none mb-1 flex items-center justify-end gap-1">
-                  <Timer size={12} /> TOTAL TIME
+                  <Timer size={12} /> Tổng thời gian
                 </p>
                 <p className="text-3xl font-black text-gray-900 font-mono">
                   {team.total_time_seconds.toFixed(2)}s
