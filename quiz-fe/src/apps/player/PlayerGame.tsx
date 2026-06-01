@@ -10,8 +10,6 @@ import {
   type GameAnswer,
 } from "../../services/gameService";
 import backgroundImage from "../../assets/background.png";
-
-const LABELS = ["A", "B", "C", "D"];
 import { QuestionTimer } from "../../components/ui/QuestionTimer";
 import { LoadingScreen } from "../../components/ui/LoadingScreen";
 import { ANSWER_LABELS, getApiErrorMessage } from "../../libs/utils";

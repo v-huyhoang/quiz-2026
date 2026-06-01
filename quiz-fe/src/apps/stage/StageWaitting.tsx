@@ -6,7 +6,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { getPublicGameState, type GameTeam, type GameState } from "../../services/gameService";
 import { getRoomByCode } from "../../services/roomService";
 import backgroundImage from "../../assets/background.png";
-import waveImage from "../../assets/wave.png";
+// import waveImage from "../../assets/wave.png";
 import Header from "../../components/Header";
 import { GridBg } from "../../components/ui/GridBg";
 import { useGameSocket } from "../../hooks/useGameSocket";
@@ -243,16 +243,16 @@ const StageTeamCard = memo(function StageTeamCard({ team, index }: { team: GameT
   );
 });
 
-const StageEmptySlot = memo(function StageEmptySlot() {
-  return (
-    <div className="border-2 border-dashed border-gray-200 bg-gray-50/40 p-3 rounded-xl flex items-center gap-3 opacity-40">
-      <div className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-300 shrink-0">
-        <UserPlus size={16} />
-      </div>
-      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Trống</p>
-    </div>
-  );
-});
+// const StageEmptySlot = memo(function StageEmptySlot() {
+//   return (
+//     <div className="border-2 border-dashed border-gray-200 bg-gray-50/40 p-3 rounded-xl flex items-center gap-3 opacity-40">
+//       <div className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-300 shrink-0">
+//         <UserPlus size={16} />
+//       </div>
+//       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Trống</p>
+//     </div>
+//   );
+// });
 
 const GameInfoRow = memo(function GameInfoRow({
   icon,

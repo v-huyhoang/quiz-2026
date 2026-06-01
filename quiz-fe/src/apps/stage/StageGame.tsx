@@ -3,8 +3,6 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { CheckCircle, Trophy, Star } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { getPublicGameState, type CurrentQuestion, type GameAnswer } from "../../services/gameService";
-import { getGameChannel } from "../../sockets/channels/game-channel";
-import { getEcho } from "../../sockets/echo";
 import backgroundImage from "../../assets/background.png";
 import StageRoundComplete from "./StageRoundComplete";
 import { QuestionTimer } from "../../components/ui/QuestionTimer";
