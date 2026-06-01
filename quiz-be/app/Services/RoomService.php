@@ -190,10 +190,9 @@ class RoomService
     {
         $room = $this->roomRepository->findById($id);
 
-        // Prevent deletion if game is active
         if ($room->status === 'active') {
             throw ValidationException::withMessages([
-                'status' => ['Cannot delete an active game.'],
+                'status' => ['Cannot delete a game that is currently in progress.'],
             ]);
         }
 

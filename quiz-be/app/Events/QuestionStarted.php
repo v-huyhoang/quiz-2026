@@ -68,6 +68,7 @@ class QuestionStarted implements ShouldBroadcastNow
             'order_number' => $this->roundQuestion->order_number,
             'question' => $this->questionData,
             'time_limit_seconds' => $this->questionData['time_limit_seconds'],
+            'opened_at' => $this->roundQuestion->opened_at?->toISOString(),
         ];
     }
 }
