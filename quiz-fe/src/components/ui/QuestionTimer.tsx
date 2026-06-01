@@ -1,14 +1,24 @@
 import { memo } from "react";
-import { Timer, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
 import { useCountdown } from "../../hooks/useCountdown";
 
 interface QuestionTimerProps {
   openedAt: string;
   limitSec: number;
-  /** "player" = compact bar (default), "stage" = large display, "admin" = pill */
+  /** "player" = compact progress bar, "stage" = large progress bar, "admin" = pill */
   variant?: "player" | "stage" | "admin";
   /** seconds remaining below which urgent styling kicks in (default: 10) */
   urgentThreshold?: number;
+}
+
+function getBarColor(progress: number) {
+  if (progress <= 20) return "bg-red-500";
+  if (progress <= 40) return "bg-orange-500";
+  return "bg-green-500";
+}
+
+function getTrackColor(isUrgent: boolean) {
+  return isUrgent ? "bg-red-100" : "bg-gray-200";
 }
 
 export const QuestionTimer = memo(function QuestionTimer({
@@ -17,21 +27,18 @@ export const QuestionTimer = memo(function QuestionTimer({
   variant = "player",
   urgentThreshold = 10,
 }: QuestionTimerProps) {
-  const { timeLeft } = useCountdown({ openedAt, duration: limitSec });
+  const { timeLeft, progress } = useCountdown({ openedAt, duration: limitSec });
   const isUrgent = timeLeft <= urgentThreshold;
-  const pad = timeLeft.toString().padStart(2, "0");
 
   if (variant === "stage") {
     return (
-      <div
-        className={`flex items-center gap-3 font-mono text-4xl font-black px-8 py-4 rounded-2xl border shadow-lg transition-all ${
-          isUrgent
-            ? "text-red-500 border-red-300 bg-red-50"
-            : "text-secondary border-gray-200 bg-white"
-        }`}
-      >
-        <Timer size={32} />
-        0:{pad}
+      <div className="w-80">
+        <div className={`relative h-5 rounded-full overflow-hidden ${getTrackColor(isUrgent)}`}>
+          <div
+            className={`h-full rounded-full transition-all duration-100 ease-linear ${getBarColor(progress)}`}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
       </div>
     );
   }
@@ -49,16 +56,15 @@ export const QuestionTimer = memo(function QuestionTimer({
     );
   }
 
+  // player variant
   return (
-    <div
-      className={`flex items-center gap-2 font-mono text-xl font-bold px-4 py-2 rounded-lg border shadow-sm transition-colors ${
-        isUrgent
-          ? "text-red-500 border-red-200 bg-red-50"
-          : "text-primary border-gray-200 bg-white"
-      }`}
-    >
-      <Timer size={20} />
-      0:{pad}
+    <div className="w-36">
+      <div className={`relative h-2.5 rounded-full overflow-hidden ${getTrackColor(isUrgent)}`}>
+        <div
+          className={`h-full rounded-full transition-all duration-100 ease-linear ${getBarColor(progress)}`}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
     </div>
   );
 });
