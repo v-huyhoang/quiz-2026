@@ -49,12 +49,17 @@ class GameService
         return $this->buildState(Game::findOrFail($id), isAdmin: false);
     }
 
+    public function getPlayerState(int $id, int $teamId): array
+    {
+        return $this->buildState(Game::findOrFail($id), isAdmin: false, teamId: $teamId);
+    }
+
     public function getAdminState(int $id): array
     {
         return $this->buildState(Game::findOrFail($id), isAdmin: true);
     }
 
-    private function buildState(Game $game, bool $isAdmin): array
+    private function buildState(Game $game, bool $isAdmin, ?int $teamId = null): array
     {
         $teams = $game->teams()->where('is_present', true)->get(['id', 'name']);
 
@@ -106,6 +111,18 @@ class GameService
                             'is_correct' => $revealCorrect ? (bool) $a->is_correct : null,
                         ])->all(),
                     ];
+
+                    if ($teamId !== null) {
+                        $mySubmission = Submission::where('round_question_id', $currentRQ->id)
+                            ->where('team_id', $teamId)
+                            ->first();
+
+                        $currentQuestion['my_submission'] = $mySubmission ? [
+                            'answer_id' => $mySubmission->answer_id,
+                            'is_correct' => (bool) $mySubmission->is_correct,
+                            'response_time_ms' => $mySubmission->response_time_ms,
+                        ] : null;
+                    }
 
                     if ($isAdmin) {
                         $subs = Submission::where('round_question_id', $currentRQ->id)->get();
