@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, memo, useCallback } from "react";
+import { useState, useEffect, memo, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { CheckCircle, Clock, Loader2, Trophy, XCircle } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import {
-  getPublicGameState,
+  getPlayerGameState,
   submitAnswer,
   type CurrentQuestion,
   type GameState,
@@ -49,7 +49,9 @@ function saveCorrectAnswer(gameId: number, roundNumber: number, rqId: number, re
       existing.push({ round_question_id: rqId, response_time_ms: responseTimeMs });
       localStorage.setItem(key, JSON.stringify(existing));
     }
-  } catch {}
+  } catch {
+    return;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -63,16 +65,39 @@ export default function PlayerGame() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
-  const submittedRqId = useRef<number | null>(null);
-  const [submitResult, setSubmitResult] = useState<"correct" | "incorrect" | null>(null);
+  const [submission, setSubmission] = useState<{
+    roundQuestionId: number;
+    answerId: number;
+    result: "correct" | "incorrect" | null;
+  } | null>(null);
+
+  const applyGameState = useCallback((state: GameState) => {
+    const currentQuestion = state.current_round?.current_question;
+    const mySubmission = currentQuestion?.my_submission;
+
+    if (currentQuestion && mySubmission) {
+      setSelectedId(mySubmission.answer_id);
+      setSubmission({
+        roundQuestionId: currentQuestion.round_question_id,
+        answerId: mySubmission.answer_id,
+        result: mySubmission.is_correct ? "correct" : "incorrect",
+      });
+    } else {
+      setSelectedId(null);
+      setSubmission(null);
+    }
+
+    setSubmitError("");
+    setGameState(state);
+  }, []);
 
   // ── Initial state fetch ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!gameId) return;
-    getPublicGameState(gameId)
-      .then((res) => setGameState(res.data.data))
+    getPlayerGameState(gameId)
+      .then((res) => applyGameState(res.data.data))
       .catch(() => {});
-  }, [gameId]);
+  }, [applyGameState, gameId]);
 
   // ── WebSocket subscription ────────────────────────────────────────────────────
   useGameSocket(gameId, {
@@ -82,6 +107,9 @@ export default function PlayerGame() {
       );
     },
     ".question.started": (data: QuestionStartedEvent) => {
+      setSelectedId(null);
+      setSubmitError("");
+      setSubmission(null);
       setGameState((prev) => {
         if (!prev) return prev;
         const newQuestion: CurrentQuestion = {
@@ -136,15 +164,8 @@ export default function PlayerGame() {
   const question = gameState?.current_round?.current_question ?? null;
   const rqId     = question?.round_question_id ?? null;
 
-  useEffect(() => {
-    if (rqId !== null && rqId !== submittedRqId.current) {
-      setSelectedId(null);
-      setSubmitError("");
-      setSubmitResult(null);
-    }
-  }, [rqId]);
-
-  const alreadySubmitted = rqId !== null && submittedRqId.current === rqId;
+  const alreadySubmitted = rqId !== null && submission?.roundQuestionId === rqId;
+  const submitResult = alreadySubmitted ? submission.result : null;
   const isLastQuestion   = (question?.order_number ?? 0) >= (gameState?.current_round?.total_questions ?? 0);
 
   const handleSubmit = useCallback(async () => {
@@ -160,8 +181,11 @@ export default function PlayerGame() {
     try {
       const res = await submitAnswer(question.round_question_id, selectedId, responseTimeMs);
       const isCorrect = res.data.data?.is_correct ?? false;
-      submittedRqId.current = question.round_question_id;
-      setSubmitResult(isCorrect ? "correct" : "incorrect");
+      setSubmission({
+        roundQuestionId: question.round_question_id,
+        answerId: selectedId,
+        result: isCorrect ? "correct" : "incorrect",
+      });
       if (isCorrect) {
         saveCorrectAnswer(
           gameId!,
@@ -172,14 +196,24 @@ export default function PlayerGame() {
       }
     } catch (e: unknown) {
       if ((e as { response?: { status?: number } })?.response?.status === 409) {
-        submittedRqId.current = question.round_question_id;
+        if (gameId) {
+          getPlayerGameState(gameId)
+            .then((res) => applyGameState(res.data.data))
+            .catch(() => {
+              setSubmission({
+                roundQuestionId: question.round_question_id,
+                answerId: selectedId,
+                result: null,
+              });
+            });
+        }
       } else {
         setSubmitError(getApiErrorMessage(e, "Không thể nộp. Thử lại."));
       }
     } finally {
       setSubmitting(false);
     }
-  }, [question, selectedId, submitting, alreadySubmitted, gameState, gameId]);
+  }, [question, selectedId, submitting, alreadySubmitted, gameState, gameId, applyGameState]);
 
   if (!gameState) return <LoadingScreen />;
 
@@ -195,7 +229,7 @@ export default function PlayerGame() {
     return (
       <ClosedScreen
         question={question}
-        myAnswerId={alreadySubmitted ? selectedId : null}
+        myAnswerId={alreadySubmitted ? submission.answerId : null}
         totalQuestions={gameState.current_round?.total_questions ?? 0}
       />
     );

@@ -16,6 +16,12 @@ export interface GameAnswer {
   is_correct: boolean | null;
 }
 
+export interface MySubmission {
+  answer_id: number;
+  is_correct: boolean;
+  response_time_ms: number;
+}
+
 export interface CurrentQuestion {
   round_question_id: number;
   order_number: number;
@@ -24,6 +30,7 @@ export interface CurrentQuestion {
   opened_at: string | null;
   time_limit_seconds: number;
   answers: GameAnswer[];
+  my_submission?: MySubmission | null;
   team_submissions?: TeamSubmission[];
 }
 
