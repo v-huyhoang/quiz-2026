@@ -189,7 +189,9 @@ class GameService
                 throw new \Exception('Question is not open');
             }
 
-            $answer = Answer::findOrFail($answerId);
+            $answer = Answer::where('id', $answerId)
+                ->where('question_id', $rq->question_id)
+                ->firstOrFail();
             // Use client-provided time when available; fall back to server-side calculation
             $ms = $clientResponseTimeMs ?? ($rq->opened_at ? now()->diffInMilliseconds($rq->opened_at) : 0);
             $isCorrect = (bool) $answer->is_correct;
