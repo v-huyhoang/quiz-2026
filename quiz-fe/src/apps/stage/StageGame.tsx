@@ -152,7 +152,7 @@ export default function StageGame() {
     return (
       <>
         {popupNode}
-        <StageWaitingForRound roundNum={roundNum} roundsTotal={roundsTotal} gameId={gameId} />
+        <StageWaitingForRound roundNum={roundNum} roundsTotal={roundsTotal} />
       </>
     );
   }
@@ -240,8 +240,8 @@ export default function StageGame() {
                   }`}
               >
                 <span className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-black shrink-0 border-2 ${revealed && isCorrect
-                    ? "bg-green-500 text-white border-green-500"
-                    : "bg-gray-100 border-gray-300 text-gray-600"
+                  ? "bg-green-500 text-white border-green-500"
+                  : "bg-gray-100 border-gray-300 text-gray-600"
                   }`}>
                   {LABELS[i]}
                 </span>
@@ -264,11 +264,9 @@ export default function StageGame() {
 function StageWaitingForRound({
   roundNum,
   roundsTotal,
-  gameId,
 }: {
   roundNum: number;
   roundsTotal: number;
-  gameId: number;
 }) {
   return (
     <div className="min-h-screen bg-surface flex flex-col overflow-auto relative">
