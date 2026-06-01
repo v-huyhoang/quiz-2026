@@ -48,10 +48,10 @@ export default function StageRoundComplete() {
             <Award size={32} />
           </motion.div>
           <h1 className="text-4xl font-black text-gray-900 tracking-tighter mb-2">
-            Round {ROUND_STATS.roundNumber} Complete
+            Vòng {ROUND_STATS.roundNumber} Hoàn thành
           </h1>
           <p className="text-gray-500 font-medium uppercase tracking-[0.3em]">
-            FINAL RESULTS FOR THIS ROUND
+            KẾT QUẢ CUỐI CÙNG CHO VÒNG NÀY
           </p>
         </div>
 
@@ -78,7 +78,7 @@ export default function StageRoundComplete() {
 
         {/* Top 3 Teams */}
         <h2 className="text-xl font-black text-center uppercase tracking-[0.2em] text-gray-400 mb-6">
-          Round Winners
+          Người chiến thắng vòng
         </h2>
 
         <div className="flex items-end justify-center gap-6 mb-12 h-64">
@@ -114,7 +114,7 @@ export default function StageRoundComplete() {
               </div>
               <div className="bg-white w-full rounded-t-2xl p-6 text-center border-t-2 border-l-2 border-r-2 border-secondary shadow-xl relative z-10">
                 <h3 className="font-black text-lg text-gray-900 truncate">{TOP_TEAMS[0].name}</h3>
-                <p className="text-sm text-gray-500 mt-1">{TOP_TEAMS[0].correctCount} / {ROUND_STATS.totalQuestions} CORRECT</p>
+                <p className="text-sm text-gray-500 mt-1">{TOP_TEAMS[0].correctCount} / {ROUND_STATS.totalQuestions} CÂU ĐÚNG</p>
                 <p className="text-sm font-mono font-black text-secondary mt-2">{(TOP_TEAMS[0].totalTimeMs / 1000).toFixed(2)}s</p>
               </div>
               <div className="w-full bg-gradient-to-b from-secondary to-orange-600 h-44 rounded-t-md flex items-start justify-center pt-6 shadow-inner">
@@ -149,13 +149,13 @@ export default function StageRoundComplete() {
             onClick={() => navigate("/stage/leaderboard")}
             className="flex-1 py-4 bg-white border border-gray-200 text-gray-500 font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all text-sm"
           >
-            [MOCK] NEXT ROUND
+            [MOCK] VÒNG TIẾP THEO
           </button>
           <button
             onClick={() => navigate("/stage/final")}
             className="flex-1 py-4 bg-primary text-white font-black uppercase tracking-widest rounded-xl hover:bg-primary/90 transition-all flex items-center justify-center gap-2 text-sm"
           >
-            [MOCK] GAME FINAL <ArrowRight size={18} />
+            [MOCK] VÒNG CUỐI <ArrowRight size={18} />
           </button>
         </div>
       </main>

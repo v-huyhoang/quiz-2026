@@ -7,7 +7,9 @@ import { getPublicGameState, type GameTeam, type GameState } from "../../service
 import { getRoomByCode } from "../../services/roomService";
 import { getGameChannel } from "../../sockets/channels/game-channel";
 import { getEcho } from "../../sockets/echo";
-
+import backgroundImage from "../../assets/background.png";
+import waveImage from "../../assets/wave.png";
+import Header from "../../components/Header";
 const MAX_TEAMS = 16;
 const APP_URL = import.meta.env.VITE_APP_URL ?? "http://localhost:5173";
 
@@ -87,19 +89,21 @@ export default function StageWaitting() {
   const emptySlots = Math.max(0, MAX_TEAMS - teams.length);
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col">
+    <div
+      className="min-h-screen bg-surface flex flex-col relative overflow-hidden"
+      style={{
+        backgroundImage: `
+          url(${backgroundImage})
+        `,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
       {/* Top bar */}
-      <header className="w-full px-10 py-5 flex items-center justify-between border-b border-gray-100 bg-white/70 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-primary animate-ping" />
-          <span className="text-xs font-black text-primary uppercase tracking-[0.25em]">
-            Sảnh chờ
-          </span>
-        </div>
+      <Header title="Sảnh chờ" />
 
-      </header>
-
-      <main className="flex-grow w-full max-w-7xl mx-auto px-8 py-10 grid grid-cols-[1fr_320px] gap-10">
+      <main className="flex-grow w-full max-w-7xl mx-auto py-10 grid grid-cols-[1fr_320px] gap-20">
 
         {/* ── Left: game title + team grid ─────────────────────────────── */}
         <div className="flex flex-col gap-8 min-w-0">
@@ -110,7 +114,7 @@ export default function StageWaitting() {
               initial={{ opacity: 0, y: -12 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <p className="text-xs font-black text-gray-400 uppercase tracking-[0.3em] mb-1">Trò chơi</p>
+              <p className="text-md font-black text-gray-400 uppercase tracking-[0.3em] mb-1">Trò chơi</p>
               <h1 className="text-5xl font-black text-gray-900 leading-tight truncate">
                 {gameInfo.name}
               </h1>
@@ -123,10 +127,10 @@ export default function StageWaitting() {
               <span className="text-sm font-bold text-gray-500 uppercase tracking-widest">Đội đã tham gia</span>
               <span className="text-4xl font-black text-primary tabular-nums">
                 {teams.length}
-                <span className="text-xl text-gray-300 font-bold">/{MAX_TEAMS}</span>
+                <span className="text-xl text-gray-400 font-bold">/{MAX_TEAMS}</span>
               </span>
             </div>
-            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-gray-300 rounded-full overflow-hidden">
               <motion.div
                 animate={{ width: `${(teams.length / MAX_TEAMS) * 100}%` }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
@@ -157,12 +161,12 @@ export default function StageWaitting() {
             {Array.from({ length: emptySlots }).map((_, i) => (
               <div
                 key={`empty-${i}`}
-                className="border-2 border-dashed border-gray-200 bg-gray-50/40 p-3 rounded-xl flex items-center gap-3 opacity-40"
+                className="border-2 border-dashed border-gray-400 bg-gray-50/40 p-3 rounded-xl flex items-center gap-3 opacity-40"
               >
-                <div className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-300 shrink-0">
-                  <UserPlus size={16} />
+                <div className="w-10 h-10 rounded-full border border-gray-900 flex items-center justify-center text-gray-300 shrink-0">
+                  <UserPlus className="text-gray-900" size={16} />
                 </div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Trống</p>
+                <p className="text-[10px] font-bold text-gray-900 uppercase tracking-widest">Trống</p>
               </div>
             ))}
           </div>
@@ -177,7 +181,7 @@ export default function StageWaitting() {
             transition={{ delay: 0.1 }}
             className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col items-center gap-4 shadow-md w-full"
           >
-            <p className="text-xs font-black text-gray-400 uppercase tracking-[0.25em]">Quét để tham gia</p>
+            <p className="text-[14px] font-black text-gray-400 uppercase tracking-[0.25em]">Quét để tham gia</p>
 
             <div className="p-3 bg-white rounded-xl border-2 border-gray-100">
               {joinUrl ? (
@@ -196,7 +200,7 @@ export default function StageWaitting() {
             {gameInfo && (
               <>
                 <div className="w-full border-t border-gray-100 pt-4 flex flex-col items-center gap-1">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Mã phòng</p>
+                  <p className="text-[14px] font-bold text-gray-400 uppercase tracking-[0.2em]">Mã phòng</p>
                   <p className="text-4xl font-black text-primary font-mono tracking-widest">
                     {gameInfo.access_code}
                   </p>
@@ -218,7 +222,7 @@ export default function StageWaitting() {
               transition={{ delay: 0.2 }}
               className="bg-white border border-gray-200 rounded-2xl p-5 w-full shadow-sm"
             >
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] mb-4">Thông tin trò chơi</p>
+              <p className="text-[14px] font-black text-gray-400 uppercase tracking-[0.25em] mb-4">Thông tin trò chơi</p>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-gray-500">
@@ -259,7 +263,7 @@ export default function StageWaitting() {
             exit={{ opacity: 0, y: -16 }}
             transition={{ duration: 0.3 }}
             onAnimationComplete={() => setTimeout(() => setLastJoined(null), 2500)}
-            className="fixed top-6 right-6 z-50 flex items-center gap-2.5 bg-white border border-primary/20 shadow-lg px-5 py-3 rounded-2xl"
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 bg-white border border-primary/20 shadow-lg px-5 py-3 rounded-2xl"
           >
             <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
             <span className="text-sm font-bold text-gray-700">
@@ -275,7 +279,7 @@ export default function StageWaitting() {
             exit={{ opacity: 0, y: -16 }}
             transition={{ duration: 0.3 }}
             onAnimationComplete={() => setTimeout(() => setLastLeft(null), 2500)}
-            className="fixed top-6 right-6 z-50 flex items-center gap-2.5 bg-white border border-orange-200 shadow-lg px-5 py-3 rounded-2xl"
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 bg-white border border-orange-200 shadow-lg px-5 py-3 rounded-2xl"
           >
             <LogOut size={14} className="text-orange-500 shrink-0" />
             <span className="text-sm font-bold text-gray-700">
@@ -286,16 +290,11 @@ export default function StageWaitting() {
       </AnimatePresence>
 
       {/* Grid background */}
-      <div className="fixed inset-0 pointer-events-none -z-10 opacity-[0.03]">
-        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="currentColor" strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-        </svg>
-      </div>
+      <img
+        src={waveImage}
+        alt="wave"
+        className="absolute bottom-0 right-0 w-[400px] sm:w-[450px] lg:w-[500px] h-auto pointer-events-none select-none z-0 opacity-60"
+      />
     </div>
   );
 }

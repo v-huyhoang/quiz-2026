@@ -96,7 +96,7 @@ export default function StageFinal() {
           </div>
 
           <h1 className="text-4xl font-black tracking-tighter leading-none mb-4 italic uppercase text-primary-container">
-            Overall Champion
+            Người chiến thắng chung cuộc
           </h1>
           <div className="h-1 w-32 bg-white mb-8"></div>
 
@@ -107,7 +107,7 @@ export default function StageFinal() {
           <div className="grid grid-cols-2 gap-12 mb-12 text-left bg-black/20 p-8 rounded-2xl border border-white/10 backdrop-blur-sm w-full max-w-md">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-primary-container flex items-center gap-1 mb-1">
-                <CheckCircle2 size={12}/> TOTAL CORRECT
+                <CheckCircle2 size={12}/> Tổng số câu đúng
               </p>
               <p className="text-4xl font-black font-mono tracking-tighter text-white">
                 {OVERALL_CHAMPION.totalCorrect}
@@ -115,7 +115,7 @@ export default function StageFinal() {
             </div>
             <div className="border-l border-white/20 pl-6">
               <p className="text-[10px] font-bold uppercase tracking-widest text-primary-container flex items-center gap-1 mb-1">
-                <Timer size={12}/> TOTAL TIME
+                <Timer size={12}/> Tổng thời gian
               </p>
               <p className="text-4xl font-black font-mono tracking-tighter text-white">
                 {(OVERALL_CHAMPION.totalTimeMs / 1000).toFixed(2)}s
@@ -132,7 +132,7 @@ export default function StageFinal() {
           className="flex-1 bg-white rounded-3xl p-8 text-gray-900 shadow-2xl"
         >
           <h3 className="text-2xl font-black mb-6 uppercase tracking-widest text-primary border-b border-gray-100 pb-4">
-            Final Standings
+            Kết quả cuối cùng
           </h3>
 
           <div className="flex flex-col gap-4">
@@ -153,12 +153,12 @@ export default function StageFinal() {
                   <div>
                     <h4 className="font-bold text-lg leading-none mb-1">{team.name}</h4>
                     <span className="text-xs text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1">
-                      <CheckCircle2 size={12}/> {team.correctCount} CORRECT
+                      <CheckCircle2 size={12}/> {team.correctCount} CÂU ĐÚNG
                     </span>
                   </div>
                 </div>
                 <div className="text-right">
-                   <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Time</p>
+                   <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Thời gian</p>
                    <p className="font-mono font-black text-lg">{(team.totalTimeMs / 1000).toFixed(2)}s</p>
                 </div>
               </div>
@@ -170,10 +170,10 @@ export default function StageFinal() {
               onClick={() => navigate("/admin/dashboard")}
               className="flex-1 bg-gray-100 text-gray-600 font-black py-4 rounded-xl hover:bg-gray-200 transition-all uppercase tracking-widest flex items-center justify-center gap-2 text-sm"
             >
-              Exit to Admin <ArrowRight size={16} />
+              Trở về bảng điều khiển <ArrowRight size={16} />
             </button>
             <button className="flex-1 bg-primary text-white font-black py-4 rounded-xl hover:bg-primary/90 transition-all uppercase tracking-widest text-sm shadow-lg">
-              Export CSV
+              Xuất file CSV
             </button>
           </div>
         </motion.div>

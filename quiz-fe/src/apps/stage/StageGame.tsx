@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { getPublicGameState, type CurrentQuestion, type GameAnswer } from "../../services/gameService";
 import { getGameChannel } from "../../sockets/channels/game-channel";
 import { getEcho } from "../../sockets/echo";
+import backgroundImage from "../../assets/background.png";
 
 const LABELS = ["A", "B", "C", "D"];
 
@@ -128,17 +129,20 @@ export default function StageGame() {
   }
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col pt-20">
+    <div
+      className="min-h-screen flex flex-col pt-20 relative overflow-hidden"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+    >
       <main className="flex-grow w-full max-w-6xl mx-auto px-6 py-12 flex flex-col justify-center">
 
         {/* Header */}
         <div className="flex justify-between items-center mb-16">
           <div className="flex items-center gap-4">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest border border-gray-200 px-4 py-2 rounded-full">
-              Round {roundNum}
+            <span className="text-base font-bold text-gray-400 uppercase tracking-widest border border-gray-400 px-4 py-2 rounded-full">
+              Vòng {roundNum}
             </span>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-              QUESTION {question.order_number} / {totalQ}
+            <span className="text-base font-bold text-gray-400 uppercase tracking-widest">
+              Câu hỏi {question.order_number} / {totalQ}
             </span>
           </div>
 
@@ -146,7 +150,7 @@ export default function StageGame() {
             <StageTimer openedAt={question.opened_at} limitSec={question.time_limit_seconds} />
           )}
           {question.status === "closed" && (
-            <span className="text-sm font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-4 py-2 rounded-2xl">
+            <span className="text-base font-black text-gray-400 uppercase tracking-widest bg-gray-200 px-6 py-2 rounded-2xl">
               Đã đóng
             </span>
           )}
@@ -222,7 +226,10 @@ export default function StageGame() {
 // ── Waiting for round (Stage — large screen) ──────────────────────────────────
 function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; roundsTotal: number }) {
   return (
-    <div className="min-h-screen bg-surface flex flex-col items-center justify-center overflow-hidden relative">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center overflow-hidden relative"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+    >
       {/* Soft glow blob */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-primary/6 rounded-full blur-[100px] pointer-events-none" />
 
@@ -239,7 +246,7 @@ function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; rou
           transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
         >
           <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-          <span className="text-sm font-black text-primary uppercase tracking-[0.2em]">Sắp bắt đầu</span>
+          <span className="text-lg font-black text-primary uppercase tracking-[0.2em]">Sắp bắt đầu</span>
         </motion.div>
 
         {/* "Vòng đấu" label */}
@@ -249,7 +256,7 @@ function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; rou
 
         {/* Giant round number */}
         <motion.p
-          className="text-[180px] md:text-[220px] font-black leading-none text-gray-900 tracking-tight select-none"
+          className="text-[180px] md:text-[220px] font-black leading-none text-primary tracking-tight select-none"
           animate={{ scale: [1, 1.012, 1] }}
           transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
         >
@@ -257,7 +264,7 @@ function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; rou
         </motion.p>
 
         {roundsTotal > 0 && (
-          <p className="text-3xl font-bold text-gray-300 -mt-6 mb-14">/ {roundsTotal}</p>
+          <p className="text-3xl font-bold text-gray-400 -mt-6 mb-14">/ {roundsTotal}</p>
         )}
 
         {/* Dots */}
@@ -281,7 +288,10 @@ function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; rou
 // ── Game finished (Stage) ─────────────────────────────────────────────────────
 function StageGameFinished() {
   return (
-    <div className="min-h-screen bg-surface flex flex-col items-center justify-center overflow-hidden relative">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center overflow-hidden relative"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+    >
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-yellow-400/8 rounded-full blur-[120px] pointer-events-none" />
 
       <motion.div
