@@ -94,12 +94,7 @@ export default function StageWaitting() {
       }}
     >
       {/* Top bar */}
-      <header className="w-full px-10 py-5 flex items-center justify-between border-b border-gray-100 bg-white/70 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-primary animate-ping" />
-          <span className="text-xs font-black text-primary uppercase tracking-[0.25em]">Sảnh chờ</span>
-        </div>
-      </header>
+      <Header title="Sảnh chờ" />
 
       <main className="flex-grow w-full max-w-7xl mx-auto px-8 py-10 grid grid-cols-[1fr_320px] gap-10">
 
@@ -157,7 +152,7 @@ export default function StageWaitting() {
             transition={{ delay: 0.1 }}
             className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col items-center gap-4 shadow-md w-full"
           >
-            <p className="text-[14px] font-black text-gray-400 uppercase tracking-[0.25em]">Quét để tham gia</p>
+            <p className="text-[16px] font-black text-gray-400 uppercase tracking-[0.25em]">Quét để tham gia</p>
 
             <div className="p-3 bg-white rounded-xl border-2 border-gray-100">
               {joinUrl ? (
@@ -171,7 +166,7 @@ export default function StageWaitting() {
               <>
                 <div className="w-full border-t border-gray-100 pt-4 flex flex-col items-center gap-1">
                   <p className="text-[14px] font-bold text-gray-400 uppercase tracking-[0.2em]">Mã phòng</p>
-                  <p className="text-4xl font-black text-primary font-mono tracking-widest">
+                  <p className="text-4xl font-extrabold text-primary font-mono tracking-widest">
                     {gameInfo.access_code}
                   </p>
                 </div>
@@ -190,7 +185,7 @@ export default function StageWaitting() {
               transition={{ delay: 0.2 }}
               className="bg-white border border-gray-200 rounded-2xl p-5 w-full shadow-sm"
             >
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] mb-4">
+              <p className="text-[14px] text-center font-black text-gray-400 uppercase tracking-[0.25em] mb-6">
                 Thông tin trò chơi
               </p>
               <div className="space-y-3">

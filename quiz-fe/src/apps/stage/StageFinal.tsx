@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
 import { getPublicRoundResults, type RoundResult, type RoundResultEntry } from "../../services/gameService";
+import backgroundImage from "../../assets/background.png";
 
 const MEDAL_CONFIG = [
   {
@@ -88,24 +89,24 @@ function RoundSection({ round, index }: { round: RoundResult; index: number }) {
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.15, duration: 0.4 }}
-      className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8"
+      className="bg-primary-container  backdrop-blur-sm border border-white/10 rounded-3xl p-8"
     >
       {/* Round header */}
       <div className="flex items-center gap-3 mb-8">
         <div className="w-10 h-10 rounded-xl bg-primary-container/20 border border-primary-container/40 flex items-center justify-center">
-          <Star size={18} className="text-primary-container" />
+          <Star size={28} className="text-amber-400 fill-amber-400 font-extrabold" />
         </div>
         <div>
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Vòng thi</p>
+          <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest">Vòng thi</p>
           <h3 className="text-2xl font-black text-white uppercase tracking-widest">Round {round.round_number}</h3>
         </div>
         <div className="ml-auto px-4 py-1.5 bg-primary-container/20 border border-primary-container/30 rounded-full">
-          <p className="text-xs font-black text-primary-container uppercase tracking-widest">Top 3 vinh danh</p>
+          <p className="text-base font-black text-primary uppercase tracking-widest">Top 3 vinh danh</p>
         </div>
       </div>
 
       {top3.length === 0 ? (
-        <p className="text-center text-white/40 text-sm py-4">Chưa có kết quả</p>
+        <p className="text-center text-white text-sm py-4">Chưa có kết quả</p>
       ) : (
         <div className="flex items-end justify-center gap-6">
           {podiumOrder.map((entry, i) => {
@@ -159,7 +160,15 @@ export default function StageFinal() {
   }, [loading, rounds.length]);
 
   return (
-    <div className="min-h-screen bg-primary text-white relative overflow-y-auto">
+    <div className="min-h-screen text-white relative overflow-y-auto"
+      style={{
+        backgroundImage: `
+          url(${backgroundImage})
+        `,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}>
       {/* Background layers */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary-container/15 via-transparent to-transparent" />
@@ -173,15 +182,15 @@ export default function StageFinal() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-12"
         >
-          <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-6 py-2 mb-6">
-            <Trophy size={16} className="text-amber-400" />
-            <span className="text-xs font-black uppercase tracking-[0.2em] text-white/80">Kết quả thi đấu</span>
+          <div className="inline-flex items-center gap-3 bg-gray-200 backdrop-blur-sm border border-white/20 rounded-full px-6 py-2 mb-6">
+            <Trophy size={20} className="text-amber-400 font-extrabold" />
+            <span className="text-xs font-black uppercase tracking-[0.2em] text-black/50">Kết quả thi đấu</span>
           </div>
-          <h1 className="text-5xl font-black uppercase tracking-tighter text-white drop-shadow-lg">
+          <h1 className="text-6xl font-black uppercase tracking-tighter text-white drop-shadow-lg">
             Vinh danh
             <span className="text-primary-container"> Top 3</span>
           </h1>
-          <p className="text-white/50 text-sm mt-3 font-bold uppercase tracking-widest">
+          <p className="text-black/50 text-md mt-3 font-bold uppercase tracking-widest">
             Những người trả lời nhanh nhất và chính xác nhất
           </p>
         </motion.div>
