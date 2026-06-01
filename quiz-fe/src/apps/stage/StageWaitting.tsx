@@ -5,8 +5,6 @@ import { motion, AnimatePresence } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
 import { getPublicGameState, type GameTeam, type GameState } from "../../services/gameService";
 import { getRoomByCode } from "../../services/roomService";
-import { getGameChannel } from "../../sockets/channels/game-channel";
-import { getEcho } from "../../sockets/echo";
 import backgroundImage from "../../assets/background.png";
 import waveImage from "../../assets/wave.png";
 import Header from "../../components/Header";

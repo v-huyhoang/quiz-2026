@@ -257,9 +257,10 @@ export default function PlayerGame() {
                   }`}
               >
                 <div className="flex items-center gap-4">
-                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border-2 ${isSelected ? "bg-primary text-white border-primary" : "text-gray-400 border-gray-200"
-                    }`}>
-                    {LABELS[i]}
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border-2 ${
+                    isSelected ? "bg-primary text-white border-primary" : "text-gray-400 border-gray-100"
+                  }`}>
+                    {ANSWER_LABELS[i]}
                   </span>
                   <span className={`font-bold text-lg ${isSelected ? "text-primary" : "text-gray-700"}`}>
                     {ans.content}
