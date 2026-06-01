@@ -11,6 +11,7 @@ import {
 } from "../../services/gameService";
 import { getGameChannel } from "../../sockets/channels/game-channel";
 import { getEcho } from "../../sockets/echo";
+import backgroundImage from "../../assets/background.png";
 
 const LABELS = ["A", "B", "C", "D"];
 
@@ -146,7 +147,7 @@ export default function PlayerGame() {
       if ((e as { response?: { status?: number } })?.response?.status === 409) {
         submittedRqId.current = question.round_question_id;
       } else {
-        setSubmitError(msg ?? "Không thể nộp. Thử lại.");
+        setSubmitError(msg ?? "Không thể gửi. Thử lại.");
       }
     } finally {
       setSubmitting(false);
@@ -189,7 +190,10 @@ export default function PlayerGame() {
   }
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col pt-20">
+    <div 
+      className="min-h-screen flex flex-col"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+    >
       <main className="flex-grow w-full max-w-4xl mx-auto px-6 py-12">
 
         {/* Header */}
@@ -234,12 +238,12 @@ export default function PlayerGame() {
                   ${isSelected
                     ? "border-primary bg-primary/5 ring-4 ring-primary/10"
                     : alreadySubmitted
-                      ? "border-gray-100 bg-gray-50 opacity-40"
+                      ? "border-gray-200 bg-gray-50 opacity-40"
                       : "border-white bg-white hover:border-primary/20 shadow-sm"
                   }`}
               >
                 <div className="flex items-center gap-4">
-                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border-2 ${isSelected ? "bg-primary text-white border-primary" : "text-gray-400 border-gray-100"
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border-2 ${isSelected ? "bg-primary text-white border-primary" : "text-gray-400 border-gray-200"
                     }`}>
                     {LABELS[i]}
                   </span>
@@ -277,7 +281,7 @@ export default function PlayerGame() {
                 {submitting
                   ? <Loader2 size={18} className="animate-spin relative z-10" />
                   : <CheckCircle size={18} className="relative z-10 shrink-0" />}
-                <span className="relative z-10">{submitting ? "Đang nộp..." : "Submit"}</span>
+                <span className="relative z-10">{submitting ? "Đang gửi..." : "Chốt kèo"}</span>
               </motion.button>
             ) : (
               <motion.div
@@ -288,7 +292,7 @@ export default function PlayerGame() {
                 className="flex items-center gap-3 px-7 py-4 rounded-2xl border-2 border-primary/20 bg-primary/5 text-primary font-bold text-sm tracking-widest uppercase"
               >
                 <Clock size={18} className="shrink-0 animate-pulse" />
-                <span>Đã nộp{!isLastQuestion && " · Đang chờ câu tiếp theo..."}</span>
+                <span>Đã gửi{!isLastQuestion && " · Đang chờ câu tiếp theo..."}</span>
                 {!isLastQuestion && (
                   <span className="flex gap-1 ml-1">
                     {[0, 1, 2].map((i) => (
@@ -331,7 +335,10 @@ function QuestionTimer({ openedAt, limitSec }: { openedAt: string; limitSec: num
 
 function WaitingForRound({ roundNum, totalRounds }: { roundNum: number; totalRounds: number }) {
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center p-6 relative overflow-hidden">
+    <div 
+      className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+      >
       {/* Soft glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/6 rounded-full blur-[80px] pointer-events-none" />
 
@@ -391,7 +398,10 @@ function WaitingForRound({ roundNum, totalRounds }: { roundNum: number; totalRou
 
 function GameFinished() {
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center p-6 relative overflow-hidden">
+    <div 
+      className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+    >
       {/* Soft glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-yellow-400/10 rounded-full blur-[80px] pointer-events-none" />
 
@@ -465,7 +475,10 @@ function QuestionProgress({ current, total }: { current: number; total: number }
 
 function WaitingScreen({ message }: { message: string }) {
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center">
+    <div 
+      className="min-h-screen flex items-center justify-center"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+    >
       <div className="text-center">
         <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin mx-auto mb-4" />
         <p className="text-gray-500 font-bold">{message}</p>
@@ -478,7 +491,10 @@ function ClosedScreen({ question, myAnswerId, totalQuestions }: { question: Curr
   const isLast = totalQuestions > 0 && question.order_number >= totalQuestions;
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col pt-20">
+    <div 
+      className="min-h-screen flex flex-col"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+    >
       <main className="flex-grow w-full max-w-4xl mx-auto px-6 py-12">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2.5">
@@ -508,7 +524,7 @@ function ClosedScreen({ question, myAnswerId, totalQuestions }: { question: Curr
                     ? "border-green-400 bg-green-50"
                     : isMine
                       ? "border-red-300 bg-red-50"
-                      : "border-gray-100 bg-gray-50 opacity-50"
+                      : "border-gray-200 bg-gray-50 opacity-50"
                   }`}
               >
                 <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border-2 ${isCorrect ? "bg-green-500 text-white border-green-500"

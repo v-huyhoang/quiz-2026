@@ -50,7 +50,7 @@ export default function PlayerLayout() {
   }, [token, gameId]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div>
       <Outlet />
     </div>
   );

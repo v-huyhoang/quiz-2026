@@ -7,6 +7,8 @@ import { useAuthStore } from "../../store/authStore";
 import { getPublicGameState, type GameTeam } from "../../services/gameService";
 import { getGameChannel } from "../../sockets/channels/game-channel";
 import { getEcho } from "../../sockets/echo";
+import backgroundImage from "../../assets/background.png";
+import logoImage from "../../assets/logo.png";
 
 const MAX_TEAMS = 16;
 
@@ -55,8 +57,16 @@ export default function PlayerWaiting() {
   const emptySlots = MAX_TEAMS - teams.length;
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col pt-20">
-      <main className="flex-grow w-full max-w-5xl mx-auto px-6 py-12 flex flex-col items-center">
+    <div 
+      className="min-h-screen flex flex-col pt-4"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+    >
+      <img
+        src={logoImage}
+        alt="Logo"
+        className="h-16 w-auto object-contain drop-shadow-md"
+      />
+      <main className="grow w-full max-w-5xl mx-auto px-6 py-12 flex flex-col items-center">
         {/* Status banner */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -72,7 +82,7 @@ export default function PlayerWaiting() {
             <h1
               className={`text-2xl font-bold uppercase tracking-widest ${gameStatus === "active" ? "text-green-600" : "text-primary"}`}
             >
-              {gameStatus === "active" ? "Game has started" : "Đã kết nối"}
+              {gameStatus === "active" ? "Đang chơi" : "Đã kết nối"}
             </h1>
           </div>
 
@@ -95,12 +105,12 @@ export default function PlayerWaiting() {
               className={`font-medium text-sm ${gameStatus === "active" ? "text-green-600" : "text-gray-500"}`}
             >
               {gameStatus === "active"
-                ? "Please wait for question..."
-                : "Chờ Host bắt đầu..."}
+                ? "Vui lòng đợi câu hỏi tiếp theo..."
+                : "Đợi chủ phòng bắt đầu..."}
             </p>
           </div>
 
-          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden z-10">
+          <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden z-10">
             <motion.div
               animate={{ width: `${(teams.length / MAX_TEAMS) * 100}%` }}
               transition={{ duration: 0.5 }}
@@ -146,20 +156,20 @@ export default function PlayerWaiting() {
             {Array.from({ length: emptySlots }).map((_, i) => (
               <div
                 key={`empty-${i}`}
-                className="border-2 border-dashed border-gray-200 bg-gray-50/50 p-4 rounded-xl flex items-center gap-3 opacity-40"
+                className="border-2 border-dashed border-gray-400 bg-gray-50/50 p-4 rounded-xl flex items-center gap-3 opacity-40"
               >
-                <div className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-300">
-                  <UserPlus size={16} />
+                <div className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center text-gray-300">
+                  <UserPlus className="text-gray-600" size={16} />
                 </div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Trống</p>
+                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Trống</p>
               </div>
             ))}
           </div>
         </div>
 
         <div className="mt-12 flex items-center gap-2 text-gray-400">
-          <Group size={14} />
-          <p className="text-xs font-medium">Game sẽ bắt đầu khi Host ra lệnh</p>
+          <Group size={16} />
+          <p className="text-xs font-medium">Game sẽ bắt đầu khi Chủ phòng khởi động</p>
         </div>
       </main>
     </div>
