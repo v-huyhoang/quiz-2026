@@ -1,61 +1,29 @@
 import { api } from "./api";
 import type { ApiResponse } from "../type/api";
+import type { GameState, LeaderboardEntry } from "../type/game";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// Re-export all game types from the canonical location
+export type {
+  GameTeam,
+  TeamSubmission,
+  GameAnswer,
+  CurrentQuestion,
+  CurrentRound,
+  GameState,
+  LeaderboardEntry,
+} from "../type/game";
 
-export interface GameTeam {
-  id: number;
-  name: string;
-}
-
-export interface TeamSubmission {
-  team_id: number;
-  team_name: string;
-  submitted: boolean;
-  is_correct: boolean | null;
-}
-
-export interface GameAnswer {
-  id: number;
-  content: string;
-  is_correct: boolean | null;
-}
-
-export interface CurrentQuestion {
-  round_question_id: number;
-  order_number: number;
-  content: string;
-  status: "open" | "closed";
-  opened_at: string | null;
-  time_limit_seconds: number;
-  answers: GameAnswer[];
-  team_submissions?: TeamSubmission[];
-}
-
-export interface CurrentRound {
-  round_number: number;
-  status: string;
-  questions_done: number;
-  total_questions: number;
-  current_question: CurrentQuestion | null;
-}
-
-export interface GameState {
-  status: "pending" | "active" | "finished";
-  name: string;
-  access_code: string;
-  rounds_total: number;
-  questions_per_round: number;
-  teams: GameTeam[];
-  current_round: CurrentRound | null;
-}
-
-export interface LeaderboardEntry {
+export interface RoundResultEntry {
   rank: number;
   team_id: number;
   team_name: string;
   correct_count: number;
   total_time_seconds: number;
+}
+
+export interface RoundResult {
+  round_number: number;
+  top_teams: RoundResultEntry[];
 }
 
 // ── Public endpoints ──────────────────────────────────────────────────────────
@@ -66,16 +34,23 @@ export const getPublicGameState = (gameId: number | string) =>
 export const getLeaderboard = (gameId: number | string) =>
   api.get<ApiResponse<LeaderboardEntry[]>>(`/games/${gameId}/leaderboard`);
 
-export const submitAnswer = (roundQuestionId: number, answerId: number) =>
-  api.post<ApiResponse<null>>("/games/submit", {
+export const submitAnswer = (roundQuestionId: number, answerId: number, responseTimeMs: number) =>
+  api.post<ApiResponse<{ is_correct: boolean }>>("/games/submit", {
     round_question_id: roundQuestionId,
     answer_id: answerId,
+    response_time_ms: responseTimeMs,
   });
 
 // ── Admin endpoints ───────────────────────────────────────────────────────────
 
 export const getAdminGameState = (id: number) =>
   api.get<ApiResponse<GameState>>(`/admin/games/${id}/state`);
+
+export const getRoundResults = (id: number | string) =>
+  api.get<ApiResponse<RoundResult[]>>(`/admin/games/${id}/round-results`);
+
+export const getPublicRoundResults = (id: number | string) =>
+  api.get<ApiResponse<RoundResult[]>>(`/games/${id}/round-results`);
 
 export const startGame = (id: number) =>
   api.post<ApiResponse<GameState>>(`/admin/games/${id}/start`);

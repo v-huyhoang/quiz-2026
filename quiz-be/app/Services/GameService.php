@@ -56,61 +56,76 @@ class GameService
 
     private function buildState(Game $game, bool $isAdmin): array
     {
-        $teams       = $game->teams()->get(['id', 'name']);
-        $activeRound = $game->rounds()->where('status', 'active')->first();
+        $teams = $game->teams()->where('is_present', true)->get(['id', 'name']);
+
+        $activeRound = $game->rounds()
+            ->whereIn('status', ['active', 'finished'])
+            ->orderByRaw("CASE WHEN status = 'active' THEN 1 WHEN status = 'finished' THEN 2 END")
+            ->orderByDesc('round_number')
+            ->first();
         $currentRound = null;
 
         if ($activeRound) {
-            // Prefer the currently open question; fall back to the last closed one for answer reveal
-            $currentRQ = RoundQuestion::where('round_id', $activeRound->id)
-                ->where('status', 'open')
-                ->first()
-                ?? RoundQuestion::where('round_id', $activeRound->id)
-                    ->where('status', 'closed')
-                    ->orderByDesc('closed_at')
-                    ->first();
 
-            $questionsDone  = RoundQuestion::where('round_id', $activeRound->id)->where('status', 'closed')->count();
-            $totalQuestions = RoundQuestion::where('round_id', $activeRound->id)->count()
-                ?: $game->questions_per_round;
+            $questionsDone = RoundQuestion::where('round_id', $activeRound->id)
+                ->where('status', 'closed')
+                ->count();
+
+            $totalQuestions = RoundQuestion::where('round_id', $activeRound->id)
+                ->count() ?: $game->questions_per_round;
 
             $currentQuestion = null;
-            if ($currentRQ) {
-                $question      = $currentRQ->question()->with('answers')->firstOrFail();
-                $revealCorrect = $isAdmin || $currentRQ->status === 'closed';
 
-                $currentQuestion = [
-                    'round_question_id'  => $currentRQ->id,
-                    'order_number'       => $currentRQ->order_number,
-                    'content'            => $question->content,
-                    'status'             => $currentRQ->status,
-                    'opened_at'          => $currentRQ->opened_at?->toISOString(),
-                    'time_limit_seconds' => $question->time_limit_seconds,
-                    'answers'            => $question->answers->map(fn ($a) => [
-                        'id'         => $a->id,
-                        'content'    => $a->content,
-                        'is_correct' => $revealCorrect ? (bool) $a->is_correct : null,
-                    ])->all(),
-                ];
+            if ($activeRound->status === 'active') {
 
-                if ($isAdmin) {
-                    $subs         = Submission::where('round_question_id', $currentRQ->id)->get();
-                    $submittedIds = $subs->pluck('team_id')->all();
+                $currentRQ = RoundQuestion::where('round_id', $activeRound->id)
+                    ->where('status', 'open')
+                    ->first()
+                    ?? RoundQuestion::where('round_id', $activeRound->id)
+                        ->where('status', 'closed')
+                        ->orderByDesc('closed_at')
+                        ->first();
 
-                    $currentQuestion['team_submissions'] = $teams->map(fn ($t) => [
-                        'team_id'    => $t->id,
-                        'team_name'  => $t->name,
-                        'submitted'  => in_array($t->id, $submittedIds),
-                        'is_correct' => $subs->firstWhere('team_id', $t->id)?->is_correct,
-                    ])->all();
+                if ($currentRQ) {
+                    $question = $currentRQ->question()
+                        ->with('answers')
+                        ->firstOrFail();
+
+                    $revealCorrect = $isAdmin || $currentRQ->status === 'closed';
+
+                    $currentQuestion = [
+                        'round_question_id' => $currentRQ->id,
+                        'order_number' => $currentRQ->order_number,
+                        'content' => $question->content,
+                        'status' => $currentRQ->status,
+                        'opened_at' => $currentRQ->opened_at?->toISOString(),
+                        'time_limit_seconds' => $question->time_limit_seconds,
+                        'answers' => $question->answers->map(fn($a) => [
+                            'id' => $a->id,
+                            'content' => $a->content,
+                            'is_correct' => $revealCorrect ? (bool) $a->is_correct : null,
+                        ])->all(),
+                    ];
+
+                    if ($isAdmin) {
+                        $subs = Submission::where('round_question_id', $currentRQ->id)->get();
+                        $submittedIds = $subs->pluck('team_id')->all();
+
+                        $currentQuestion['team_submissions'] = $teams->map(fn($t) => [
+                            'team_id' => $t->id,
+                            'team_name' => $t->name,
+                            'submitted' => in_array($t->id, $submittedIds),
+                            'is_correct' => $subs->firstWhere('team_id', $t->id)?->is_correct,
+                        ])->all();
+                    }
                 }
             }
 
             $currentRound = [
-                'round_number'     => $activeRound->round_number,
-                'status'           => $activeRound->status,
-                'questions_done'   => $questionsDone,
-                'total_questions'  => $totalQuestions,
+                'round_number' => $activeRound->round_number,
+                'status' => $activeRound->status,
+                'questions_done' => $questionsDone,
+                'total_questions' => $totalQuestions,
                 'current_question' => $currentQuestion,
             ];
         }
@@ -121,7 +136,7 @@ class GameService
             'access_code'         => $game->access_code,
             'rounds_total'        => $game->rounds,
             'questions_per_round' => $game->questions_per_round,
-            'teams'               => $teams->map(fn ($t) => ['id' => $t->id, 'name' => $t->name])->all(),
+            'teams'               => $teams->map(fn($t) => ['id' => $t->id, 'name' => $t->name])->all(),
             'current_round'       => $currentRound,
         ];
     }
@@ -148,16 +163,18 @@ class GameService
                 return $b['correct_count'] - $a['correct_count'];
             }
             return $a['total_time_seconds'] <=> $b['total_time_seconds'];
-        })->values()->map(fn ($entry, $i) => array_merge($entry, ['rank' => $i + 1]))->all();
+        })->values()->map(fn($entry, $i) => array_merge($entry, ['rank' => $i + 1]))->all();
 
         return $ranked;
     }
 
     // ── Player: submit answer ─────────────────────────────────────────────────
 
-    public function submitAnswer(int $teamId, int $rqId, int $answerId): void
+    public function submitAnswer(int $teamId, int $rqId, int $answerId, ?int $clientResponseTimeMs = null): bool
     {
-        DB::transaction(function () use ($teamId, $rqId, $answerId) {
+        $isCorrect = false;
+
+        DB::transaction(function () use ($teamId, $rqId, $answerId, $clientResponseTimeMs, &$isCorrect) {
             $exists = Submission::where('team_id', $teamId)
                 ->where('round_question_id', $rqId)
                 ->lockForUpdate()
@@ -173,16 +190,20 @@ class GameService
             }
 
             $answer = Answer::findOrFail($answerId);
-            $ms     = $rq->opened_at ? now()->diffInMilliseconds($rq->opened_at) : 0;
+            // Use client-provided time when available; fall back to server-side calculation
+            $ms = $clientResponseTimeMs ?? ($rq->opened_at ? now()->diffInMilliseconds($rq->opened_at) : 0);
+            $isCorrect = (bool) $answer->is_correct;
 
             Submission::create([
                 'team_id'           => $teamId,
                 'round_question_id' => $rqId,
                 'answer_id'         => $answerId,
-                'is_correct'        => (bool) $answer->is_correct,
+                'is_correct'        => $isCorrect,
                 'response_time_ms'  => $ms,
             ]);
         });
+
+        return $isCorrect;
     }
 
     // ── Admin: game lifecycle ─────────────────────────────────────────────────
@@ -277,6 +298,45 @@ class GameService
         $game->update(['status' => 'finished', 'ended_at' => now()]);
     }
 
+    // ── Round results ─────────────────────────────────────────────────────────
+
+    public function getRoundResults(int $id): array
+    {
+        $game = Game::findOrFail($id);
+
+        return $game->rounds()->orderBy('round_number')->get()->map(function (Round $round) {
+            $topTeams = DB::table('submissions as s')
+                ->join('round_questions as rq', 's.round_question_id', '=', 'rq.id')
+                ->join('teams as t', 's.team_id', '=', 't.id')
+                ->select(
+                    't.id as team_id',
+                    't.name as team_name',
+                    DB::raw('SUM(s.is_correct) as correct_count'),
+                    DB::raw('SUM(CASE WHEN s.is_correct = 1 THEN s.response_time_ms ELSE 0 END) as total_time_ms')
+                )
+                ->where('rq.round_id', $round->id)
+                ->groupBy('t.id', 't.name')
+                ->orderByDesc('correct_count')
+                ->orderBy('total_time_ms')
+                ->limit(20)
+                ->get()
+                ->values()
+                ->map(fn($entry, $i) => [
+                    'rank'               => $i + 1,
+                    'team_id'            => $entry->team_id,
+                    'team_name'          => $entry->team_name,
+                    'correct_count'      => (int) $entry->correct_count,
+                    'total_time_seconds' => round($entry->total_time_ms / 1000, 2),
+                ])
+                ->all();
+
+            return [
+                'round_number' => $round->round_number,
+                'top_teams'    => $topTeams,
+            ];
+        })->all();
+    }
+
     // ── Legacy compatibility ──────────────────────────────────────────────────
 
     public function getActiveGame(): ?Game
@@ -286,7 +346,7 @@ class GameService
 
     public function getCurrentQuestion(int $gameId): ?RoundQuestion
     {
-        return RoundQuestion::whereHas('round', fn ($q) => $q->where('game_id', $gameId)->where('status', 'active'))
+        return RoundQuestion::whereHas('round', fn($q) => $q->where('game_id', $gameId)->where('status', 'active'))
             ->where('status', 'open')
             ->orderBy('order_number')
             ->first();

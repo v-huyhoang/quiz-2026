@@ -71,8 +71,8 @@ class GameController extends Controller
         $team = $request->user();
 
         try {
-            $this->gameService->submitAnswer($team->id, $request->round_question_id, $request->answer_id);
-            return $this->successResponse(null, 'Answer submitted');
+            $isCorrect = $this->gameService->submitAnswer($team->id, $request->round_question_id, $request->answer_id, $request->response_time_ms);
+            return $this->successResponse(['is_correct' => $isCorrect], 'Answer submitted');
         } catch (\Exception $e) {
             $status = str_contains($e->getMessage(), 'Already') ? HttpStatus::Conflict->value : HttpStatus::UnprocessableEntity->value;
             return $this->errorResponse($e->getMessage(), null, $status);
@@ -199,13 +199,24 @@ class GameController extends Controller
     public function leave(int $id)
     {
         $team = request()->user();
+        $team->update(['is_present' => false]);
         broadcast(new \App\Events\TeamLeft($id, ['id' => $team->id, 'name' => $team->name]));
         return $this->successResponse(null, 'Left');
+    }
+
+    public function roundResults(int $id)
+    {
+        try {
+            return $this->successResponse($this->gameService->getRoundResults($id));
+        } catch (\Exception $e) {
+            return $this->resourceNotFoundResponse('Game not found');
+        }
     }
 
     public function announce(int $id)
     {
         $team = request()->user();
+        $team->update(['is_present' => true]);
         broadcast(new TeamJoined($id, ['id' => $team->id, 'name' => $team->name]));
         return $this->successResponse(null, 'Announced');
     }

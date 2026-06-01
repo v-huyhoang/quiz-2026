@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Timer, CheckCircle, Trophy, Star } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { CheckCircle, Trophy, Star } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { getPublicGameState, type CurrentQuestion, type GameAnswer } from "../../services/gameService";
 import { getGameChannel } from "../../sockets/channels/game-channel";
 import { getEcho } from "../../sockets/echo";
 import backgroundImage from "../../assets/background.png";
+import StageRoundComplete from "./StageRoundComplete";
+import { QuestionTimer } from "../../components/ui/QuestionTimer";
+import { GridBg } from "../../components/ui/GridBg";
+import { ANSWER_LABELS } from "../../libs/utils";
+import { useGameSocket } from "../../hooks/useGameSocket";
 
-const LABELS = ["A", "B", "C", "D"];
+const LABELS = ANSWER_LABELS;
 
 interface GameStartedEvent {
   game_id: number;
@@ -21,6 +26,7 @@ interface QuestionStartedEvent {
   time_limit_seconds: number;
   round_number: number;
   total_questions: number;
+  opened_at: string;
   question: { content: string; answers: GameAnswer[] };
 }
 
@@ -35,13 +41,19 @@ interface RoundFinishedEvent {
 
 export default function StageGame() {
   const [searchParams] = useSearchParams();
-  const gameId          = Number(searchParams.get("gameId"));
+  const gameId = Number(searchParams.get("gameId"));
 
-  const [gameStatus, setGameStatus]   = useState<string>("pending");
-  const [question, setQuestion]       = useState<CurrentQuestion | null>(null);
-  const [roundNum, setRoundNum]       = useState(1);
-  const [totalQ, setTotalQ]           = useState(0);
+  const [gameStatus, setGameStatus] = useState<string>("pending");
+  const [question, setQuestion] = useState<CurrentQuestion | null>(null);
+  const [roundNum, setRoundNum] = useState(1);
+  const [totalQ, setTotalQ] = useState(0);
   const [roundsTotal, setRoundsTotal] = useState(0);
+  const [showRoundComplete, setShowRoundComplete] = useState(false);
+  const [completedRoundNum, setCompletedRoundNum] = useState(0);
+
+  useEffect(() => {
+    console.debug("[StageGame] showRoundComplete:", showRoundComplete);
+  }, [showRoundComplete]);
 
   // ── Initial state fetch ────────────────────────────────────────────────────
   useEffect(() => {
@@ -52,79 +64,112 @@ export default function StageGame() {
         setGameStatus(state.status);
         setRoundsTotal(state.rounds_total);
         const round = state.current_round;
+        // if (round) {
+        //   setRoundNum(round.round_number);
+        //   setTotalQ(round.total_questions);
+        //   setQuestion(round.current_question);
+        // }
         if (round) {
-          setRoundNum(round.round_number);
           setTotalQ(round.total_questions);
-          setQuestion(round.current_question);
+
+          if (round.status === "finished") {
+            setRoundNum(round.round_number + 1);
+            setQuestion(null);
+          } else {
+            setRoundNum(round.round_number);
+            setQuestion(round.current_question);
+          }
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [gameId]);
 
-  // ── WebSocket subscription ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!gameId) return;
-
-    const channel = getGameChannel(String(gameId));
-
-    channel.listen(".game.started", (data: GameStartedEvent) => {
+  // ── WebSocket subscription (hook handles subscribe/unsubscribe) ────────────
+  useGameSocket(gameId || null, {
+    ".game.started": (data: GameStartedEvent) => {
       setGameStatus("active");
       setRoundsTotal(data.rounds_total);
       setRoundNum(1);
       setQuestion(null);
-    });
-
-    channel.listen(".question.started", (data: QuestionStartedEvent) => {
+    },
+    ".question.started": (data: QuestionStartedEvent) => {
+      setShowRoundComplete(false);
       setRoundNum(data.round_number);
       setTotalQ(data.total_questions);
       setQuestion({
-        round_question_id:  data.round_question_id,
-        order_number:       data.order_number,
-        content:            data.question.content,
-        status:             "open",
-        opened_at:          new Date().toISOString(),
+        round_question_id: data.round_question_id,
+        order_number: data.order_number,
+        content: data.question.content,
+        status: "open",
+        opened_at: data.opened_at ?? new Date().toISOString(),
         time_limit_seconds: data.time_limit_seconds,
-        answers:            data.question.answers,
+        answers: data.question.answers,
       });
-    });
-
-    channel.listen(".question.closed", (data: QuestionClosedEvent) => {
+    },
+    ".question.closed": (data: QuestionClosedEvent) => {
       setQuestion((prev) =>
         prev ? { ...prev, status: "closed", answers: data.question.answers } : prev
       );
-    });
-
-    channel.listen(".round.finished", (data: RoundFinishedEvent) => {
+    },
+    ".round.finished": (data: RoundFinishedEvent) => {
+      setCompletedRoundNum(data.round_number);
+      setShowRoundComplete(true);
       setQuestion(null);
       setRoundNum(data.round_number + 1);
-    });
-
-    channel.listen(".game.finished", () => {
+    },
+    ".game.finished": () => {
       setGameStatus("finished");
-    });
-
-    return () => {
-      getEcho().leave(`game.${gameId}`);
-    };
-  }, [gameId]);
+    },
+  });
 
   // ── Screens ────────────────────────────────────────────────────────────────
   if (gameStatus === "finished") {
-    return <StageGameFinished />;
+    const popupNode = showRoundComplete ? (
+      <div className="fixed right-4 sm:right-12 top-10 w-[600px] max-w-[92vw] z-[9999] pointer-events-auto">
+        <div className="w-full h-full bg-transparent rounded-lg shadow-xl overflow-hidden">
+          <StageRoundComplete isPopup gameId={gameId} completedRound={completedRoundNum} />
+        </div>
+      </div>
+    ) : null;
+
+    return (
+      <>
+        {popupNode}
+        <StageGameFinished gameId={gameId} />
+      </>
+    );
   }
 
+  // Note: `StageRoundComplete` will be rendered as a persistent left popup below
+
+  const popupNode = showRoundComplete ? (
+    <div className="fixed right-4 sm:right-12 top-10 w-[600px] max-w-[92vw] z-[9999] pointer-events-auto">
+      <div className="w-full h-full bg-transparent rounded-lg shadow-xl overflow-hidden">
+        <StageRoundComplete isPopup gameId={gameId} completedRound={completedRoundNum} />
+      </div>
+    </div>
+  ) : null;
+
   if (gameStatus === "active" && !question) {
-    return <StageWaitingForRound roundNum={roundNum} roundsTotal={roundsTotal} />;
+    return (
+      <>
+        {popupNode}
+        <StageWaitingForRound roundNum={roundNum} roundsTotal={roundsTotal} />
+      </>
+    );
   }
 
   if (!question) {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin mx-auto mb-4" />
-          <p className="text-gray-400 font-bold tracking-widest uppercase text-sm">Đang tải...</p>
+      <>
+        {popupNode}
+        <div className="min-h-screen bg-surface flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin mx-auto mb-4" />
+            <p className="text-gray-400 font-bold tracking-widest uppercase text-sm">Đang tải...</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -145,9 +190,12 @@ export default function StageGame() {
               Câu hỏi {question.order_number} / {totalQ}
             </span>
           </div>
-
           {question.status === "open" && question.opened_at && (
-            <StageTimer openedAt={question.opened_at} limitSec={question.time_limit_seconds} />
+            <QuestionTimer
+              openedAt={question.opened_at}
+              limitSec={question.time_limit_seconds}
+              variant="stage"
+            />
           )}
           {question.status === "closed" && (
             <span className="text-base font-black text-gray-400 uppercase tracking-widest bg-gray-200 px-6 py-2 rounded-2xl">
@@ -180,7 +228,7 @@ export default function StageGame() {
         >
           {question.answers.map((ans, i) => {
             const isCorrect = ans.is_correct === true;
-            const revealed  = question.status === "closed";
+            const revealed = question.status === "closed";
 
             return (
               <motion.div
@@ -188,43 +236,42 @@ export default function StageGame() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 + i * 0.08 }}
-                className={`border-4 rounded-2xl p-8 flex items-center gap-6 shadow-lg transition-all ${
-                  revealed
-                    ? isCorrect
-                      ? "bg-green-50 border-green-400"
-                      : "bg-gray-50 border-gray-200 opacity-50"
-                    : "bg-white border-gray-200"
-                }`}
+                className={`border-4 rounded-2xl p-8 flex items-center gap-6 shadow-lg transition-all ${revealed
+                  ? isCorrect
+                    ? "bg-green-50 border-green-400"
+                    : "bg-gray-50 border-gray-200 opacity-50"
+                  : "bg-white border-gray-200"
+                  }`}
               >
-                <span className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-black shrink-0 border-2 ${
-                  revealed && isCorrect
-                    ? "bg-green-500 text-white border-green-500"
-                    : "bg-gray-100 border-gray-300 text-gray-600"
-                }`}>
+                <span className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-black shrink-0 border-2 ${revealed && isCorrect
+                  ? "bg-green-500 text-white border-green-500"
+                  : "bg-gray-100 border-gray-300 text-gray-600"
+                  }`}>
                   {LABELS[i]}
                 </span>
-                <span className={`text-2xl md:text-3xl font-bold flex-1 ${
-                  revealed && isCorrect ? "text-green-800" : "text-gray-900"
-                }`}>
+                <span className={`text-2xl md:text-3xl font-bold flex-1 ${revealed && isCorrect ? "text-green-800" : "text-gray-900"
+                  }`}>
                   {ans.content}
                 </span>
-                {revealed && isCorrect && (
-                  <CheckCircle size={32} className="text-green-500 shrink-0" />
-                )}
+                {revealed && isCorrect && <CheckCircle size={32} className="text-green-500 shrink-0" />}
               </motion.div>
             );
           })}
         </motion.div>
-
-        {/* Grid background */}
-        <GridBg />
       </main>
+      <GridBg />
     </div>
   );
 }
 
 // ── Waiting for round (Stage — large screen) ──────────────────────────────────
-function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; roundsTotal: number }) {
+function StageWaitingForRound({
+  roundNum,
+  roundsTotal,
+}: {
+  roundNum: number;
+  roundsTotal: number;
+}) {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center overflow-hidden relative"
@@ -233,15 +280,10 @@ function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; rou
       {/* Soft glow blob */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-primary/6 rounded-full blur-[100px] pointer-events-none" />
 
-      <motion.div
-        className="relative z-10 text-center px-8"
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-      >
-        {/* "Sắp bắt đầu" badge */}
+      {/* Round number section */}
+      <div className="flex flex-col items-center justify-center py-16 relative z-10">
         <motion.div
-          className="inline-flex items-center gap-2.5 px-6 py-2.5 bg-primary/8 border border-primary/20 rounded-full mb-14"
+          className="inline-flex items-center gap-2.5 px-6 py-2.5 bg-primary/8 border border-primary/20 rounded-full mb-10"
           animate={{ opacity: [0.65, 1, 0.65] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
         >
@@ -249,12 +291,8 @@ function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; rou
           <span className="text-lg font-black text-primary uppercase tracking-[0.2em]">Sắp bắt đầu</span>
         </motion.div>
 
-        {/* "Vòng đấu" label */}
-        <p className="text-base font-black text-gray-400 uppercase tracking-[0.35em] mb-3">
-          Vòng đấu
-        </p>
+        <p className="text-base font-black text-gray-400 uppercase tracking-[0.35em] mb-3">Vòng đấu</p>
 
-        {/* Giant round number */}
         <motion.p
           className="text-[180px] md:text-[220px] font-black leading-none text-primary tracking-tight select-none"
           animate={{ scale: [1, 1.012, 1] }}
@@ -264,10 +302,9 @@ function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; rou
         </motion.p>
 
         {roundsTotal > 0 && (
-          <p className="text-3xl font-bold text-gray-400 -mt-6 mb-14">/ {roundsTotal}</p>
+          <p className="text-3xl font-bold text-gray-300 -mt-4 mb-10">/ {roundsTotal}</p>
         )}
 
-        {/* Dots */}
         <div className="flex gap-4 justify-center">
           {[0, 1, 2].map((i) => (
             <motion.div
@@ -278,7 +315,7 @@ function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; rou
             />
           ))}
         </div>
-      </motion.div>
+      </div>
 
       <GridBg />
     </div>
@@ -286,7 +323,9 @@ function StageWaitingForRound({ roundNum, roundsTotal }: { roundNum: number; rou
 }
 
 // ── Game finished (Stage) ─────────────────────────────────────────────────────
-function StageGameFinished() {
+function StageGameFinished({ gameId }: { gameId: number }) {
+  const navigate = useNavigate();
+
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center overflow-hidden relative"
@@ -332,49 +371,22 @@ function StageGameFinished() {
         <h1 className="text-6xl md:text-8xl font-black text-gray-900 leading-tight tracking-tight mb-6">
           TRẬN ĐẤU<br />KẾT THÚC!
         </h1>
-        <p className="text-2xl md:text-3xl font-bold text-gray-400">
-          Cảm ơn đã tham gia!
-        </p>
+        <p className="text-2xl md:text-3xl font-bold text-gray-400 mb-10">Cảm ơn đã tham gia!</p>
+
+        <motion.button
+          onClick={() => navigate(`/stage/final?gameId=${gameId}`)}
+          className="px-10 py-4 bg-gray-900 text-white text-xl font-black rounded-2xl shadow-lg hover:bg-gray-700 transition-colors"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.97 }}
+        >
+          Xem kết quả
+        </motion.button>
       </motion.div>
 
       <GridBg />
-    </div>
-  );
-}
-
-// ── Shared grid background ─────────────────────────────────────────────────────
-function GridBg() {
-  return (
-    <div className="fixed inset-0 pointer-events-none -z-10 opacity-5">
-      <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-            <path d="M 60 0 L 0 0 0 60" fill="none" stroke="currentColor" strokeWidth="1" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-      </svg>
-    </div>
-  );
-}
-
-// ── Stage countdown timer ──────────────────────────────────────────────────────
-function StageTimer({ openedAt, limitSec }: { openedAt: string; limitSec: number }) {
-  const elapsed = Math.floor((Date.now() - new Date(openedAt).getTime()) / 1000);
-  const [left, setLeft] = useState(Math.max(0, limitSec - elapsed));
-
-  useEffect(() => {
-    if (left <= 0) return;
-    const t = setInterval(() => setLeft((p) => Math.max(0, p - 1)), 1000);
-    return () => clearInterval(t);
-  }, [left]);
-
-  return (
-    <div className={`flex items-center gap-3 font-mono text-4xl font-black px-8 py-4 rounded-2xl border shadow-lg transition-all ${
-      left <= 10 ? "text-red-500 border-red-300 bg-red-50" : "text-secondary border-gray-200 bg-white"
-    }`}>
-      <Timer size={32} />
-      0:{left.toString().padStart(2, "0")}
     </div>
   );
 }

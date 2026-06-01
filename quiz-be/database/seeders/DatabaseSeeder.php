@@ -21,10 +21,11 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             AdminSeeder::class,
+            QuestionSeeder::class,
             GameSeeder::class,
             TeamSeeder::class,
-            QuestionSeeder::class,
             RoundSeeder::class,
+            FinishedGameSeeder::class,
         ]);
     }
 }

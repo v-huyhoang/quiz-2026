@@ -1,182 +1,210 @@
-import { useEffect } from "react";
-import { Trophy, Star, ArrowRight, Medal, Timer, CheckCircle2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
+import { useEffect, useState } from "react";
+import { Trophy, Medal, Timer, CheckCircle2, Loader2, Star } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
+import { getPublicRoundResults, type RoundResult, type RoundResultEntry } from "../../services/gameService";
 
-// Mock Data
-const OVERALL_CHAMPION = {
-  name: "Neon Knights",
-  totalCorrect: 25,
-  totalTimeMs: 45200,
-  winStreak: 3,
-};
-
-const FULL_LEADERBOARD = [
-  { rank: 1, name: "Neon Knights", correctCount: 25, totalTimeMs: 45200 },
-  { rank: 2, name: "Data Demons", correctCount: 24, totalTimeMs: 48000 },
-  { rank: 3, name: "Query Queens", correctCount: 22, totalTimeMs: 42100 },
-  { rank: 4, name: "Byte Brawlers", correctCount: 19, totalTimeMs: 51000 },
-  { rank: 5, name: "The Alchemists", correctCount: 18, totalTimeMs: 49500 },
+const MEDAL_CONFIG = [
+  {
+    label: "1ST",
+    bg: "from-amber-400 to-yellow-300",
+    border: "border-amber-300",
+    glow: "shadow-[0_0_40px_rgba(251,191,36,0.6)]",
+    badge: "bg-amber-400 text-white",
+    ring: "ring-4 ring-amber-300/50",
+    size: "scale-110 -translate-y-4",
+    icon: <Trophy size={22} />,
+  },
+  {
+    label: "2ND",
+    bg: "from-slate-400 to-gray-300",
+    border: "border-slate-300",
+    glow: "shadow-[0_0_30px_rgba(148,163,184,0.5)]",
+    badge: "bg-slate-400 text-white",
+    ring: "ring-4 ring-slate-300/40",
+    size: "",
+    icon: <Medal size={22} />,
+  },
+  {
+    label: "3RD",
+    bg: "from-orange-500 to-amber-400",
+    border: "border-orange-400",
+    glow: "shadow-[0_0_30px_rgba(249,115,22,0.5)]",
+    badge: "bg-orange-500 text-white",
+    ring: "ring-4 ring-orange-400/40",
+    size: "",
+    icon: <Medal size={22} />,
+  },
 ];
 
+function PodiumCard({ entry, config, delay }: { entry: RoundResultEntry; config: typeof MEDAL_CONFIG[0]; delay: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.5, ease: "easeOut" }}
+      className={`flex flex-col items-center gap-3 px-6 py-5 rounded-2xl bg-white/10 backdrop-blur-md border ${config.border} ${config.glow} ${config.ring} ${config.size} transition-transform`}
+    >
+      {/* Medal badge */}
+      <div className={`w-10 h-10 rounded-full ${config.badge} flex items-center justify-center font-black shadow-lg`}>
+        {config.icon}
+      </div>
+
+      {/* Avatar circle */}
+      <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${config.bg} flex items-center justify-center text-white text-2xl font-black shadow-lg`}>
+        {entry.team_name.charAt(0).toUpperCase()}
+      </div>
+
+      {/* Name */}
+      <p className="text-white font-black text-base text-center leading-tight max-w-[120px] break-words">
+        {entry.team_name}
+      </p>
+
+      {/* Stats */}
+      <div className="flex flex-col items-center gap-1">
+        <div className="flex items-center gap-1 text-xs font-bold text-green-300">
+          <CheckCircle2 size={12} />
+          <span>{entry.correct_count} đúng</span>
+        </div>
+        <div className="flex items-center gap-1 text-xs font-bold text-white/60">
+          <Timer size={12} />
+          <span>{entry.total_time_seconds}s</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function RoundSection({ round, index }: { round: RoundResult; index: number }) {
+  const top3 = round.top_teams.slice(0, 3);
+
+  // Reorder for podium display: 2nd, 1st, 3rd
+  const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
+  const configOrder = [MEDAL_CONFIG[1], MEDAL_CONFIG[0], MEDAL_CONFIG[2]];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.15, duration: 0.4 }}
+      className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8"
+    >
+      {/* Round header */}
+      <div className="flex items-center gap-3 mb-8">
+        <div className="w-10 h-10 rounded-xl bg-primary-container/20 border border-primary-container/40 flex items-center justify-center">
+          <Star size={18} className="text-primary-container" />
+        </div>
+        <div>
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Vòng thi</p>
+          <h3 className="text-2xl font-black text-white uppercase tracking-widest">Round {round.round_number}</h3>
+        </div>
+        <div className="ml-auto px-4 py-1.5 bg-primary-container/20 border border-primary-container/30 rounded-full">
+          <p className="text-xs font-black text-primary-container uppercase tracking-widest">Top 3 vinh danh</p>
+        </div>
+      </div>
+
+      {top3.length === 0 ? (
+        <p className="text-center text-white/40 text-sm py-4">Chưa có kết quả</p>
+      ) : (
+        <div className="flex items-end justify-center gap-6">
+          {podiumOrder.map((entry, i) => {
+            if (!entry) return null;
+            return (
+              <PodiumCard
+                key={entry.team_id}
+                entry={entry}
+                config={configOrder[i]}
+                delay={index * 0.15 + i * 0.1 + 0.2}
+              />
+            );
+          })}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 export default function StageFinal() {
-  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const gameId = searchParams.get("gameId");
+
+  const [rounds, setRounds] = useState<RoundResult[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fire confetti on mount
-    const duration = 5 * 1000;
+    if (!gameId) { setLoading(false); return; }
+    getPublicRoundResults(gameId)
+      .then((res) => setRounds(res.data.data ?? []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [gameId]);
+
+  useEffect(() => {
+    if (loading || rounds.length === 0) return;
+    const duration = 6 * 1000;
     const animationEnd = Date.now() + duration;
     const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+    const rand = (min: number, max: number) => Math.random() * (max - min) + min;
 
-    const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
-
-    const interval: ReturnType<typeof setInterval> = setInterval(function() {
+    const interval = setInterval(() => {
       const timeLeft = animationEnd - Date.now();
-
-      if (timeLeft <= 0) {
-        return clearInterval(interval);
-      }
-
-      const particleCount = 50 * (timeLeft / duration);
-      // since particles fall down, start a bit higher than random
-      confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
-      confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+      if (timeLeft <= 0) return clearInterval(interval);
+      const count = 50 * (timeLeft / duration);
+      confetti({ ...defaults, particleCount: count, origin: { x: rand(0.1, 0.3), y: Math.random() - 0.2 } });
+      confetti({ ...defaults, particleCount: count, origin: { x: rand(0.7, 0.9), y: Math.random() - 0.2 } });
     }, 250);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [loading, rounds.length]);
 
   return (
-    <div className="min-h-screen bg-primary flex flex-col p-6 relative overflow-y-auto text-white">
-      {/* Dynamic Background */}
+    <div className="min-h-screen bg-primary text-white relative overflow-y-auto">
+      {/* Background layers */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container/20 via-transparent to-transparent"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-secondary/10 rounded-full blur-[150px] animate-pulse"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary-container/15 via-transparent to-transparent" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-secondary/10 rounded-full blur-[120px] animate-pulse" />
       </div>
 
-      <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-12 mt-12 mb-12">
-        {/* Left Column: Champion */}
+      <div className="relative z-10 max-w-4xl mx-auto px-6 py-12">
+        {/* Header */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex-1 flex flex-col items-center text-center"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
         >
-          <div className="relative mb-12 mt-12">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-              className="absolute -inset-16 opacity-20 pointer-events-none"
-            >
-              {[...Array(12)].map((_, i) => (
-                <Star
-                  key={i}
-                  className="absolute text-white"
-                  style={{
-                    top: "50%",
-                    left: "50%",
-                    transform: `rotate(${i * 30}deg) translateY(-140px)`,
-                  }}
-                />
-              ))}
-            </motion.div>
-
-            <motion.div
-              initial={{ y: 20 }}
-              animate={{ y: 0 }}
-              transition={{
-                duration: 1,
-                repeat: Infinity,
-                repeatType: "reverse",
-              }}
-              className="w-48 h-48 bg-secondary text-white rounded-full flex items-center justify-center shadow-[0_0_80px_rgba(172,53,9,0.5)] border-8 border-white"
-            >
-              <Trophy size={80} strokeWidth={2.5} />
-            </motion.div>
+          <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-6 py-2 mb-6">
+            <Trophy size={16} className="text-amber-400" />
+            <span className="text-xs font-black uppercase tracking-[0.2em] text-white/80">Kết quả thi đấu</span>
           </div>
-
-          <h1 className="text-4xl font-black tracking-tighter leading-none mb-4 italic uppercase text-primary-container">
-            Người chiến thắng chung cuộc
+          <h1 className="text-5xl font-black uppercase tracking-tighter text-white drop-shadow-lg">
+            Vinh danh
+            <span className="text-primary-container"> Top 3</span>
           </h1>
-          <div className="h-1 w-32 bg-white mb-8"></div>
-
-          <h2 className="text-6xl font-black mb-6 tracking-tight text-white drop-shadow-lg">
-            {OVERALL_CHAMPION.name}
-          </h2>
-
-          <div className="grid grid-cols-2 gap-12 mb-12 text-left bg-black/20 p-8 rounded-2xl border border-white/10 backdrop-blur-sm w-full max-w-md">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-primary-container flex items-center gap-1 mb-1">
-                <CheckCircle2 size={12}/> Tổng số câu đúng
-              </p>
-              <p className="text-4xl font-black font-mono tracking-tighter text-white">
-                {OVERALL_CHAMPION.totalCorrect}
-              </p>
-            </div>
-            <div className="border-l border-white/20 pl-6">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-primary-container flex items-center gap-1 mb-1">
-                <Timer size={12}/> Tổng thời gian
-              </p>
-              <p className="text-4xl font-black font-mono tracking-tighter text-white">
-                {(OVERALL_CHAMPION.totalTimeMs / 1000).toFixed(2)}s
-              </p>
-            </div>
-          </div>
+          <p className="text-white/50 text-sm mt-3 font-bold uppercase tracking-widest">
+            Những người trả lời nhanh nhất và chính xác nhất
+          </p>
         </motion.div>
 
-        {/* Right Column: Full Leaderboard */}
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className="flex-1 bg-white rounded-3xl p-8 text-gray-900 shadow-2xl"
-        >
-          <h3 className="text-2xl font-black mb-6 uppercase tracking-widest text-primary border-b border-gray-100 pb-4">
-            Kết quả cuối cùng
-          </h3>
-
-          <div className="flex flex-col gap-4">
-            {FULL_LEADERBOARD.map((team) => (
-              <div 
-                key={team.rank} 
-                className={`flex items-center justify-between p-4 rounded-xl border ${
-                  team.rank === 1 ? "bg-secondary/10 border-secondary border-2" : "bg-gray-50 border-gray-100"
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black ${
-                    team.rank === 1 ? "bg-secondary text-white shadow-lg" : 
-                    team.rank <= 3 ? "bg-orange-100 text-orange-600" : "bg-gray-200 text-gray-600"
-                  }`}>
-                    {team.rank === 1 ? <Trophy size={16}/> : team.rank <= 3 ? <Medal size={16}/> : team.rank}
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-lg leading-none mb-1">{team.name}</h4>
-                    <span className="text-xs text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1">
-                      <CheckCircle2 size={12}/> {team.correctCount} CÂU ĐÚNG
-                    </span>
-                  </div>
-                </div>
-                <div className="text-right">
-                   <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Thời gian</p>
-                   <p className="font-mono font-black text-lg">{(team.totalTimeMs / 1000).toFixed(2)}s</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-10 flex gap-4">
-            <button
-              onClick={() => navigate("/admin/dashboard")}
-              className="flex-1 bg-gray-100 text-gray-600 font-black py-4 rounded-xl hover:bg-gray-200 transition-all uppercase tracking-widest flex items-center justify-center gap-2 text-sm"
-            >
-              Trở về bảng điều khiển <ArrowRight size={16} />
-            </button>
-            <button className="flex-1 bg-primary text-white font-black py-4 rounded-xl hover:bg-primary/90 transition-all uppercase tracking-widest text-sm shadow-lg">
-              Xuất file CSV
-            </button>
-          </div>
-        </motion.div>
+        {/* Content */}
+        <AnimatePresence>
+          {loading ? (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="animate-spin text-white/40" size={40} />
+            </div>
+          ) : rounds.length === 0 ? (
+            <div className="text-center py-24 text-white/40">
+              <Trophy size={48} className="mx-auto mb-4 opacity-30" />
+              <p className="text-sm font-bold uppercase tracking-widest">Không có dữ liệu kết quả</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-6">
+              {rounds.map((round, i) => (
+                <RoundSection key={round.round_number} round={round} index={i} />
+              ))}
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

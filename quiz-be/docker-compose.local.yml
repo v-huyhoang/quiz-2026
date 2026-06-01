@@ -34,7 +34,7 @@ services:
     image: redis:alpine
     container_name: quiz-redis-local
     ports:
-      - "6379:6379"
+      - "6380:6380"
     restart: unless-stopped
 
 volumes:

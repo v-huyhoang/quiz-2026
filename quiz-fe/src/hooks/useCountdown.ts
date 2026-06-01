@@ -9,25 +9,32 @@ export function useCountdown({
   openedAt,
   duration = 0,
 }: UseCountdownProps) {
-  const calculateTimeLeft = () => {
-    if (!openedAt || !duration) return 0;
+  const calculateState = () => {
+    if (!openedAt || !duration) return { timeLeft: 0, progress: 0 };
 
     const start = new Date(openedAt).getTime();
-    const now = Date.now();
+    const elapsedMs = Date.now() - start;
+    const remainingMs = Math.max(duration * 1000 - elapsedMs, 0);
 
-    const elapsed = Math.floor((now - start) / 1000);
-
-    return Math.max(duration - elapsed, 0);
+    return {
+      timeLeft: Math.ceil(remainingMs / 1000),
+      progress: (remainingMs / (duration * 1000)) * 100,
+    };
   };
 
-  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft);
+  const initial = calculateState();
+  const [timeLeft, setTimeLeft] = useState(initial.timeLeft);
+  const [progress, setProgress] = useState(initial.progress);
 
   useEffect(() => {
-    setTimeLeft(calculateTimeLeft());
+    const update = () => {
+      const { timeLeft: t, progress: p } = calculateState();
+      setTimeLeft(t);
+      setProgress(p);
+    };
 
-    const interval = setInterval(() => {
-      setTimeLeft(calculateTimeLeft());
-    }, 1000);
+    update();
+    const interval = setInterval(update, 100);
 
     return () => clearInterval(interval);
   }, [openedAt, duration]);
@@ -36,6 +43,7 @@ export function useCountdown({
 
   return {
     timeLeft,
+    progress,
     isExpired,
   };
 }
