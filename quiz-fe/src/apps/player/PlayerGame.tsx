@@ -219,8 +219,12 @@ export default function PlayerGame() {
 
   if (gameState.status === "finished") return <GameFinished gameId={gameId!} totalRounds={gameState.rounds_total} />;
 
-  if (gameState.status === "active" && !gameState.current_round) {
-    return <WaitingForRound roundNum={nextRound} totalRounds={gameState.rounds_total} gameId={gameId!} />;
+  const effectiveNextRound = gameState.current_round?.status === "finished"
+    ? (gameState.current_round.round_number + 1)
+    : nextRound;
+
+  if (gameState.status === "active" && (!gameState.current_round || gameState.current_round.status === "finished")) {
+    return <WaitingForRound roundNum={effectiveNextRound} totalRounds={gameState.rounds_total} gameId={gameId!} />;
   }
 
   if (!question) return <LoadingScreen message="Chờ câu hỏi tiếp theo..." />;
