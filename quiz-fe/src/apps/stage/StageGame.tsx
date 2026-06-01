@@ -152,7 +152,7 @@ export default function StageGame() {
     return (
       <>
         {popupNode}
-        <StageWaitingForRound roundNum={roundNum} roundsTotal={roundsTotal} gameId={gameId} />
+        <StageWaitingForRound roundNum={roundNum} roundsTotal={roundsTotal} />
       </>
     );
   }
@@ -264,11 +264,9 @@ export default function StageGame() {
 function StageWaitingForRound({
   roundNum,
   roundsTotal,
-  gameId,
 }: {
   roundNum: number;
   roundsTotal: number;
-  gameId: number;
 }) {
   return (
     <div className="min-h-screen bg-surface flex flex-col overflow-auto relative">
