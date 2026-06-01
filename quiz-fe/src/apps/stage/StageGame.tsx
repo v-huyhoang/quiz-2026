@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { CheckCircle, Trophy, Star } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { getPublicGameState, getPublicRoundResults, type CurrentQuestion, type GameAnswer, type RoundResult } from "../../services/gameService";
+import { getPublicGameState, type CurrentQuestion, type GameAnswer } from "../../services/gameService";
 import StageRoundComplete from "./StageRoundComplete";
 
 import { QuestionTimer } from "../../components/ui/QuestionTimer";
@@ -133,7 +133,7 @@ export default function StageGame() {
     return (
       <>
         {popupNode}
-        <StageGameFinished />
+        <StageGameFinished gameId={gameId} />
       </>
     );
   }
@@ -270,18 +270,6 @@ function StageWaitingForRound({
   roundsTotal: number;
   gameId: number;
 }) {
-  const [completedRounds, setCompletedRounds] = useState<RoundResult[]>([]);
-
-  useEffect(() => {
-    if (!gameId || roundNum <= 1) return;
-    getPublicRoundResults(gameId)
-      .then((res) => {
-        const all = res.data.data ?? [];
-        setCompletedRounds(all.filter((r) => r.round_number < roundNum));
-      })
-      .catch(() => {});
-  }, [gameId, roundNum]);
-
   return (
     <div className="min-h-screen bg-surface flex flex-col overflow-auto relative">
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-primary/6 rounded-full blur-[100px] pointer-events-none" />
@@ -323,76 +311,15 @@ function StageWaitingForRound({
         </div>
       </div>
 
-      {/* Previous rounds leaderboard */}
-      {completedRounds.length > 0 && (
-        <div className="relative z-10 w-full max-w-6xl mx-auto px-8 pb-16">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-6 text-center">
-            Kết quả các vòng trước
-          </p>
-          <div
-            className={`grid gap-6 ${
-              completedRounds.length === 1 ? "grid-cols-1 max-w-2xl mx-auto" : "grid-cols-2"
-            }`}
-          >
-            {completedRounds.map((round) => (
-              <div
-                key={round.round_number}
-                className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm"
-              >
-                <div className="px-6 py-4 bg-primary/5 border-b border-primary/10 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-primary" />
-                  <span className="text-sm font-black text-primary uppercase tracking-widest">
-                    Round {round.round_number}
-                  </span>
-                </div>
-                {round.top_teams.length === 0 ? (
-                  <p className="px-6 py-4 text-sm text-gray-400">Chưa có dữ liệu</p>
-                ) : (
-                  round.top_teams.map((team) => (
-                    <div
-                      key={team.rank}
-                      className="flex items-center justify-between px-6 py-4 border-b last:border-b-0"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`w-9 h-9 rounded-full text-sm flex items-center justify-center font-black ${
-                            team.rank === 1
-                              ? "bg-yellow-100 text-yellow-700"
-                              : team.rank === 2
-                                ? "bg-gray-100 text-gray-600"
-                                : team.rank === 3
-                                  ? "bg-orange-100 text-orange-600"
-                                  : "bg-blue-50 text-blue-600"
-                          }`}
-                        >
-                          {team.rank}
-                        </span>
-                        <span className="text-base font-black text-gray-900">{team.team_name}</span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm font-bold text-green-600">
-                          {team.correct_count} đúng
-                        </span>
-                        <span className="text-sm font-mono text-gray-400">
-                          {team.total_time_seconds.toFixed(2)}s
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       <GridBg />
     </div>
   );
 }
 
 // ── Game finished (Stage) ─────────────────────────────────────────────────────
-function StageGameFinished() {
+function StageGameFinished({ gameId }: { gameId: number }) {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-surface flex flex-col items-center justify-center overflow-hidden relative">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-yellow-400/8 rounded-full blur-[120px] pointer-events-none" />
@@ -435,7 +362,19 @@ function StageGameFinished() {
         <h1 className="text-6xl md:text-8xl font-black text-gray-900 leading-tight tracking-tight mb-6">
           TRẬN ĐẤU<br />KẾT THÚC!
         </h1>
-        <p className="text-2xl md:text-3xl font-bold text-gray-400">Cảm ơn đã tham gia!</p>
+        <p className="text-2xl md:text-3xl font-bold text-gray-400 mb-10">Cảm ơn đã tham gia!</p>
+
+        <motion.button
+          onClick={() => navigate(`/stage/final?gameId=${gameId}`)}
+          className="px-10 py-4 bg-gray-900 text-white text-xl font-black rounded-2xl shadow-lg hover:bg-gray-700 transition-colors"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.97 }}
+        >
+          Xem kết quả
+        </motion.button>
       </motion.div>
 
       <GridBg />

@@ -4,12 +4,10 @@ import { CheckCircle, Clock, Loader2, Trophy, XCircle } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import {
   getPublicGameState,
-  getPublicRoundResults,
   submitAnswer,
   type CurrentQuestion,
   type GameState,
   type GameAnswer,
-  type RoundResult,
 } from "../../services/gameService";
 import { QuestionTimer } from "../../components/ui/QuestionTimer";
 import { LoadingScreen } from "../../components/ui/LoadingScreen";
@@ -399,17 +397,16 @@ function WaitingForRound({
   totalRounds: number;
   gameId: number;
 }) {
-  const [completedRounds, setCompletedRounds] = useState<RoundResult[]>([]);
-
-  useEffect(() => {
-    if (!gameId || roundNum <= 1) return;
-    getPublicRoundResults(gameId)
-      .then((res) => {
-        const all = res.data.data ?? [];
-        setCompletedRounds(all.filter((r) => r.round_number < roundNum));
-      })
-      .catch(() => {});
-  }, [gameId, roundNum]);
+  const myRounds = roundNum <= 1 ? [] : Array.from({ length: roundNum - 1 }, (_, i) => {
+    const r = i + 1;
+    try {
+      const entries: CorrectAnswerRecord[] = JSON.parse(localStorage.getItem(lsKey(gameId, r)) ?? "[]");
+      const totalMs = entries.reduce((sum, e) => sum + e.response_time_ms, 0);
+      return { round_number: r, correct_count: entries.length, total_time_seconds: totalMs / 1000 };
+    } catch {
+      return { round_number: r, correct_count: 0, total_time_seconds: 0 };
+    }
+  });
 
   return (
     <div className="min-h-screen bg-surface flex flex-col relative overflow-hidden">
@@ -455,60 +452,34 @@ function WaitingForRound({
         </div>
       </motion.div>
 
-      {/* Previous rounds results */}
-      {completedRounds.length > 0 && (
+      {/* Previous rounds — my results from localStorage */}
+      {myRounds.length > 0 && (
         <div className="flex-grow w-full max-w-lg mx-auto px-6 pb-10 relative z-10">
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] mb-4">
             Kết quả các vòng trước
           </p>
-          <div className="flex flex-col gap-4">
-            {completedRounds.map((round) => (
+          <div className="flex flex-col gap-3">
+            {myRounds.map((round) => (
               <div
                 key={round.round_number}
-                className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm"
+                className="bg-white border border-gray-200 rounded-2xl px-5 py-4 flex items-center justify-between shadow-sm"
               >
-                <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-                  <span className="text-xs font-black text-primary uppercase tracking-widest">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <span className="text-xs font-black text-primary">{round.round_number}</span>
+                  </div>
+                  <span className="text-sm font-black text-gray-700 uppercase tracking-wide">
                     Round {round.round_number}
                   </span>
                 </div>
-                {round.top_teams.length === 0 ? (
-                  <p className="px-5 py-3 text-xs text-gray-400">Chưa có dữ liệu</p>
-                ) : (
-                  round.top_teams.map((team) => (
-                    <div
-                      key={team.rank}
-                      className="flex items-center justify-between px-5 py-3 border-b last:border-b-0"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          className={`w-7 h-7 rounded-full text-xs flex items-center justify-center font-black ${
-                            team.rank === 1
-                              ? "bg-yellow-100 text-yellow-700"
-                              : team.rank === 2
-                                ? "bg-gray-100 text-gray-600"
-                                : team.rank === 3
-                                  ? "bg-orange-100 text-orange-600"
-                                  : "bg-blue-50 text-blue-600"
-                          }`}
-                        >
-                          {team.rank}
-                        </span>
-                        <span className="text-sm font-bold text-gray-900 truncate max-w-[130px]">
-                          {team.team_name}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-xs font-bold text-green-600">
-                          {team.correct_count} đúng
-                        </span>
-                        <span className="text-xs font-mono text-gray-400">
-                          {team.total_time_seconds.toFixed(1)}s
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
+                <div className="flex items-center gap-4">
+                  <span className={`text-sm font-bold ${round.correct_count > 0 ? "text-green-600" : "text-gray-400"}`}>
+                    {round.correct_count} đúng
+                  </span>
+                  <span className="text-sm font-mono text-gray-400">
+                    {round.total_time_seconds.toFixed(1)}s
+                  </span>
+                </div>
               </div>
             ))}
           </div>

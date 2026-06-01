@@ -210,7 +210,18 @@ export const AdminRoom = () => {
   };
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(joinUrl);
+    try {
+      await navigator.clipboard.writeText(joinUrl);
+    } catch {
+      const el = document.createElement("textarea");
+      el.value = joinUrl;
+      el.style.position = "fixed";
+      el.style.opacity = "0";
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
