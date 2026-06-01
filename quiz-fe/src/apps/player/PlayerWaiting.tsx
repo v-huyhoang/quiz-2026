@@ -18,13 +18,36 @@ export default function PlayerWaiting() {
 
   const [teams, setTeams] = useState<GameTeam[]>([]);
 
-  // ── Initial state fetch ────────────────────────────────────────────────────
+  // ── Initial state fetch and visibility refresh ─────────────────────────────
   useEffect(() => {
     if (!gameId) return;
-    getPublicGameState(gameId)
-      .then((res) => setTeams(res.data.data.teams))
-      .catch(() => {});
-  }, [gameId]);
+
+    let active = true;
+    const refreshState = () => {
+      getPublicGameState(gameId)
+        .then((res) => {
+          if (!active) return;
+          setTeams(res.data.data.teams);
+          if (res.data.data.status !== "pending") {
+            navigate("/player/game", { replace: true });
+          }
+        })
+        .catch(() => {});
+    };
+
+    refreshState();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshState();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      active = false;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [gameId, navigate]);
 
   // ── WebSocket subscription ─────────────────────────────────────────────────
   useGameSocket(gameId, {
