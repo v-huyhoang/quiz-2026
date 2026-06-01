@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\PersistSubmission;
 use App\Models\Answer;
 use App\Models\Game;
 use App\Models\Question;
@@ -150,14 +151,12 @@ class GameService
                     ];
 
                     if ($isAdmin) {
-                        $subs = Submission::where('round_question_id', $currentRQ->id)->get();
-                        $submittedIds = $subs->pluck('team_id')->all();
-
+                        // Redis O(1) check per team — reflects real-time state without a DB query
                         $currentQuestion['team_submissions'] = $teams->map(fn($t) => [
-                            'team_id' => $t->id,
-                            'team_name' => $t->name,
-                            'submitted' => in_array($t->id, $submittedIds),
-                            'is_correct' => $subs->firstWhere('team_id', $t->id)?->is_correct,
+                            'team_id'    => $t->id,
+                            'team_name'  => $t->name,
+                            'submitted'  => (bool) Redis::exists($this->subLockKey($currentRQ->id, $t->id)),
+                            'is_correct' => null,
                         ])->all();
                     }
                 }
@@ -183,71 +182,121 @@ class GameService
         ];
     }
 
+    // ── Redis key helpers ─────────────────────────────────────────────────────
+
+    private function subLockKey(int $rqId, int $teamId): string { return "sub:{$rqId}:{$teamId}"; }
+    private function rqMetaKey(int $rqId): string               { return "rq_meta:{$rqId}"; }
+    private function lbKey(int $gameId): string                 { return "lb:{$gameId}"; }
+
     // ── Leaderboard ───────────────────────────────────────────────────────────
 
     public function getLeaderboard(int $id): array
     {
-        Game::findOrFail($id);
+        $game  = Game::findOrFail($id);
+        $teams = $game->teams()->get(['id', 'name']);
 
-        $rows = DB::table('teams as t')
-            ->leftJoin('submissions as s', 's.team_id', '=', 't.id')
-            ->where('t.game_id', $id)
-            ->select(
-                't.id as team_id',
-                't.name as team_name',
-                DB::raw('SUM(CASE WHEN s.is_correct = 1 THEN 1 ELSE 0 END) as correct_count'),
-                DB::raw('SUM(CASE WHEN s.is_correct = 1 THEN s.response_time_ms ELSE 0 END) as total_time_ms')
-            )
-            ->groupBy('t.id', 't.name')
-            ->orderByDesc('correct_count')
-            ->orderBy('total_time_ms')
-            ->get();
+        // Redis Hash: fields "{teamId}:c" (correct count) and "{teamId}:ms" (total time)
+        $raw = Redis::hGetAll($this->lbKey($id));
 
-        return $rows->values()->map(fn ($r, $i) => [
-            'rank'               => $i + 1,
-            'team_id'            => $r->team_id,
-            'team_name'          => $r->team_name,
-            'correct_count'      => (int) $r->correct_count,
-            'total_time_seconds' => round($r->total_time_ms / 1000, 2),
-        ])->all();
+        if (!empty($raw)) {
+            $ranked = $teams->map(fn($t) => [
+                'team_id'            => $t->id,
+                'team_name'          => $t->name,
+                'correct_count'      => (int) ($raw["{$t->id}:c"] ?? 0),
+                'total_time_seconds' => round(((int) ($raw["{$t->id}:ms"] ?? 0)) / 1000, 2),
+            ]);
+        } else {
+            // Fallback to DB for finished games where Redis has been cleaned up
+            $rows = DB::table('teams as t')
+                ->leftJoin('submissions as s', 's.team_id', '=', 't.id')
+                ->where('t.game_id', $id)
+                ->select(
+                    't.id as team_id',
+                    't.name as team_name',
+                    DB::raw('SUM(CASE WHEN s.is_correct = 1 THEN 1 ELSE 0 END) as correct_count'),
+                    DB::raw('SUM(CASE WHEN s.is_correct = 1 THEN s.response_time_ms ELSE 0 END) as total_time_ms')
+                )
+                ->groupBy('t.id', 't.name')
+                ->get();
+
+            $ranked = $rows->map(fn($r) => [
+                'team_id'            => $r->team_id,
+                'team_name'          => $r->team_name,
+                'correct_count'      => (int) $r->correct_count,
+                'total_time_seconds' => round($r->total_time_ms / 1000, 2),
+            ]);
+        }
+
+        return $ranked->sort(function ($a, $b) {
+            if ($a['correct_count'] !== $b['correct_count']) {
+                return $b['correct_count'] - $a['correct_count'];
+            }
+            return $a['total_time_seconds'] <=> $b['total_time_seconds'];
+        })->values()->map(fn($e, $i) => array_merge($e, ['rank' => $i + 1]))->all();
     }
 
     // ── Player: submit answer ─────────────────────────────────────────────────
 
     public function submitAnswer(int $teamId, int $rqId, int $answerId, ?int $clientResponseTimeMs = null): bool
     {
-        $isCorrect = false;
+        // Atomic duplicate check — no DB transaction or lock needed
+        $lockKey = $this->subLockKey($rqId, $teamId);
+        if (!Redis::setnx($lockKey, 1)) {
+            throw new \Exception('Already submitted for this question');
+        }
+        Redis::expire($lockKey, 7200);
 
-        DB::transaction(function () use ($teamId, $rqId, $answerId, $clientResponseTimeMs, &$isCorrect) {
-            $exists = Submission::where('team_id', $teamId)
-                ->where('round_question_id', $rqId)
-                ->lockForUpdate()
-                ->exists();
+        // Get question metadata from Redis cache (set when question opened)
+        $meta = $this->getRqMeta($rqId);
 
-            if ($exists) {
-                throw new \Exception('Already submitted for this question');
-            }
-
-            $rq = RoundQuestion::findOrFail($rqId);
+        if ($meta === null) {
+            // Cache miss: fallback to DB, then re-populate cache for subsequent submits
+            $rq = RoundQuestion::with(['question.answers', 'round'])->findOrFail($rqId);
             if ($rq->status !== 'open') {
+                Redis::del($lockKey);
                 throw new \Exception('Question is not open');
             }
+            $correct = $rq->question->answers->firstWhere('is_correct', true);
+            $gameId  = $rq->round->game_id;
+            $isCorrect = $correct && ((int) $correct->id === (int) $answerId);
 
-            $answer = Answer::findOrFail($answerId);
-            // Use client-provided time when available; fall back to server-side calculation
-            $ms = $clientResponseTimeMs ?? ($rq->opened_at ? now()->diffInMilliseconds($rq->opened_at) : 0);
-            $isCorrect = (bool) $answer->is_correct;
+            $ttl = ($rq->question->time_limit_seconds ?? 60) + 300;
+            Redis::setex($this->rqMetaKey($rqId), $ttl, json_encode([
+                'game_id'            => $gameId,
+                'round_id'           => $rq->round_id,
+                'correct_answer_id'  => $correct?->id,
+                'status'             => 'open',
+                'time_limit_seconds' => $rq->question->time_limit_seconds,
+            ]));
+        } else {
+            if ($meta['status'] !== 'open') {
+                Redis::del($lockKey);
+                throw new \Exception('Question is not open');
+            }
+            $gameId    = $meta['game_id'];
+            $isCorrect = ((int) $meta['correct_answer_id'] === (int) $answerId);
+        }
 
-            Submission::create([
-                'team_id'           => $teamId,
-                'round_question_id' => $rqId,
-                'answer_id'         => $answerId,
-                'is_correct'        => $isCorrect,
-                'response_time_ms'  => $ms,
-            ]);
-        });
+        $ms = $clientResponseTimeMs ?? 0;
+
+        // Update Redis leaderboard (two fields per team, pipelined for efficiency)
+        if ($isCorrect) {
+            Redis::pipeline(function ($pipe) use ($gameId, $teamId, $ms) {
+                $pipe->hIncrBy($this->lbKey($gameId), "{$teamId}:c",  1);
+                $pipe->hIncrBy($this->lbKey($gameId), "{$teamId}:ms", $ms);
+            });
+        }
+
+        // Persist to DB asynchronously — zero DB latency on the hot path
+        PersistSubmission::dispatch($teamId, $rqId, $answerId, $isCorrect, $ms);
 
         return $isCorrect;
+    }
+
+    private function getRqMeta(int $rqId): ?array
+    {
+        $json = Redis::get($this->rqMetaKey($rqId));
+        return $json ? json_decode($json, true) : null;
     }
 
     // ── Admin: game lifecycle ─────────────────────────────────────────────────
@@ -262,6 +311,16 @@ class GameService
 
         $game->update(['status' => 'active', 'started_at' => now()]);
         $this->invalidatePublicState($gameId);
+
+        // Seed leaderboard hash so all teams appear even with zero correct answers
+        $lbKey = $this->lbKey($gameId);
+        Redis::pipeline(function ($pipe) use ($game, $lbKey) {
+            foreach ($game->teams()->get(['id']) as $team) {
+                $pipe->hSetNx($lbKey, "{$team->id}:c",  0);
+                $pipe->hSetNx($lbKey, "{$team->id}:ms", 0);
+            }
+        });
+
         return $game->fresh();
     }
 
@@ -311,7 +370,20 @@ class GameService
         $rq->update(['status' => 'open', 'opened_at' => now()]);
         $this->invalidatePublicState($gameId);
 
-        return $rq->load(['question.answers', 'round']);
+        $rq = $rq->load(['question.answers', 'round']);
+
+        // Cache question metadata for the submit hot path (eliminates DB queries on submit)
+        $correctAnswer = $rq->question->answers->firstWhere('is_correct', true);
+        $ttl = ($rq->question->time_limit_seconds ?? 60) + 300;
+        Redis::setex($this->rqMetaKey($rq->id), $ttl, json_encode([
+            'game_id'           => $rq->round->game_id,
+            'round_id'          => $rq->round_id,
+            'correct_answer_id' => $correctAnswer?->id,
+            'status'            => 'open',
+            'time_limit_seconds'=> $rq->question->time_limit_seconds,
+        ]));
+
+        return $rq;
     }
 
     public function closeCurrentQuestion(int $gameId): RoundQuestion
@@ -325,7 +397,18 @@ class GameService
         $rq->update(['status' => 'closed', 'closed_at' => now()]);
         $this->invalidatePublicState($gameId);
 
-        return $rq->load(['question.answers', 'round']);
+        $rq = $rq->load(['question.answers', 'round']);
+
+        // Mark cached metadata as closed so late submits are rejected via Redis (no DB hit)
+        $metaKey = $this->rqMetaKey($rq->id);
+        $cached  = Redis::get($metaKey);
+        if ($cached) {
+            $data           = json_decode($cached, true);
+            $data['status'] = 'closed';
+            Redis::setex($metaKey, 300, json_encode($data));
+        }
+
+        return $rq;
     }
 
     public function finishCurrentRound(int $gameId): Round
@@ -346,6 +429,10 @@ class GameService
 
         $game->update(['status' => 'finished', 'ended_at' => now()]);
         $this->invalidatePublicState($gameId);
+
+        // Keep leaderboard in Redis for 1 hour after game ends so late reads still work,
+        // then let it expire naturally (DB fallback takes over after that).
+        Redis::expire($this->lbKey($gameId), 3600);
     }
 
     // ── Round results ─────────────────────────────────────────────────────────
