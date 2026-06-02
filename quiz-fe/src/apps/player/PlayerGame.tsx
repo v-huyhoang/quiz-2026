@@ -522,7 +522,7 @@ function WaitingForRound({
                     {round.correct_count} đúng
                   </span>
                   <span className="text-sm font-mono text-gray-400">
-                    {round.total_time_seconds.toFixed(1)}s
+                    {round.total_time_seconds.toFixed(2)}s
                   </span>
                 </div>
               </div>
@@ -620,7 +620,7 @@ function GameFinished({ gameId, totalRounds }: { gameId: number; totalRounds: nu
                   {round.correct_count} đúng
                 </span>
                 <span className="text-sm font-mono text-gray-400">
-                  {round.total_time_seconds.toFixed(1)}s
+                  {round.total_time_seconds.toFixed(2)}s
                 </span>
               </div>
             </div>
