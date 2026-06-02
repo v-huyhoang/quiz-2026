@@ -72,7 +72,7 @@ export default function JoinRoom() {
       const status = axiosErr?.response?.status;
       const message = axiosErr?.response?.data?.message;
       if (status === 404) setError("Mã phòng không tồn tại. Vui lòng kiểm tra lại.");
-      else if (status === 409) setError("Phòng đã đầy (tối đa 16 đội).");
+      else if (status === 409) setError("Phòng đã đầy (tối đa 30 đội).");
       else if (status === 422) setError(message ?? "Tên đội đã được dùng. Vui lòng chọn tên khác.");
       else setError("Không thể vào phòng. Vui lòng thử lại.");
     } finally {
@@ -81,7 +81,7 @@ export default function JoinRoom() {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen flex flex-col items-center p-4 relative overflow-hidden"
       style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
     >
@@ -296,7 +296,7 @@ export default function JoinRoom() {
           </p>
         </motion.div>
       </div>
-      
+
     </div>
   );
 }

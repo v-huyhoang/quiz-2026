@@ -11,7 +11,7 @@ import Header from "../../components/Header";
 import { GridBg } from "../../components/ui/GridBg";
 import { useGameSocket } from "../../hooks/useGameSocket";
 
-const MAX_TEAMS = 16;
+const MAX_TEAMS = 30;
 const APP_URL = import.meta.env.VITE_APP_URL ?? "http://localhost:5173";
 
 type GameInfo = Pick<GameState, "name" | "access_code" | "rounds_total" | "questions_per_round">;
