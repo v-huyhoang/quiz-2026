@@ -14,6 +14,8 @@ import { QuestionTimer } from "../../components/ui/QuestionTimer";
 import { LoadingScreen } from "../../components/ui/LoadingScreen";
 import { ANSWER_LABELS, getApiErrorMessage } from "../../libs/utils";
 import { useGameSocket } from "../../hooks/useGameSocket";
+import logoImage from "../../assets/logo.png"
+import waveImage from "../../assets/wave.png";
 
 interface QuestionStartedEvent {
   round_question_id: number;
@@ -329,7 +331,7 @@ export default function PlayerGame() {
                   <span>Sai rồi!</span>
                 </div>
                 {!isLastQuestion && (
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                  <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">
                     Cố lên ở câu tiếp theo nhé 💪
                   </p>
                 )}
@@ -515,6 +517,16 @@ function GameFinished({ gameId, totalRounds }: { gameId: number; totalRounds: nu
       className="min-h-screen flex flex-col relative overflow-hidden"
       style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
     >
+      <img
+        src={waveImage}
+        alt="waveImage"
+        className="absolute bottom-0 right-0 opacity-40 pointer-events-none select-none z-0"
+      />
+      <img
+        src={logoImage}
+        alt="Logo"
+        className="h-24 w-auto object-contain drop-shadow-md"
+      />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-yellow-400/8 rounded-full blur-[80px] pointer-events-none" />
 
       {/* Header */}
@@ -552,7 +564,7 @@ function GameFinished({ gameId, totalRounds }: { gameId: number; totalRounds: nu
           ))}
         </motion.div>
 
-        <h2 className="text-3xl font-black text-gray-900 leading-tight text-center mb-1">
+        <h2 className="text-3xl font-black text-primary leading-tight text-center mb-1">
           Trận đấu kết thúc!
         </h2>
         <p className="text-sm font-bold text-gray-400">Cảm ơn đã tham gia!</p>
@@ -560,7 +572,7 @@ function GameFinished({ gameId, totalRounds }: { gameId: number; totalRounds: nu
 
       {/* Per-round personal stats from localStorage */}
       <div className="flex-grow w-full max-w-lg mx-auto px-6 pb-12 relative z-10">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] mb-4">
+        <p className="text-[10px] font-black text-primary uppercase tracking-[0.25em] mb-4">
           Kết quả của bạn
         </p>
         <div className="flex flex-col gap-3">
@@ -573,8 +585,8 @@ function GameFinished({ gameId, totalRounds }: { gameId: number; totalRounds: nu
                 <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
                   <span className="text-xs font-black text-primary">{round.round_number}</span>
                 </div>
-                <span className="text-sm font-black text-gray-700 uppercase tracking-wide">
-                  Round {round.round_number}
+                <span className="text-sm font-black text-primary uppercase tracking-wide">
+                  Vòng {round.round_number}
                 </span>
               </div>
               <div className="flex items-center gap-4">

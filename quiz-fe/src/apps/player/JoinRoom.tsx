@@ -6,6 +6,7 @@ import { useAuthStore } from "../../store/authStore";
 import { joinRoom } from "../../services/roomService";
 import backgroundImage from "../../assets/background.png";
 import logoImage from "../../assets/logo.png";
+import waveImage from "../../assets/wave.png";
 
 export default function JoinRoom() {
   const [searchParams] = useSearchParams();
@@ -74,18 +75,24 @@ export default function JoinRoom() {
 
   return (
     <div 
-      className="min-h-screen flex flex-col items-center p-4"
+      className="min-h-screen flex flex-col items-center p-4 relative overflow-hidden"
       style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
-     >
+    >
+      {/* Wave bottom-right */}
+      <img
+        src={waveImage}
+        alt="waveImage"
+        className="absolute bottom-1/12 right-0 opacity-60 pointer-events-none select-none z-0"
+      />
       {/* Logo - top */}
       <img
         src={logoImage}
         alt="Logo"
-        className="h-16 w-auto object-contain drop-shadow-md"
+        className="h-24 w-auto object-contain drop-shadow-md"
       />
 
       {/* Form - center */}
-      <div className="flex-1 flex items-center justify-center w-full">
+      <div className="flex-1 flex items-center justify-center w-full z-10 relative">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -97,11 +104,11 @@ export default function JoinRoom() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 200 }}
-              className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/30"
+              className="w-16 h-16 btn rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/30"
             >
               <Users size={32} className="text-white" />
             </motion.div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+            <h1 className="text-3xl font-black text-primary tracking-tight">
               Tham gia phòng
             </h1>
             {step === 1 && (
@@ -112,7 +119,15 @@ export default function JoinRoom() {
           </div>
 
           {/* Form */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+          <div
+            className="rounded-[5px] p-8"
+            style={{
+              background: 'linear-gradient(180deg, #ffffff0a, #ffffff05)',
+              boxShadow: '0 0 20px #25202453, 0 0 30px #14f6ff33',
+              border: '1px solid #0054a6',
+              backgroundClip: 'padding-box',
+            }}
+          >
             {step === 1 ? (
               <form onSubmit={handleNextStep} className="space-y-5">
                 {/* Room Code */}
@@ -130,9 +145,9 @@ export default function JoinRoom() {
                     placeholder="Ví dụ: XYZ123"
                     maxLength={10}
                     disabled={loading}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50
+                    className="w-full px-4 py-3 rounded-xl border-2 bg-gray-50
                               text-gray-900 font-bold text-lg text-center tracking-widest uppercase
-                              focus:outline-none focus:border-primary focus:bg-white transition-all
+                              focus:outline-none border-[#0054a6] focus:bg-white transition-all
                               disabled:opacity-50 disabled:cursor-not-allowed"
                     autoFocus
                   />
@@ -160,8 +175,8 @@ export default function JoinRoom() {
                   disabled={!roomCode.trim()}
                   whileTap={{ scale: 0.97 }}
                   className="w-full flex items-center justify-center gap-3
-                            bg-primary text-white font-black text-lg py-4 rounded-xl
-                            hover:bg-primary/90 transition-all
+                            btn text-white font-black text-lg py-4 rounded-xl
+                             transition-all
                             disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Tiếp tục
@@ -264,11 +279,12 @@ export default function JoinRoom() {
             )}
           </div>
 
-          <p className="text-center text-xs text-gray-400 mt-5">
+          <p className="text-center text-xs text-gray-600 font-bold mt-5">
             Quét QR code từ màn hình để tham gia tự động
           </p>
         </motion.div>
       </div>
+      
     </div>
   );
 }
