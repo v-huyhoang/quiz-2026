@@ -6,6 +6,7 @@
 # ── Config ───────────────────────────────────────────────────
 BE_DIR          := quiz-be
 FE_DIR          := quiz-fe
+BOT_DIR         := game-test-bot
 BE_COMPOSE      := $(BE_DIR)/docker-compose.local.yml
 FE_COMPOSE      := $(FE_DIR)/docker-compose.local.yml
 FULL_COMPOSE    := -p quiz-2026 -f $(BE_COMPOSE) -f $(FE_COMPOSE)
@@ -47,6 +48,11 @@ help: ## Display list of main commands
 	@echo "  $(GREEN)migrate-fresh$(RESET)            Drop all tables and re-run migrations (⚠ deletes data)"
 	@echo "  $(GREEN)seed$(RESET)                     Run seeders to generate mock data"
 	@echo "  $(GREEN)artisan CMD=\"...\"$(RESET)          Run arbitrary php artisan command in container"
+	@echo ""
+	@echo "$(YELLOW)▶ Test Bot$(RESET)"
+	@echo "  $(GREEN)bot-install$(RESET)             Install bot dependencies + Playwright browsers"
+	@echo "  $(GREEN)bot-run$(RESET)                 Run the E2E player bot (uses config/config.json)"
+	@echo "  $(GREEN)bot-clean$(RESET)               Clear bot reports and screenshots"
 	@echo ""
 	@echo "$(YELLOW)▶ Shell & Tools$(RESET)"
 	@echo "  $(GREEN)be-shell$(RESET)                 Open bash shell in backend container"
@@ -167,6 +173,33 @@ db-wait: ## Waiting for MySQL to be ready (used in setup)
 		sleep 2; \
 	done
 	@echo "$(GREEN)✅ MySQL is ready$(RESET)"
+
+# ============================================================
+#  SHELL & TOOLS
+# ============================================================
+
+# ============================================================
+#  TEST BOT
+# ============================================================
+
+.PHONY: bot-install
+bot-install: ## Install bot dependencies + Playwright browsers
+	@echo "$(CYAN)▶ Installing game-test-bot dependencies...$(RESET)"
+	@cd $(BOT_DIR) && npm install
+	@echo "$(CYAN)▶ Installing Playwright Chromium browser...$(RESET)"
+	@cd $(BOT_DIR) && npx playwright install chromium
+	@echo "$(GREEN)✅ Bot ready. Edit $(BOT_DIR)/config/config.json then run: make bot-run$(RESET)"
+
+.PHONY: bot-run
+bot-run: ## Run the E2E player bot
+	@echo "$(CYAN)▶ Starting game-test-bot...$(RESET)"
+	@cd $(BOT_DIR) && npm run start
+
+.PHONY: bot-clean
+bot-clean: ## Clear bot reports and screenshots
+	@echo "$(CYAN)▶ Cleaning bot output...$(RESET)"
+	@rm -rf $(BOT_DIR)/reports/* $(BOT_DIR)/screenshots/*
+	@echo "$(GREEN)✅ Cleaned$(RESET)"
 
 # ============================================================
 #  SHELL & TOOLS
