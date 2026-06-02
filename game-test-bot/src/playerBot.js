@@ -162,33 +162,51 @@ class PlayerBot {
   }
 
   async _selectAndSubmit() {
-    // Wait for answer grid to be visible
-    await this.page.locator(selectors.answerGrid).waitFor({ timeout: 10000 });
+    // Wait for answer buttons that are not disabled — ensures new question is fully rendered.
+    // Using :not([disabled]) guards against the previous question's "already submitted" state
+    // where buttons are disabled, which could cause stale references if grabbed too early.
+    const enabledButton = this.page.locator(`${selectors.answerButtons}:not([disabled])`);
+    await enabledButton.first().waitFor({ state: 'visible', timeout: 10000 });
 
-    const buttons = await this.page.locator(selectors.answerButtons).all();
-    if (buttons.length === 0) throw new Error('No answer buttons found');
+    const count = await this.page.locator(selectors.answerButtons).count();
+    if (count === 0) throw new Error('No answer buttons found');
 
-    // Pick a random (or first) answer
     const idx = this.config.randomAnswer
-      ? Math.floor(Math.random() * buttons.length)
+      ? Math.floor(Math.random() * count)
       : 0;
-    const chosen = buttons[idx];
 
-    // Get label text (A/B/C/D) for logging
-    let label = String.fromCharCode(65 + idx); // fallback: A/B/C/D by index
+    // Read label BEFORE clicking (text changes to selected style after click)
+    let label = String.fromCharCode(65 + idx);
     try {
-      const labelEl = chosen.locator(selectors.answerLabel).first();
-      const text = await labelEl.textContent({ timeout: 2000 });
+      const text = await this.page.locator(selectors.answerButtons).nth(idx)
+        .locator(selectors.answerLabel).textContent({ timeout: 2000 });
       if (text?.trim()) label = text.trim();
     } catch {}
 
-    await chosen.click();
+    // Use nth() locator (re-evaluated at click time) instead of a stored reference.
+    // Stored references from .all() go stale when React re-renders answer buttons
+    // with new keys for a different question.
+    await this.page.locator(selectors.answerButtons).nth(idx).click();
 
-    // Click submit button
-    await this.page.locator(selectors.submitButton).waitFor({ timeout: 5000 });
-    await this.page.locator(selectors.submitButton).click();
+    // Click submit with retry — the submit button sits inside AnimatePresence mode="wait",
+    // so it may briefly detach from the DOM while the "Đã nộp" exit animation plays
+    // before the new submit button mounts.
+    await this._clickSubmitWithRetry();
 
     return label;
+  }
+
+  async _clickSubmitWithRetry(maxRetries = 4, retryDelayMs = 400) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await this.page.locator(selectors.submitButton).waitFor({ state: 'visible', timeout: 5000 });
+        await this.page.locator(selectors.submitButton).click({ timeout: 3000 });
+        return;
+      } catch (err) {
+        if (attempt === maxRetries) throw err;
+        await sleep(retryDelayMs);
+      }
+    }
   }
 
   async _waitForQuestionEnd(qNum) {
