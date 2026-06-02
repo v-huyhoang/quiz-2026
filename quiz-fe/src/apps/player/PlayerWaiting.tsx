@@ -9,7 +9,7 @@ import backgroundImage from "../../assets/background.png";
 import logoImage from "../../assets/logo.png";
 import { useGameSocket } from "../../hooks/useGameSocket";
 
-const MAX_TEAMS = 16;
+const MAX_TEAMS = 30;
 
 export default function PlayerWaiting() {
   const { teamName, teamId, gameId } = useAuthStore();
