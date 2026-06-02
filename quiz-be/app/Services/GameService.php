@@ -193,28 +193,17 @@ class GameService
 
     public function submitAnswer(int $teamId, int $rqId, int $answerId, ?int $clientResponseTimeMs = null): bool
     {
-        $isCorrect = false;
+        $rq = RoundQuestion::findOrFail($rqId);
+        if ($rq->status !== 'open') {
+            throw new \Exception('Question is not open');
+        }
 
-        DB::transaction(function () use ($teamId, $rqId, $answerId, $clientResponseTimeMs, &$isCorrect) {
-            $exists = Submission::where('team_id', $teamId)
-                ->where('round_question_id', $rqId)
-                ->lockForUpdate()
-                ->exists();
+        $answer = Answer::findOrFail($answerId);
+        // Use client-provided time when available; fall back to server-side calculation
+        $ms = $clientResponseTimeMs ?? ($rq->opened_at ? now()->diffInMilliseconds($rq->opened_at) : 0);
+        $isCorrect = (bool) $answer->is_correct;
 
-            if ($exists) {
-                throw new \Exception('Already submitted for this question');
-            }
-
-            $rq = RoundQuestion::findOrFail($rqId);
-            if ($rq->status !== 'open') {
-                throw new \Exception('Question is not open');
-            }
-
-            $answer = Answer::findOrFail($answerId);
-            // Use client-provided time when available; fall back to server-side calculation
-            $ms = $clientResponseTimeMs ?? ($rq->opened_at ? now()->diffInMilliseconds($rq->opened_at) : 0);
-            $isCorrect = (bool) $answer->is_correct;
-
+        try {
             Submission::create([
                 'team_id' => $teamId,
                 'round_question_id' => $rqId,
@@ -222,7 +211,9 @@ class GameService
                 'is_correct' => $isCorrect,
                 'response_time_ms' => $ms,
             ]);
-        });
+        } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+            throw new \Exception('Already submitted for this question');
+        }
 
         return $isCorrect;
     }
