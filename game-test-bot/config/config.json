@@ -1,0 +1,11 @@
+{
+  "baseUrl": "http://localhost:5173",
+  "roomId": "6D0IAM",
+  "teamCount": 1,
+  "browser": "chromium",
+  "headless": false,
+  "submitDelayMinMs": 300,
+  "submitDelayMaxMs": 2000,
+  "randomAnswer": true,
+  "screenshotOnError": true
+}

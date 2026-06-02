@@ -48,6 +48,11 @@ help: ## Display list of main commands
 	@echo "  $(GREEN)seed$(RESET)                     Run seeders to generate mock data"
 	@echo "  $(GREEN)artisan CMD=\"...\"$(RESET)          Run arbitrary php artisan command in container"
 	@echo ""
+	@echo "$(YELLOW)▶ E2E Test Bot$(RESET)"
+	@echo "  $(GREEN)bot-install$(RESET)             Install bot dependencies + Playwright browsers"
+	@echo "  $(GREEN)bot-start$(RESET)               Run bot using config/config.json"
+	@echo "  $(GREEN)bot-run$(RESET)                 Run bot with CLI args: make bot-run roomId=ABC123 teamCount=20"
+	@echo ""
 	@echo "$(YELLOW)▶ Shell & Tools$(RESET)"
 	@echo "  $(GREEN)be-shell$(RESET)                 Open bash shell in backend container"
 	@echo "  $(GREEN)fe-shell$(RESET)                 Open sh shell in frontend container"
@@ -189,3 +194,32 @@ fe-prod-build: ## Build FE production image
 	@echo "$(CYAN)▶ Build FE production image...$(RESET)"
 	@docker build -t $${DOCKERHUB_USERNAME:-quiz-fe-prod}/quiz-fe:latest -f $(FE_DIR)/Dockerfile --target prod $(FE_DIR)
 	@echo "$(GREEN)✅ FE production image built$(RESET)"
+
+# ============================================================
+#  E2E TEST BOT
+# ============================================================
+
+BOT_DIR := game-test-bot
+
+.PHONY: bot-install
+bot-install: ## Install test bot dependencies + Playwright browsers
+	@echo "$(CYAN)▶ Installing bot dependencies...$(RESET)"
+	@cd $(BOT_DIR) && npm install
+	@echo "$(CYAN)▶ Installing Playwright browsers...$(RESET)"
+	@cd $(BOT_DIR) && npx playwright install chromium
+	@echo "$(GREEN)✅ Bot ready$(RESET)"
+
+.PHONY: bot-start
+bot-start: ## Start test bot with config from game-test-bot/config/config.json
+	@echo "$(CYAN)▶ Starting test bot...$(RESET)"
+	@cd $(BOT_DIR) && node src/index.js
+
+# Usage: make bot-run roomId=ABC123 teamCount=20 browser=chromium headless=false
+.PHONY: bot-run
+bot-run: ## Run bot with CLI overrides (roomId, teamCount, browser, headless)
+	@echo "$(CYAN)▶ Starting test bot with args: roomId=$(roomId) teamCount=$(teamCount) browser=$(browser) headless=$(headless)$(RESET)"
+	@cd $(BOT_DIR) && node src/index.js \
+		$(if $(roomId),--roomId=$(roomId),) \
+		$(if $(teamCount),--teamCount=$(teamCount),) \
+		$(if $(browser),--browser=$(browser),) \
+		$(if $(headless),--headless=$(headless),)
