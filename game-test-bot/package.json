@@ -1,0 +1,16 @@
+{
+  "name": "quiz-game-test-bot",
+  "version": "1.0.0",
+  "description": "E2E test bot simulating multiple players for Quiz Stack",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node src/index.js"
+  },
+  "dependencies": {
+    "playwright": "^1.44.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
