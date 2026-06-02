@@ -6,7 +6,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { getPublicGameState, type GameTeam, type GameState } from "../../services/gameService";
 import { getRoomByCode } from "../../services/roomService";
 import backgroundImage from "../../assets/background.png";
-// import waveImage from "../../assets/wave.png";
+import waveImage from "../../assets/wave.png";
 import Header from "../../components/Header";
 import { GridBg } from "../../components/ui/GridBg";
 import { useGameSocket } from "../../hooks/useGameSocket";
@@ -94,7 +94,12 @@ export default function StageWaitting() {
       {/* Top bar */}
       <Header title="Sảnh chờ" />
 
-      <main className="flex-grow w-full max-w-7xl mx-auto px-8 py-10 grid grid-cols-[1fr_320px] gap-10">
+      <main className="grow w-full max-w-7xl mx-auto px-8 py-10 grid grid-cols-[1fr_320px] gap-10">
+        <img
+          src={waveImage}
+          alt="waveImage"
+          className="absolute w-1/3 h-1/3 bottom-0 right-0 opacity-40 pointer-events-none select-none z-0"
+        />
 
         {/* ── Left: game title + team grid ─────────────────────────────── */}
         <div className="flex flex-col gap-8 min-w-0">
@@ -290,7 +295,7 @@ function JoinToast({
       exit={{ opacity: 0, y: -16 }}
       transition={{ duration: 0.3 }}
       onAnimationComplete={() => setTimeout(onDone, 2500)}
-      className={`fixed top-6 right-6 z-50 flex items-center gap-2.5 bg-white shadow-lg px-5 py-3 rounded-2xl ${
+      className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 bg-white shadow-lg px-5 py-3 rounded-2xl ${
         type === "join" ? "border border-primary/20" : "border border-orange-200"
       }`}
     >
