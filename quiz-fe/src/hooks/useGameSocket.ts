@@ -16,13 +16,14 @@ export function useGameSocket(gameId: number | null | undefined, events: EventMa
     if (!gameId) return;
 
     const channel = getGameChannel(String(gameId));
+    if (!channel) return;
 
     for (const [event, handler] of Object.entries(events)) {
       channel.listen(event, handler as (data: unknown) => void);
     }
 
     return () => {
-      getEcho().leave(`game.${gameId}`);
+      getEcho()?.leave(`game.${gameId}`);
     };
     // events object identity changes every render — only re-subscribe when gameId changes
     // eslint-disable-next-line react-hooks/exhaustive-deps

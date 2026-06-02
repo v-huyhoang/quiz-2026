@@ -12,10 +12,10 @@ export default function PlayerLayout() {
     if (!token || !gameId) return;
 
     sentLeaveRef.current = false;
-    getPlayerEcho(token).join(`presence-game.${gameId}`);
+    getPlayerEcho(token)?.join(`presence-game.${gameId}`);
 
     return () => {
-      getPlayerEcho(token).leave(`presence-game.${gameId}`);
+      getPlayerEcho(token)?.leave(`presence-game.${gameId}`);
       resetPlayerEcho();
     };
   }, [token, gameId]);

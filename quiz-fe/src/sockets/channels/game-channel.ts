@@ -1,3 +1,3 @@
 import { getEcho } from '../echo';
 
-export const getGameChannel = (gameId: string) => getEcho().channel(`game.${gameId}`);
+export const getGameChannel = (gameId: string) => getEcho()?.channel(`game.${gameId}`) ?? null;
