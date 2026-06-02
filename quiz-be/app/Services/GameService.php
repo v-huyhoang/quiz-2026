@@ -16,7 +16,11 @@ class GameService
 
     public function joinGame(string $code, string $teamName): array
     {
-        $game = Game::where('access_code', strtoupper($code))->firstOrFail();
+        $game = Game::where('access_code', strtoupper($code))->first();
+
+        if (!$game) {
+            throw new \Exception('Mã phòng không tồn tại. Vui lòng kiểm tra lại.');
+        }
 
         if ($game->status !== 'pending') {
             throw new \Exception('Game is not accepting new players');
@@ -26,17 +30,17 @@ class GameService
             throw new \Exception('Team name already taken');
         }
 
-        $team  = $game->teams()->create(['name' => $teamName]);
+        $team = $game->teams()->create(['name' => $teamName]);
         $token = $team->createToken('player-token')->plainTextToken;
 
         return [
-            'token'     => $token,
-            'team_id'   => $team->id,
+            'token' => $token,
+            'team_id' => $team->id,
             'team_name' => $team->name,
-            'game_id'   => $game->id,
-            'room'      => [
-                'id'          => $game->id,
-                'name'        => $game->name,
+            'game_id' => $game->id,
+            'room' => [
+                'id' => $game->id,
+                'name' => $game->name,
                 'access_code' => $game->access_code,
             ],
         ];
@@ -148,13 +152,13 @@ class GameService
         }
 
         return [
-            'status'              => $game->status,
-            'name'                => $game->name,
-            'access_code'         => $game->access_code,
-            'rounds_total'        => $game->rounds,
+            'status' => $game->status,
+            'name' => $game->name,
+            'access_code' => $game->access_code,
+            'rounds_total' => $game->rounds,
             'questions_per_round' => $game->questions_per_round,
-            'teams'               => $teams->map(fn($t) => ['id' => $t->id, 'name' => $t->name])->all(),
-            'current_round'       => $currentRound,
+            'teams' => $teams->map(fn($t) => ['id' => $t->id, 'name' => $t->name])->all(),
+            'current_round' => $currentRound,
         ];
     }
 
@@ -165,14 +169,14 @@ class GameService
         $teams = Game::findOrFail($id)->teams()->get();
 
         $ranked = $teams->map(function ($team) {
-            $subs    = Submission::where('team_id', $team->id)->get();
+            $subs = Submission::where('team_id', $team->id)->get();
             $correct = $subs->where('is_correct', true)->count();
             $totalMs = $subs->where('is_correct', true)->sum('response_time_ms');
 
             return [
-                'team_id'            => $team->id,
-                'team_name'          => $team->name,
-                'correct_count'      => $correct,
+                'team_id' => $team->id,
+                'team_name' => $team->name,
+                'correct_count' => $correct,
                 'total_time_seconds' => round($totalMs / 1000, 2),
             ];
         })->sort(function ($a, $b) {
@@ -212,11 +216,11 @@ class GameService
             $isCorrect = (bool) $answer->is_correct;
 
             Submission::create([
-                'team_id'           => $teamId,
+                'team_id' => $teamId,
                 'round_question_id' => $rqId,
-                'answer_id'         => $answerId,
-                'is_correct'        => $isCorrect,
-                'response_time_ms'  => $ms,
+                'answer_id' => $answerId,
+                'is_correct' => $isCorrect,
+                'response_time_ms' => $ms,
             ]);
         });
 
@@ -255,10 +259,10 @@ class GameService
             $questions = Question::inRandomOrder()->limit($game->questions_per_round)->get();
             foreach ($questions as $index => $question) {
                 RoundQuestion::create([
-                    'round_id'     => $round->id,
-                    'question_id'  => $question->id,
+                    'round_id' => $round->id,
+                    'question_id' => $question->id,
                     'order_number' => $index + 1,
-                    'status'       => 'pending',
+                    'status' => 'pending',
                 ]);
             }
         }
@@ -339,17 +343,17 @@ class GameService
                 ->get()
                 ->values()
                 ->map(fn($entry, $i) => [
-                    'rank'               => $i + 1,
-                    'team_id'            => $entry->team_id,
-                    'team_name'          => $entry->team_name,
-                    'correct_count'      => (int) $entry->correct_count,
+                    'rank' => $i + 1,
+                    'team_id' => $entry->team_id,
+                    'team_name' => $entry->team_name,
+                    'correct_count' => (int) $entry->correct_count,
                     'total_time_seconds' => round($entry->total_time_ms / 1000, 2),
                 ])
                 ->all();
 
             return [
                 'round_number' => $round->round_number,
-                'top_teams'    => $topTeams,
+                'top_teams' => $topTeams,
             ];
         })->all();
     }

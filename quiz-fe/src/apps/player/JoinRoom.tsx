@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Users, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -18,6 +18,13 @@ export default function JoinRoom() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
+
+  useEffect(() => {
+    const code = searchParams.get("room") ?? "";
+
+    setRoomCode(code);
+    setStep(code ? 2 : 1);
+  }, [searchParams]);
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,15 +202,20 @@ export default function JoinRoom() {
                       {roomCode}
                     </p>
                   </div>
-                  {!roomCodeFromUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setStep(1)}
-                      className="text-sm font-bold text-primary/70 hover:text-primary transition-colors uppercase tracking-wider"
-                    >
-                      Đổi mã
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate("/join", { replace: true });
+
+                      setRoomCode("");
+                      setTeamName("");
+                      setError("");
+                      setStep(1);
+                    }}
+                    className="text-sm font-bold text-primary/70 hover:text-primary transition-colors uppercase tracking-wider"
+                  >
+                    Đổi mã
+                  </button>
                 </div>
 
                 {/* Team Name */}
