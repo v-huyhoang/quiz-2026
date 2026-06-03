@@ -27,45 +27,45 @@ export default function PlayerLogin() {
       >
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary-container to-transparent"></div>
 
-        <div className="p-8 flex flex-col gap-8">
+        <div className="p-6 sm:p-8 flex flex-col gap-6 sm:gap-8">
           <div className="text-center flex flex-col items-center">
-            <div className="w-16 h-16 bg-primary/10 text-primary rounded-xl flex items-center justify-center mb-4">
-              <LogIn size={32} />
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 text-primary rounded-xl flex items-center justify-center mb-3 sm:mb-4">
+              <LogIn size={24} className="sm:w-8 sm:h-8" />
             </div>
-            <h1 className="text-3xl font-extrabold text-primary tracking-tighter">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-primary tracking-tighter">
               Quiz Stack
             </h1>
-            <p className="text-[10px] font-bold text-gray-400 mt-2 tracking-widest uppercase">
+            <p className="text-[9px] sm:text-[10px] font-bold text-gray-400 mt-1 sm:mt-2 tracking-widest uppercase">
               Enter the Arena
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="flex flex-col gap-6">
+          <form onSubmit={handleLogin} className="flex flex-col gap-4 sm:gap-6">
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+              <label className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
                 <Group size={12} /> Mã đội
               </label>
               <input
                 type="text"
                 placeholder="e.g. Neon Knights"
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 sm:py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+              <label className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
                 <Key size={12} /> Mật khẩu
               </label>
               <input
                 type="password"
                 placeholder="••••••••"
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 sm:py-3 text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
             </div>
 
             <button
               type="submit"
-              className="mt-4 w-full bg-primary text-white font-bold py-4 rounded-lg hover:bg-primary/90 transition-all flex items-center justify-center gap-2 group"
+              className="mt-2 sm:mt-4 w-full bg-primary text-white font-bold py-3.5 sm:py-4 rounded-lg hover:bg-primary/90 transition-all flex items-center justify-center gap-2 group"
             >
               <LogIn
                 size={20}
