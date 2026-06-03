@@ -1,364 +1,269 @@
-'use strict';
-
 const path = require('path');
-const SELECTORS = require('./selectors');
-const logger    = require('./logger');
-const { randomInt, ensureDir } = require('./utils');
+const fs   = require('fs');
+const { WebSocketListener } = require('./websocketListener');
+const logger   = require('./logger');
+const selectors = require('./selectors');
+const { sleep, randomDelay } = require('./utils');
 
-// Answer labels matching ANSWER_LABELS in quiz-fe/src/libs/utils.ts
-const ANSWER_LABELS = ['A', 'B', 'C', 'D'];
+const SCREENSHOTS_DIR = path.join(__dirname, '..', 'screenshots');
 
 class PlayerBot {
-  constructor({ browser, teamName, config }) {
-    this.browser  = browser;
-    this.teamName = teamName;
-    this.config   = config;
-
-    this.context = null;
-    this.page    = null;
-
-    // Stats
-    this.questionsAnswered    = 0;
-    this.successfulSubmissions = 0;
-    this.errors               = 0;
-
-    this._screenshotsDir = path.resolve(__dirname, '../screenshots');
-    ensureDir(this._screenshotsDir);
+  constructor(teamName, config) {
+    this.teamName = config.teamNamePrefix
+      ? `${config.teamNamePrefix} ${teamName}`
+      : teamName;
+    this.config = config;
+    this.stats = {
+      teamName: this.teamName,
+      joined: false,
+      questionsAnswered: 0,
+      successfulSubmissions: 0,
+      failedSubmissions: 0,
+      gameFinished: false,
+      startedAt: null,
+      finishedAt: null,
+      error: null,
+    };
+    this._gameFinished = false;
+    this._authToken = null;
+    this._gameId    = null;
   }
 
-  // ── Lifecycle ────────────────────────────────────────────────────────
+  async run(browser) {
+    this.stats.startedAt = Date.now();
+    this.context = await browser.newContext();
+    this.page    = await this.context.newPage();
+    this.ws      = new WebSocketListener(this.page);
 
-  async init() {
-    this.context = await this.browser.newContext({
-      viewport: { width: 1280, height: 720 },
-    });
-    this.page = await this.context.newPage();
-
-    this.page.on('console', msg => {
-      if (msg.type() === 'error') {
-        const text = msg.text();
-        if (!text.includes('favicon') && !text.includes('WebSocket') && !text.includes('ERR_')) {
-          logger.warn(this.teamName, `[browser] ${text.slice(0, 120)}`);
-        }
-      }
-    });
-
-    this.page.on('crash', () => logger.error(this.teamName, 'Page crashed!'));
-  }
-
-  async cleanup() {
-    if (this.context) {
-      await this.context.close().catch(() => {});
-    }
-  }
-
-  // ── Join Flow ────────────────────────────────────────────────────────
-
-  async joinRoom() {
-    const { baseUrl, roomId } = this.config;
-    const url = `${baseUrl}/join?room=${roomId}`;
-
-    logger.log(this.teamName, `Navigating → ${url}`);
-
-    await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-
-    const teamNameVisible = await this.page
-      .waitForSelector(SELECTORS.teamNameInput, { timeout: 8_000 })
-      .then(() => true)
-      .catch(() => false);
-
-    if (!teamNameVisible) {
-      logger.log(this.teamName, 'Step 1 visible, filling room code...');
-
-      const roomInput = await this.page.$(SELECTORS.roomCodeInput);
-      if (!roomInput) throw new Error('Cannot find room code input on join page');
-
-      await this.page.fill(SELECTORS.roomCodeInput, roomId);
-      await this.page.waitForTimeout(200);
-
-      await this.page.click(SELECTORS.step1NextButton);
-      await this.page.waitForSelector(SELECTORS.teamNameInput, { timeout: 8_000 });
-    }
-
-    await this.page.fill(SELECTORS.teamNameInput, this.teamName);
-    await this.page.waitForTimeout(150);
-
-    await this.page.click(SELECTORS.joinButton);
+    // Mark game finished on event so any pending waitFor can be short-circuited
+    this.ws.on('game.finished', () => { this._gameFinished = true; });
 
     try {
-      await this.page.waitForURL('**/player/waiting', { timeout: 20_000 });
-    } catch {
-      const errText = await this.page
-        .locator('[class*="text-red"], [class*="error"]')
-        .first()
-        .textContent()
-        .catch(() => '');
-
-      throw new Error(
-        errText
-          ? `Join failed: ${errText.trim()}`
-          : 'Navigation to /player/waiting timed out'
-      );
+      await this._join();
+      await this._waitForGameStart();
+      await this._playGame();
+    } catch (err) {
+      logger.error(this.teamName, err.message);
+      this.stats.error = err.message;
+      if (this.config.screenshotOnError) {
+        await this._screenshot('error');
+      }
+    } finally {
+      this.stats.finishedAt = Date.now();
+      await this._leaveGame();
+      try { await this.context.close(); } catch {}
     }
 
-    logger.success(this.teamName, 'Joined room ✓ — waiting for game...');
+    return this.stats;
   }
 
-  // ── Waiting Room ────────────────────────────────────────────────────
+  // ── Join flow ───────────────────────────────────────────────────────────────
 
-  async waitForGameStart() {
-    await this.page.waitForURL('**/player/game', { timeout: 0 });
-    logger.success(this.teamName, 'Game started — entering game!');
+  async _join() {
+    await this.page.goto(`${this.config.baseUrl}/join`);
+
+    // Step 1 — Enter room code
+    await this.page.locator(selectors.roomCodeInput).waitFor({ timeout: 15000 });
+    await this.page.locator(selectors.roomCodeInput).fill(this.config.roomCode);
+    await this.page.locator(selectors.formSubmit).click();
+
+    // Step 2 — Enter team name (wait for input to appear after step 1 transitions)
+    await this.page.locator(selectors.teamNameInput).waitFor({ timeout: 10000 });
+    await this.page.locator(selectors.teamNameInput).fill(this.teamName);
+    await this.page.locator(selectors.formSubmit).click();
+
+    // Wait for navigation to /player/waiting or /player/game
+    await this.page.waitForURL(/\/player\//, { timeout: 15000 });
+
+    // Read auth token + gameId from Zustand persist store in localStorage
+    const auth = await this.page.evaluate(() => {
+      try {
+        const raw = localStorage.getItem('quiz-auth');
+        if (!raw) return null;
+        const { state } = JSON.parse(raw);
+        return { token: state?.token ?? null, gameId: state?.gameId ?? null };
+      } catch { return null; }
+    });
+    this._authToken = auth?.token ?? null;
+    this._gameId    = auth?.gameId ?? null;
+
+    this.stats.joined = true;
+    logger.log(this.teamName, 'Joined Room');
   }
 
-  // ── Game Loop ────────────────────────────────────────────────────────
+  // ── Wait for game.started ───────────────────────────────────────────────────
 
-  async playGame() {
-    logger.log(this.teamName, 'In game — waiting for first round to start...');
+  async _waitForGameStart() {
+    logger.log(this.teamName, 'Waiting for game to start...');
 
-    while (true) {
-      // Poll until fresh question available OR game finishes
-      const answerButtons = await this._waitForFreshQuestion();
+    // If already navigated to /player/game (game already started), skip wait
+    if (this.page.url().includes('/player/game')) {
+      logger.log(this.teamName, 'Game already active');
+      return;
+    }
 
-      if (!answerButtons) {
-        // null means game finished detected
+    await this.ws.waitFor('game.started', 3_600_000); // max 1 hour
+    logger.log(this.teamName, 'Game Started');
+
+    // FE will navigate automatically; wait for it
+    await this.page.waitForURL(/\/player\/game/, { timeout: 10000 }).catch(() => {});
+  }
+
+  // ── Game loop ───────────────────────────────────────────────────────────────
+
+  async _playGame() {
+    let roundNumber = 0;
+
+    while (!this._gameFinished) {
+      // Wait for next question OR game to finish
+      const result = await Promise.race([
+        this.ws.waitFor('question.started', this.config.questionTimeoutMs)
+          .then(data => ({ type: 'question', data })),
+        this.ws.waitFor('game.finished', this.config.questionTimeoutMs)
+          .then(data => ({ type: 'finished', data })),
+      ]);
+
+      if (result.type === 'finished' || this._gameFinished) {
         break;
       }
 
-      this.questionsAnswered++;
-      const qNum = this.questionsAnswered;
+      const qData = result.data;
 
-      const qText = await this.page
-        .locator(SELECTORS.questionText)
-        .first()
-        .textContent()
-        .catch(() => '?');
-      logger.log(this.teamName, `Q#${qNum}: ${qText.trim().slice(0, 70)}`);
-
-      // Human-like delay before answering
-      const delay = randomInt(this.config.submitDelayMinMs, this.config.submitDelayMaxMs);
-      logger.log(this.teamName, `Q#${qNum}: thinking ${delay}ms...`);
-      await this.page.waitForTimeout(delay);
-
-      // Re-check: question still open? (might have closed while we were thinking)
-      const freshButtons = await this._getEnabledAnswerButtons();
-      if (!freshButtons || freshButtons.length === 0) {
-        logger.warn(this.teamName, `Q#${qNum}: question closed before we could answer`);
-        continue;
+      // Log new round detection
+      if (qData.round_number && qData.round_number !== roundNumber) {
+        roundNumber = qData.round_number;
+        logger.log(this.teamName, `Round ${roundNumber} Active`);
       }
 
-      const idx   = this.config.randomAnswer ? randomInt(0, freshButtons.length - 1) : 0;
-      const label = ANSWER_LABELS[idx] ?? String(idx + 1);
-
-      // Step 1: click answer button to select it
-      try {
-        await freshButtons[idx].click({ timeout: 3_000 });
-        logger.log(this.teamName, `Q#${qNum}: selected ${label}`);
-      } catch (e) {
-        logger.warn(this.teamName, `Q#${qNum}: click answer failed — ${e.message}`);
-        if (this.config.screenshotOnError) await this._screenshot(`q${qNum}-click-err`);
-        continue;
-      }
-
-      // Step 2: wait for "Chốt kèo" to become enabled (React updates selectedId), then submit
-      try {
-        await this._submitAnswer(qNum);
-        this.successfulSubmissions++;
-        logger.success(this.teamName, `Q#${qNum}: submitted (${label}) ✓`);
-      } catch (e) {
-        if (e.message.includes('409') || /already.submit/i.test(e.message) || e.message === 'duplicate') {
-          logger.warn(this.teamName, `Q#${qNum}: duplicate submit — ignored`);
-        } else {
-          this.errors++;
-          logger.error(this.teamName, `Q#${qNum}: submit error — ${e.message}`);
-          if (this.config.screenshotOnError) await this._screenshot(`q${qNum}-submit-err`);
-        }
-      }
+      await this._handleQuestion(qData);
     }
 
-    await this._onFinish();
-  }
-
-  // ── Internal Helpers ─────────────────────────────────────────────────
-
-  /**
-   * Poll until a fresh question is ready or the game ends.
-   * Returns enabled answer button locators, or null when game is finished.
-   *
-   * A "fresh" question = answer buttons present AND not disabled.
-   * After submitting, answer buttons become disabled (alreadySubmitted=true in React).
-   * After question closes, answer buttons disappear (ClosedScreen renders).
-   */
-  async _waitForFreshQuestion() {
-    let lastState = '';
-
-    while (true) {
-      // Game finished → clean exit
-      if (await this._isGameFinished()) {
-        logger.success(this.teamName, 'Game finished!');
-        return null;
-      }
-
-      // Fresh question = at least one enabled answer button (A–D) in the DOM
-      const buttons = await this._getEnabledAnswerButtons();
-      if (buttons && buttons.length > 0) {
-        if (lastState !== 'question') {
-          logger.log(this.teamName, 'Question started — ready to answer.');
-          lastState = 'question';
-        }
-        return buttons;
-      }
-
-      // Determine waiting state for logging
-      const state = await this._detectWaitState();
-      if (state !== lastState) {
-        if (state === 'waiting-round')   logger.log(this.teamName, 'Waiting for round to start...');
-        if (state === 'question-closed') logger.log(this.teamName, 'Question closed — waiting for next question...');
-        if (state === 'submitted')       logger.log(this.teamName, 'Answer submitted — waiting for question to close...');
-        lastState = state;
-      }
-
-      await this.page.waitForTimeout(500);
-    }
-  }
-
-  /**
-   * Detect which waiting state we're in (for logging only).
-   *
-   * States:
-   *   waiting-round   — WaitingForRound screen ("Sắp bắt đầu")
-   *   question-closed — ClosedScreen ("Đáp án" badge)
-   *   submitted       — answer buttons present but all disabled (already submitted this question)
-   *   loading         — transitioning / initial load
-   */
-  async _detectWaitState() {
-    // WaitingForRound screen
-    const waitCount = await this.page.locator('text=Sắp bắt đầu').count().catch(() => 0);
-    if (waitCount > 0) return 'waiting-round';
-
-    // ClosedScreen — "Đáp án" badge
-    const closedCount = await this.page.locator('text=Đáp án').count().catch(() => 0);
-    if (closedCount > 0) return 'question-closed';
-
-    // Answer buttons present but disabled → we already submitted this question
-    const allButtons = await this._getAnswerButtons();
-    if (allButtons && allButtons.length > 0) {
-      const isDisabled = await allButtons[0].isDisabled().catch(() => false);
-      if (isDisabled) return 'submitted';
-    }
-
-    return 'loading';
-  }
-
-  /** True when the game-finished screen ("Trận đấu kết thúc!") is rendered. */
-  async _isGameFinished() {
-    const count = await this.page
-      .locator('h2')
-      .filter({ hasText: 'Trận đấu kết thúc!' })
-      .count()
-      .catch(() => 0);
-    return count > 0;
-  }
-
-  /**
-   * Returns ALL answer buttons (A–D) in the DOM (enabled or disabled).
-   */
-  async _getAnswerButtons() {
-    return this.page
-      .locator('button')
-      .filter({ has: this.page.locator('span').filter({ hasText: /^[A-D]$/ }) })
-      .all()
-      .catch(() => []);
-  }
-
-  /**
-   * Returns only the ENABLED (not disabled) answer buttons.
-   * Disabled buttons mean the question has already been submitted.
-   */
-  async _getEnabledAnswerButtons() {
-    const all = await this._getAnswerButtons();
-    if (!all || all.length === 0) return [];
-
-    const enabled = [];
-    for (const btn of all) {
-      const disabled = await btn.isDisabled().catch(() => true);
-      if (!disabled) enabled.push(btn);
-    }
-    return enabled;
-  }
-
-  /**
-   * Wait for "Chốt kèo" to become enabled (selectedId was set by clicking answer),
-   * then click it to submit.
-   *
-   * "Chốt kèo" starts as disabled={!selectedId || submitting}, so it becomes
-   * clickable only after the user selects an answer.
-   */
-  async _submitAnswer(qNum) {
-    // Wait for submit button to become enabled (React re-renders after answer selection)
-    const submitLocator = this.page.locator('button').filter({ hasText: 'Chốt kèo' }).first();
-
-    const becameEnabled = await this.page.waitForFunction(
-      () => {
-        const btns = [...document.querySelectorAll('button')];
-        const btn = btns.find(b => b.textContent.trim() === 'Chốt kèo');
-        return btn && !btn.disabled;
-      },
-      { timeout: 3_000, polling: 100 }
-    ).then(() => true).catch(() => false);
-
-    if (!becameEnabled) {
-      // Could be question already closed or already submitted
-      const isVisible  = await submitLocator.isVisible().catch(() => false);
-      const isDisabled = await submitLocator.isDisabled().catch(() => true);
-
-      if (!isVisible)  throw new Error('Submit button not visible');
-      if (isDisabled)  throw new Error('duplicate');
-    }
-
-    await submitLocator.click({ timeout: 5_000 });
-
-    // Wait for button to enter loading/disabled state (confirms React processed the click)
-    await this.page.waitForFunction(
-      () => {
-        const btns = [...document.querySelectorAll('button')];
-        const btn  = btns.find(b => b.textContent.includes('Chốt kèo') || b.textContent.includes('Đang gửi'));
-        if (!btn) return true; // button disappeared = submitted & moved to next state
-        return btn.disabled || btn.textContent.includes('Đang gửi');
-      },
-      { timeout: 10_000, polling: 200 }
-    ).catch(() => {});
-  }
-
-  async _screenshot(tag) {
-    try {
-      const name = `${this.teamName.replace(/\s+/g, '-')}-${tag}.png`;
-      const filepath = path.join(this._screenshotsDir, name);
-      await this.page.screenshot({ path: filepath, fullPage: true });
-      logger.log(this.teamName, `Screenshot → ${name}`);
-    } catch {
-      // Non-critical
-    }
-  }
-
-  async _onFinish() {
-    logger.success(
-      this.teamName,
-      `Finished. Questions: ${this.questionsAnswered} | Submitted: ${this.successfulSubmissions} | Errors: ${this.errors}`
-    );
+    logger.log(this.teamName, 'Game Finished');
     await this._screenshot('finished');
+    this.stats.gameFinished = true;
   }
 
-  // ── Stats ─────────────────────────────────────────────────────────────
+  // ── Handle single question ──────────────────────────────────────────────────
 
-  getStats() {
-    return {
-      teamName:              this.teamName,
-      questionsAnswered:     this.questionsAnswered,
-      successfulSubmissions: this.successfulSubmissions,
-      errors:                this.errors,
-    };
+  async _handleQuestion(qData) {
+    const qNum = qData.order_number ?? '?';
+    this.stats.questionsAnswered++;
+    logger.log(this.teamName, `Question #${qNum} opened`);
+
+    // Random human-like delay before answering
+    const delay = randomDelay(this.config.submitDelayMinMs, this.config.submitDelayMaxMs);
+    await sleep(delay);
+
+    // Try to submit
+    try {
+      const label = await this._selectAndSubmit();
+      logger.log(this.teamName, `Question #${qNum} Selected: ${label} Submitted`);
+      this.stats.successfulSubmissions++;
+    } catch (err) {
+      const msg = err.message || '';
+      // 409 / "already submitted" is not a real failure — FE catches it gracefully
+      if (msg.includes('409') || msg.includes('already') || msg.includes('Đã nộp')) {
+        logger.log(this.teamName, `Question #${qNum} Already submitted (skip)`);
+        this.stats.successfulSubmissions++;
+      } else {
+        logger.error(this.teamName, `Q#${qNum} submit failed: ${msg}`);
+        this.stats.failedSubmissions++;
+        if (this.config.screenshotOnError) await this._screenshot(`q${qNum}-error`);
+      }
+    }
+
+    // Wait for question to close, or round/game to end
+    await this._waitForQuestionEnd(qNum);
+  }
+
+  async _selectAndSubmit() {
+    // Wait for answer grid to be visible
+    await this.page.locator(selectors.answerGrid).waitFor({ timeout: 10000 });
+
+    const buttons = await this.page.locator(selectors.answerButtons).all();
+    if (buttons.length === 0) throw new Error('No answer buttons found');
+
+    // Pick a random (or first) answer
+    const idx = this.config.randomAnswer
+      ? Math.floor(Math.random() * buttons.length)
+      : 0;
+    const chosen = buttons[idx];
+
+    // Get label text (A/B/C/D) for logging
+    let label = String.fromCharCode(65 + idx); // fallback: A/B/C/D by index
+    try {
+      const labelEl = chosen.locator(selectors.answerLabel).first();
+      const text = await labelEl.textContent({ timeout: 2000 });
+      if (text?.trim()) label = text.trim();
+    } catch {}
+
+    await chosen.click();
+
+    // Click submit button
+    await this.page.locator(selectors.submitButton).waitFor({ timeout: 5000 });
+    await this.page.locator(selectors.submitButton).click();
+
+    return label;
+  }
+
+  async _waitForQuestionEnd(qNum) {
+    const result = await Promise.race([
+      this.ws.waitFor('question.closed', this.config.questionTimeoutMs)
+        .then(() => 'closed'),
+      this.ws.waitFor('round.finished', this.config.questionTimeoutMs)
+        .then(d => {
+          logger.log(this.teamName, `Round ${d.round_number} Finished`);
+          return 'round_finished';
+        }),
+      this.ws.waitFor('game.finished', this.config.questionTimeoutMs)
+        .then(() => {
+          this._gameFinished = true;
+          return 'game_finished';
+        }),
+    ]).catch(() => {
+      logger.log(this.teamName, `Q#${qNum} — timeout waiting for question end`);
+      return 'timeout';
+    });
+
+    if (result === 'closed') {
+      logger.log(this.teamName, `Question #${qNum} Closed`);
+    }
+  }
+
+  // ── Cleanup ─────────────────────────────────────────────────────────────────
+
+  async _leaveGame() {
+    if (!this._authToken || !this._gameId || !this.config.apiBaseUrl) return;
+    try {
+      const res = await fetch(`${this.config.apiBaseUrl}/games/${this._gameId}/leave`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this._authToken}`,
+          'Accept': 'application/json',
+        },
+      });
+      if (res.ok) {
+        logger.log(this.teamName, 'Left game (cleanup)');
+      }
+    } catch (err) {
+      logger.warn?.(this.teamName, `Leave failed: ${err.message}`);
+    }
+  }
+
+  // ── Utilities ───────────────────────────────────────────────────────────────
+
+  async _screenshot(suffix) {
+    try {
+      if (!fs.existsSync(SCREENSHOTS_DIR)) {
+        fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
+      }
+      const name = `${this.teamName.replace(/\s+/g, '-').toLowerCase()}-${suffix}.png`;
+      await this.page.screenshot({
+        path: path.join(SCREENSHOTS_DIR, name),
+        fullPage: true,
+      });
+    } catch {}
   }
 }
 
-module.exports = PlayerBot;
+module.exports = { PlayerBot };
