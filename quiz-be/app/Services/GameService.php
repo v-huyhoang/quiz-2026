@@ -26,12 +26,21 @@ class GameService
             throw new \Exception('Game is not accepting new players');
         }
 
-        if ($game->teams()->where('name', $teamName)->exists()) {
-            throw new \Exception('Team name already taken');
-        }
+        $existingTeam = $game->teams()->where('name', $teamName)->first();
 
-        $team = $game->teams()->create(['name' => $teamName]);
-        $token = $team->createToken('player-token')->plainTextToken;
+        if ($existingTeam) {
+            if ($existingTeam->is_present) {
+                throw new \Exception('Team name already taken');
+            }
+            // Team left previously — allow rejoin, rotate token
+            $existingTeam->update(['is_present' => true]);
+            $existingTeam->tokens()->delete();
+            $team  = $existingTeam;
+            $token = $team->createToken('player-token')->plainTextToken;
+        } else {
+            $team  = $game->teams()->create(['name' => $teamName]);
+            $token = $team->createToken('player-token')->plainTextToken;
+        }
 
         return [
             'token' => $token,
