@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trophy, Medal, Timer, CheckCircle2, Loader2, Star } from "lucide-react";
+import { Trophy, Timer, CheckCircle2, Loader2, Star, Crown } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
@@ -9,67 +9,78 @@ import backgroundImage from "../../assets/background.png";
 const MEDAL_CONFIG = [
   {
     label: "1ST",
-    bg: "from-amber-400 to-yellow-300",
-    border: "border-amber-300",
-    glow: "shadow-[0_0_40px_rgba(251,191,36,0.6)]",
-    badge: "bg-amber-400 text-white",
-    ring: "ring-4 ring-amber-300/50",
-    size: "scale-110 -translate-y-4",
-    icon: <Trophy size={22} />,
+    bg: "from-yellow-300 via-yellow-400 to-amber-500",
+    border: "border-yellow-300",
+    glow: "shadow-[0_0_80px_rgba(255,215,0,0.9)]",
+    ring: "ring-8 ring-yellow-300/70",
+    size: "scale-[1.28] -translate-y-10",
   },
   {
     label: "2ND",
-    bg: "from-slate-400 to-gray-300",
+    bg: "from-slate-300 to-slate-500",
     border: "border-slate-300",
     glow: "shadow-[0_0_30px_rgba(148,163,184,0.5)]",
-    badge: "bg-slate-400 text-white",
     ring: "ring-4 ring-slate-300/40",
     size: "",
-    icon: <Medal size={22} />,
   },
   {
     label: "3RD",
-    bg: "from-orange-500 to-amber-400",
+    bg: "from-orange-400 to-orange-600",
     border: "border-orange-400",
     glow: "shadow-[0_0_30px_rgba(249,115,22,0.5)]",
-    badge: "bg-orange-500 text-white",
     ring: "ring-4 ring-orange-400/40",
     size: "",
-    icon: <Medal size={22} />,
   },
 ];
 
-function PodiumCard({ entry, config, delay }: { entry: RoundResultEntry; config: typeof MEDAL_CONFIG[0]; delay: number }) {
+function PodiumCard({ entry, config, delay, isWinner, }: {
+  entry: RoundResultEntry;
+  config: typeof MEDAL_CONFIG[0];
+  delay: number;
+  isWinner?: boolean;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.5, ease: "easeOut" }}
-      className={`flex flex-col items-center gap-3 px-6 py-5 rounded-2xl bg-white/10 backdrop-blur-md border ${config.border} ${config.glow} ${config.ring} ${config.size} transition-transform`}
-    >
-      {/* Medal badge */}
-      <div className={`w-10 h-10 rounded-full ${config.badge} flex items-center justify-center font-black shadow-lg`}>
-        {config.icon}
-      </div>
+      animate={{ opacity: 1, y: 0, boxShadow: isWinner ? "0 0 90px rgba(255,215,0,.95)" : undefined }}
+      transition={{ delay, duration: 0.6 }}
+      className={`relative overflow-visible flex flex-col items-center gap-4 px-8 py-8 min-w-[150px] rounded-3xl bg-white/10 backdrop-blur-md border ${config.border} ${config.glow} ${config.ring} ${config.size}`}>
+      {isWinner && (
+        <>
+          {/* Halo (static) */}
+          <div className="absolute -z-10 w-[280px] h-[280px] rounded-full bg-yellow-300/20 blur-3xl" />
 
-      {/* Avatar circle */}
-      <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${config.bg} flex items-center justify-center text-white text-2xl font-black shadow-lg`}>
+          {/* Crown (static) */}
+          <div className="-mb-2">
+            <Crown size={42} className="text-yellow-300 fill-yellow-400" />
+          </div>
+
+          {/* Champion Ribbon */}
+          <div className="absolute -top-5 px-5 py-2 rounded-full bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-500 text-black text-sm font-black tracking-widest">
+            CHAMPION
+          </div>
+        </>
+      )}
+
+      {/* Avatar */}
+      <div className={`w-24 h-24 rounded-full bg-gradient-to-br ${config.bg} flex items-center justify-center text-white text-4xl font-black shadow-lg`}>
         {entry.team_name.charAt(0).toUpperCase()}
       </div>
 
-      {/* Name */}
-      <p className="text-white font-black text-base text-center leading-tight max-w-[120px] break-words">
-        {entry.team_name}
+      {/* Team */}
+      <p className="text-white font-black text-xl text-center" title={entry.team_name}>
+        {entry.team_name.length > 7 ? `${entry.team_name.slice(0, 7)}…` : entry.team_name}
       </p>
 
       {/* Stats */}
-      <div className="flex flex-col items-center gap-1">
-        <div className="flex items-center gap-1 text-xs font-bold text-green-300">
-          <CheckCircle2 size={12} />
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex items-center gap-2 text-lg font-bold text-green-300">
+          <CheckCircle2 size={18} />
           <span>{entry.correct_count} đúng</span>
         </div>
-        <div className="flex items-center gap-1 text-xs font-bold text-white/60">
-          <Timer size={12} />
+
+        <div className="flex items-center gap-2 text-sm font-extrabold text-white">
+          <Timer size={18} />
           <span>{entry.total_time_seconds}s</span>
         </div>
       </div>
@@ -89,7 +100,7 @@ function RoundSection({ round, index }: { round: RoundResult; index: number }) {
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.15, duration: 0.4 }}
-      className="bg-primary-container  backdrop-blur-sm border border-white/10 rounded-3xl p-8"
+      className="h-full bg-primary-container backdrop-blur-sm border border-white/10 rounded-3xl p-6 flex flex-col"
     >
       {/* Round header */}
       <div className="flex items-center gap-3 mb-8">
@@ -97,8 +108,7 @@ function RoundSection({ round, index }: { round: RoundResult; index: number }) {
           <Star size={28} className="text-amber-400 fill-amber-400 font-extrabold" />
         </div>
         <div>
-          <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest">Vòng thi</p>
-          <h3 className="text-2xl font-black text-white uppercase tracking-widest">Round {round.round_number}</h3>
+          <h3 className="text-2xl font-black text-white uppercase tracking-widest">VÒNG THI {round.round_number}</h3>
         </div>
         <div className="ml-auto px-4 py-1.5 bg-primary-container/20 border border-primary-container/30 rounded-full">
           <p className="text-base font-black text-primary uppercase tracking-widest">Top 3 vinh danh</p>
@@ -108,7 +118,7 @@ function RoundSection({ round, index }: { round: RoundResult; index: number }) {
       {top3.length === 0 ? (
         <p className="text-center text-white text-sm py-4">Chưa có kết quả</p>
       ) : (
-        <div className="flex items-end justify-center gap-6">
+        <div className="flex-1 flex items-center justify-center gap-10">
           {podiumOrder.map((entry, i) => {
             if (!entry) return null;
             return (
@@ -117,6 +127,7 @@ function RoundSection({ round, index }: { round: RoundResult; index: number }) {
                 entry={entry}
                 config={configOrder[i]}
                 delay={index * 0.15 + i * 0.1 + 0.2}
+                isWinner={i === 1}
               />
             );
           })}
@@ -175,23 +186,23 @@ export default function StageFinal() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-secondary/10 rounded-full blur-[120px] animate-pulse" />
       </div>
 
-      <div className="relative z-10 max-w-4xl mx-auto px-6 py-12">
+      <div className="relative z-10 w-full h-screen px-10 py-8 flex flex-col">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
+          className="text-center mb-6 shrink-0"
         >
           <div className="inline-flex items-center gap-3 bg-gray-200 backdrop-blur-sm border border-white/20 rounded-full px-6 py-2 mb-6">
             <Trophy size={20} className="text-amber-400 font-extrabold" />
             <span className="text-xs font-black uppercase tracking-[0.2em] text-black/50">Kết quả thi đấu</span>
           </div>
-          <h1 className="text-6xl font-black uppercase tracking-tighter text-white drop-shadow-lg">
+          <h1 className="text-5xl font-black uppercase tracking-tighter text-white drop-shadow-lg">
             Vinh danh
             <span className="text-primary-container"> Top 3</span>
           </h1>
           <p className="text-black/50 text-md mt-3 font-bold uppercase tracking-widest">
-            Những người trả lời nhanh nhất và chính xác nhất
+            Những đội trả lời nhanh nhất và chính xác nhất
           </p>
         </motion.div>
 
@@ -207,9 +218,11 @@ export default function StageFinal() {
               <p className="text-sm font-bold uppercase tracking-widest">Không có dữ liệu kết quả</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-6">
+            <div className="flex-1 flex gap-6 min-h-0">
               {rounds.map((round, i) => (
-                <RoundSection key={round.round_number} round={round} index={i} />
+                <div key={round.round_number} className="flex-1">
+                  <RoundSection round={round} index={i} />
+                </div>
               ))}
             </div>
           )}
