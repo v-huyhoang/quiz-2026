@@ -10,7 +10,7 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import type { Question, QuestionType } from "../../type/question";
@@ -19,6 +19,7 @@ import type { ApiResponse } from "../../type/api";
 import { api } from "../../services/api";
 import { Pagination } from "../../components/Pagination";
 import { getApiErrorMessage, resolveStorageUrl } from "../../libs/utils";
+import QuestionTypeBadge from "../../components/ui/QuestionTypeBadge";
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
@@ -114,7 +115,11 @@ export const AdminQuestion = () => {
 
   const handleSetCorrect = (index: number) => {
     watchOptions?.forEach((_, i) => {
-      setValue(`options.${i}.isCorrect` as never, i === index as never, { shouldValidate: true });
+      setValue(
+        `options.${i}.isCorrect` as Path<QuestionFormValues>,
+        i === index,
+        { shouldValidate: true }
+      );
     });
   };
 
@@ -262,9 +267,7 @@ export const AdminQuestion = () => {
             <motion.div key={q.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm group relative">
               <div className="flex justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${q.type === "image_input" ? "text-purple-600 bg-purple-50 border-purple-200" : "text-blue-600 bg-blue-50 border-blue-200"}`}>
-                    {q.type === "image_input" ? "Nhìn hình" : "Trắc nghiệm"}
-                  </span>
+                  <QuestionTypeBadge type={q.type} />
                   <span className="text-xs text-gray-400 font-bold">{q.totalTime}s</span>
                 </div>
                 <button className="text-gray-400 hover:text-red-500 transition-colors" onClick={() => handleDelete(q.id)}>

@@ -587,7 +587,7 @@ function SingleChoiceQuestion({
                   {ans.content}
                 </span>
               </div>
-              {isSelected && <CheckCircle className="text-primary shrink-0" size={20} className="sm:w-6 sm:h-6" />}
+              {isSelected && <CheckCircle className="text-primary shrink-0 sm:w-6 sm:h-6" size={20} />}
             </motion.button>
           );
         })}
@@ -749,7 +749,7 @@ function ClosedScreen({
                     }`}>
                       {ans.content}
                     </span>
-                    {isCorrect && <CheckCircle className="text-green-500 shrink-0" size={20} className="sm:w-6 sm:h-6" />}
+                    {isCorrect && <CheckCircle className="text-green-500 shrink-0 sm:w-6 sm:h-6" size={20} />}
                   </div>
                 );
               })}
