@@ -17,7 +17,7 @@ async function runGameBot(config) {
   // Launch a single browser (contexts provide isolation)
   const browser = await chromium.launch({
     headless: config.headless,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
   });
 
   // Build team names: "Team 1", "Team 2", ... "Team N"

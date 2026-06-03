@@ -25,6 +25,8 @@ class PlayerBot {
       error: null,
     };
     this._gameFinished = false;
+    this._authToken = null;
+    this._gameId    = null;
   }
 
   async run(browser) {
@@ -48,6 +50,7 @@ class PlayerBot {
       }
     } finally {
       this.stats.finishedAt = Date.now();
+      await this._leaveGame();
       try { await this.context.close(); } catch {}
     }
 
@@ -71,6 +74,18 @@ class PlayerBot {
 
     // Wait for navigation to /player/waiting or /player/game
     await this.page.waitForURL(/\/player\//, { timeout: 15000 });
+
+    // Read auth token + gameId from Zustand persist store in localStorage
+    const auth = await this.page.evaluate(() => {
+      try {
+        const raw = localStorage.getItem('quiz-auth');
+        if (!raw) return null;
+        const { state } = JSON.parse(raw);
+        return { token: state?.token ?? null, gameId: state?.gameId ?? null };
+      } catch { return null; }
+    });
+    this._authToken = auth?.token ?? null;
+    this._gameId    = auth?.gameId ?? null;
 
     this.stats.joined = true;
     logger.log(this.teamName, 'Joined Room');
@@ -215,6 +230,26 @@ class PlayerBot {
     }
   }
 
+  // ── Cleanup ─────────────────────────────────────────────────────────────────
+
+  async _leaveGame() {
+    if (!this._authToken || !this._gameId || !this.config.apiBaseUrl) return;
+    try {
+      const res = await fetch(`${this.config.apiBaseUrl}/games/${this._gameId}/leave`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this._authToken}`,
+          'Accept': 'application/json',
+        },
+      });
+      if (res.ok) {
+        logger.log(this.teamName, 'Left game (cleanup)');
+      }
+    } catch (err) {
+      logger.warn?.(this.teamName, `Leave failed: ${err.message}`);
+    }
+  }
+
   // ── Utilities ───────────────────────────────────────────────────────────────
 
   async _screenshot(suffix) {
@@ -222,10 +257,15 @@ class PlayerBot {
       if (!fs.existsSync(SCREENSHOTS_DIR)) {
         fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
       }
+      // Wait for network and animations to settle so background images load
+      await this.page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+      await this.page.waitForTimeout(300);
+
       const name = `${this.teamName.replace(/\s+/g, '-').toLowerCase()}-${suffix}.png`;
       await this.page.screenshot({
         path: path.join(SCREENSHOTS_DIR, name),
         fullPage: true,
+        animations: 'disabled',
       });
     } catch {}
   }
