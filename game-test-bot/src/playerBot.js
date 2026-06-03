@@ -257,10 +257,15 @@ class PlayerBot {
       if (!fs.existsSync(SCREENSHOTS_DIR)) {
         fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
       }
+      // Wait for network and animations to settle so background images load
+      await this.page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+      await this.page.waitForTimeout(300);
+
       const name = `${this.teamName.replace(/\s+/g, '-').toLowerCase()}-${suffix}.png`;
       await this.page.screenshot({
         path: path.join(SCREENSHOTS_DIR, name),
         fullPage: true,
+        animations: 'disabled',
       });
     } catch {}
   }

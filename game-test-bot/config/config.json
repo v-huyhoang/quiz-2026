@@ -1,8 +1,7 @@
 {
-  "baseUrl": "http://localhost:5173",
-  "apiBaseUrl": "http://localhost:8000/api",
-  "roomCode": "ABC123",
-  "teamCount": 5,
+  "baseUrl": "http://13.113.136.8",
+  "roomCode": "44NNFH",
+  "teamCount": 10,
   "headless": true,
   "submitDelayMinMs": 300,
   "submitDelayMaxMs": 2000,
