@@ -324,6 +324,15 @@ function StageWaitingForRound({
 function StageGameFinished({ gameId }: { gameId: number }) {
   const navigate = useNavigate();
 
+  // Auto-navigate to final results after 3 seconds
+  useEffect(() => {
+    const t = setTimeout(() => {
+      navigate(`/stage/final?gameId=${gameId}`);
+    }, 3000);
+
+    return () => clearTimeout(t);
+  }, [gameId, navigate]);
+
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center overflow-hidden relative"
