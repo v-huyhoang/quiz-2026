@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -64,6 +64,7 @@ export const AdminRoom = () => {
 
   const [newRoomCode, setNewRoomCode] = useState("");
   const [newRoomName, setNewRoomName] = useState("");
+  const backdropMouseDown = useRef(false);
 
   useEffect(() => {
     fetchRooms();
@@ -430,7 +431,19 @@ export const AdminRoom = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-6"
-            onClick={(e) => e.target === e.currentTarget && handleClose()}
+            onMouseDown={(e) => {
+              backdropMouseDown.current = e.target === e.currentTarget;
+            }}
+            onMouseUp={(e) => {
+              if (
+                backdropMouseDown.current &&
+                e.target === e.currentTarget
+              ) {
+                handleClose();
+              }
+
+              backdropMouseDown.current = false;
+            }}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -852,7 +865,19 @@ export const AdminRoom = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-6"
-            onClick={(e) => e.target === e.currentTarget && handleCloseResults()}
+            onMouseDown={(e) => {
+              backdropMouseDown.current = e.target === e.currentTarget;
+            }}
+            onMouseUp={(e) => {
+              if (
+                backdropMouseDown.current &&
+                e.target === e.currentTarget
+              ) {
+                handleCloseResults();
+              }
+
+              backdropMouseDown.current = false;
+            }}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -923,8 +948,8 @@ export const AdminRoom = () => {
                                 key={rd.round_number}
                                 onClick={() => setActiveResultsRound(rd.round_number)}
                                 className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${activeResultsRound === rd.round_number
-                                    ? "bg-primary text-white shadow-sm"
-                                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                  ? "bg-primary text-white shadow-sm"
+                                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                                   }`}
                               >
                                 Round {rd.round_number}
@@ -943,22 +968,22 @@ export const AdminRoom = () => {
                                     <div
                                       key={entry.team_id}
                                       className={`flex items-center gap-4 px-5 py-3.5 rounded-xl border ${entry.rank === 1
-                                          ? "bg-amber-50 border-amber-200"
-                                          : entry.rank === 2
-                                            ? "bg-gray-50 border-gray-200"
-                                            : entry.rank === 3
-                                              ? "bg-orange-50 border-orange-200"
-                                              : "bg-white border-gray-100"
+                                        ? "bg-amber-50 border-amber-200"
+                                        : entry.rank === 2
+                                          ? "bg-gray-50 border-gray-200"
+                                          : entry.rank === 3
+                                            ? "bg-orange-50 border-orange-200"
+                                            : "bg-white border-gray-100"
                                         }`}
                                     >
                                       <span
                                         className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${entry.rank === 1
-                                            ? "bg-amber-400 text-white"
-                                            : entry.rank === 2
-                                              ? "bg-gray-400 text-white"
-                                              : entry.rank === 3
-                                                ? "bg-orange-400 text-white"
-                                                : "bg-gray-100 text-gray-500"
+                                          ? "bg-amber-400 text-white"
+                                          : entry.rank === 2
+                                            ? "bg-gray-400 text-white"
+                                            : entry.rank === 3
+                                              ? "bg-orange-400 text-white"
+                                              : "bg-gray-100 text-gray-500"
                                           }`}
                                       >
                                         {entry.rank}

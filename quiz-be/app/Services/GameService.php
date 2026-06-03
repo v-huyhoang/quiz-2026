@@ -16,27 +16,40 @@ class GameService
 
     public function joinGame(string $code, string $teamName): array
     {
-        $game = Game::where('access_code', strtoupper($code))->firstOrFail();
+        $game = Game::where('access_code', strtoupper($code))->first();
+
+        if (!$game) {
+            throw new \Exception('Mã phòng không tồn tại. Vui lòng kiểm tra lại.');
+        }
 
         if ($game->status !== 'pending') {
             throw new \Exception('Game is not accepting new players');
         }
 
-        if ($game->teams()->where('name', $teamName)->exists()) {
-            throw new \Exception('Team name already taken');
+        $existingTeam = $game->teams()->where('name', $teamName)->first();
+
+        if ($existingTeam) {
+            if ($existingTeam->is_present) {
+                throw new \Exception('Team name already taken');
+            }
+            // Team left previously — allow rejoin, rotate token
+            $existingTeam->update(['is_present' => true]);
+            $existingTeam->tokens()->delete();
+            $team  = $existingTeam;
+            $token = $team->createToken('player-token')->plainTextToken;
+        } else {
+            $team  = $game->teams()->create(['name' => $teamName]);
+            $token = $team->createToken('player-token')->plainTextToken;
         }
 
-        $team  = $game->teams()->create(['name' => $teamName]);
-        $token = $team->createToken('player-token')->plainTextToken;
-
         return [
-            'token'     => $token,
-            'team_id'   => $team->id,
+            'token' => $token,
+            'team_id' => $team->id,
             'team_name' => $team->name,
-            'game_id'   => $game->id,
-            'room'      => [
-                'id'          => $game->id,
-                'name'        => $game->name,
+            'game_id' => $game->id,
+            'room' => [
+                'id' => $game->id,
+                'name' => $game->name,
                 'access_code' => $game->access_code,
             ],
         ];
@@ -49,12 +62,17 @@ class GameService
         return $this->buildState(Game::findOrFail($id), isAdmin: false);
     }
 
+    public function getPlayerState(int $id, int $teamId): array
+    {
+        return $this->buildState(Game::findOrFail($id), isAdmin: false, teamId: $teamId);
+    }
+
     public function getAdminState(int $id): array
     {
         return $this->buildState(Game::findOrFail($id), isAdmin: true);
     }
 
-    private function buildState(Game $game, bool $isAdmin): array
+    private function buildState(Game $game, bool $isAdmin, ?int $teamId = null): array
     {
         $teams = $game->teams()->where('is_present', true)->get(['id', 'name']);
 
@@ -107,6 +125,18 @@ class GameService
                         ])->all(),
                     ];
 
+                    if ($teamId !== null) {
+                        $mySubmission = Submission::where('round_question_id', $currentRQ->id)
+                            ->where('team_id', $teamId)
+                            ->first();
+
+                        $currentQuestion['my_submission'] = $mySubmission ? [
+                            'answer_id' => $mySubmission->answer_id,
+                            'is_correct' => (bool) $mySubmission->is_correct,
+                            'response_time_ms' => $mySubmission->response_time_ms,
+                        ] : null;
+                    }
+
                     if ($isAdmin) {
                         $subs = Submission::where('round_question_id', $currentRQ->id)->get();
                         $submittedIds = $subs->pluck('team_id')->all();
@@ -131,13 +161,13 @@ class GameService
         }
 
         return [
-            'status'              => $game->status,
-            'name'                => $game->name,
-            'access_code'         => $game->access_code,
-            'rounds_total'        => $game->rounds,
+            'status' => $game->status,
+            'name' => $game->name,
+            'access_code' => $game->access_code,
+            'rounds_total' => $game->rounds,
             'questions_per_round' => $game->questions_per_round,
-            'teams'               => $teams->map(fn($t) => ['id' => $t->id, 'name' => $t->name])->all(),
-            'current_round'       => $currentRound,
+            'teams' => $teams->map(fn($t) => ['id' => $t->id, 'name' => $t->name])->all(),
+            'current_round' => $currentRound,
         ];
     }
 
@@ -148,14 +178,14 @@ class GameService
         $teams = Game::findOrFail($id)->teams()->get();
 
         $ranked = $teams->map(function ($team) {
-            $subs    = Submission::where('team_id', $team->id)->get();
+            $subs = Submission::where('team_id', $team->id)->get();
             $correct = $subs->where('is_correct', true)->count();
             $totalMs = $subs->where('is_correct', true)->sum('response_time_ms');
 
             return [
-                'team_id'            => $team->id,
-                'team_name'          => $team->name,
-                'correct_count'      => $correct,
+                'team_id' => $team->id,
+                'team_name' => $team->name,
+                'correct_count' => $correct,
                 'total_time_seconds' => round($totalMs / 1000, 2),
             ];
         })->sort(function ($a, $b) {
@@ -172,8 +202,12 @@ class GameService
 
     public function submitAnswer(int $teamId, int $rqId, int $answerId, ?int $clientResponseTimeMs = null): bool
     {
-        $isCorrect = false;
+        $rq = RoundQuestion::findOrFail($rqId);
+        if ($rq->status !== 'open') {
+            throw new \Exception('Question is not open');
+        }
 
+        $isCorrect = false;
         DB::transaction(function () use ($teamId, $rqId, $answerId, $clientResponseTimeMs, &$isCorrect) {
             $exists = Submission::where('team_id', $teamId)
                 ->where('round_question_id', $rqId)
@@ -196,13 +230,17 @@ class GameService
             $ms = $clientResponseTimeMs ?? ($rq->opened_at ? now()->diffInMilliseconds($rq->opened_at) : 0);
             $isCorrect = (bool) $answer->is_correct;
 
-            Submission::create([
-                'team_id'           => $teamId,
-                'round_question_id' => $rqId,
-                'answer_id'         => $answerId,
-                'is_correct'        => $isCorrect,
-                'response_time_ms'  => $ms,
-            ]);
+            try {
+                Submission::create([
+                    'team_id' => $teamId,
+                    'round_question_id' => $rqId,
+                    'answer_id' => $answerId,
+                    'is_correct' => $isCorrect,
+                    'response_time_ms' => $ms,
+                ]);
+            } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+                throw new \Exception('Already submitted for this question');
+            }
         });
 
         return $isCorrect;
@@ -240,10 +278,10 @@ class GameService
             $questions = Question::inRandomOrder()->limit($game->questions_per_round)->get();
             foreach ($questions as $index => $question) {
                 RoundQuestion::create([
-                    'round_id'     => $round->id,
-                    'question_id'  => $question->id,
+                    'round_id' => $round->id,
+                    'question_id' => $question->id,
                     'order_number' => $index + 1,
-                    'status'       => 'pending',
+                    'status' => 'pending',
                 ]);
             }
         }
@@ -324,17 +362,17 @@ class GameService
                 ->get()
                 ->values()
                 ->map(fn($entry, $i) => [
-                    'rank'               => $i + 1,
-                    'team_id'            => $entry->team_id,
-                    'team_name'          => $entry->team_name,
-                    'correct_count'      => (int) $entry->correct_count,
+                    'rank' => $i + 1,
+                    'team_id' => $entry->team_id,
+                    'team_name' => $entry->team_name,
+                    'correct_count' => (int) $entry->correct_count,
                     'total_time_seconds' => round($entry->total_time_ms / 1000, 2),
                 ])
                 ->all();
 
             return [
                 'round_number' => $round->round_number,
-                'top_teams'    => $topTeams,
+                'top_teams' => $topTeams,
             ];
         })->all();
     }

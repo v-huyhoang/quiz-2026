@@ -13,8 +13,10 @@ use App\Http\Requests\Game\GetCurrentQuestionRequest;
 use App\Http\Requests\Game\JoinGameRequest;
 use App\Http\Requests\Game\SubmitAnswerRequest;
 use App\Models\Game;
+use App\Models\Team;
 use App\Services\GameService;
 use App\Traits\ApiResponseTrait;
+use Illuminate\Http\Request;
 
 class GameController extends Controller
 {
@@ -52,6 +54,21 @@ class GameController extends Controller
     {
         try {
             return $this->successResponse($this->gameService->getPublicState($id));
+        } catch (\Exception $e) {
+            return $this->resourceNotFoundResponse('Game not found');
+        }
+    }
+
+    public function playerState(int $id, Request $request)
+    {
+        $team = $request->user();
+
+        if (! $team instanceof Team || $team->game_id !== $id) {
+            return $this->errorResponse('Forbidden', null, 403);
+        }
+
+        try {
+            return $this->successResponse($this->gameService->getPlayerState($id, $team->id));
         } catch (\Exception $e) {
             return $this->resourceNotFoundResponse('Game not found');
         }

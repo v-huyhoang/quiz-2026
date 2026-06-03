@@ -31,6 +31,9 @@ export interface RoundResult {
 export const getPublicGameState = (gameId: number | string) =>
   api.get<ApiResponse<GameState>>(`/games/${gameId}/state`);
 
+export const getPlayerGameState = (gameId: number | string) =>
+  api.get<ApiResponse<GameState>>(`/games/${gameId}/player-state`);
+
 export const getLeaderboard = (gameId: number | string) =>
   api.get<ApiResponse<LeaderboardEntry[]>>(`/games/${gameId}/leaderboard`);
 

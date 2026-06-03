@@ -161,7 +161,7 @@ export default function AdminGameControl() {
               <StatusCard
                 icon={<Users size={20} />}
                 label="Teams"
-                value={`${teams.length} / 16`}
+                value={`${teams.length} / 30`}
                 color="bg-blue-50 text-blue-600"
               />
               <StatusCard

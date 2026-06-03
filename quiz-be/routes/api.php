@@ -20,6 +20,7 @@ Route::post('/reverb/webhook', [\App\Http\Controllers\ReverbWebhookController::c
 
 // ── Player (authenticated as team via player-token) ───────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/games/{id}/player-state', [\App\Http\Controllers\GameController::class, 'playerState']);
     Route::post('/games/submit', [\App\Http\Controllers\GameController::class, 'submitAnswer']);
     Route::post('/games/{id}/leave', [\App\Http\Controllers\GameController::class, 'leave']);
     Route::post('/games/{id}/announce', [\App\Http\Controllers\GameController::class, 'announce']);
