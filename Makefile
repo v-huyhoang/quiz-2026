@@ -41,6 +41,7 @@ help: ## Display list of main commands
 	@echo "$(YELLOW)▶ Libraries & Packages$(RESET)"
 	@echo "  $(GREEN)fe-install$(RESET)               Install frontend libraries (run on both local machine and container)"
 	@echo "  $(GREEN)be-composer$(RESET)              Run composer install in backend container"
+	@echo "  $(GREEN)be-recreate$(RESET)              Recreate backend container (use after changing quiz-be/.env)"
 	@echo "  $(GREEN)be-services$(RESET)              Start/restart Reverb WebSocket + queue worker (needed after be-composer)"
 	@echo ""
 	@echo "$(YELLOW)▶ Database & Artisan$(RESET)"
@@ -135,6 +136,12 @@ be-composer: ## Run composer install in backend container
 	@echo "$(CYAN)▶ Running composer install...$(RESET)"
 	@docker exec $(APP_CONTAINER) composer install --no-interaction --prefer-dist
 	@echo "$(GREEN)✅ Composer install completed$(RESET)"
+
+.PHONY: be-recreate
+be-recreate: ## Recreate backend container only (use after changing quiz-be/.env)
+	@echo "$(CYAN)▶ Recreating backend container to reload .env...$(RESET)"
+	@docker compose $(FULL_COMPOSE) up -d --force-recreate --no-deps app
+	@echo "$(GREEN)✅ Backend container recreated with latest .env$(RESET)"
 
 .PHONY: be-services
 be-services: ## Start/restart Reverb WebSocket server and queue worker
