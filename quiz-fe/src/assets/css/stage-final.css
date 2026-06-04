@@ -1,0 +1,61 @@
+.champion-halo {
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border-radius: 9999px;
+
+  background: conic-gradient(from 0deg,
+      transparent,
+      rgba(255, 215, 0, 0.9),
+      transparent,
+      rgba(255, 255, 255, 0.7),
+      transparent);
+
+  filter: blur(10px);
+  opacity: 0.45;
+
+  animation: haloSpin 8s linear infinite;
+}
+
+@keyframes haloSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.champion-shimmer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.champion-shimmer::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -40%;
+  width: 35%;
+  height: 200%;
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, .8),
+      transparent);
+  transform: rotate(20deg);
+  animation: shimmerMove 3s linear infinite;
+}
+
+@keyframes shimmerMove {
+  0% {
+    left: -40%;
+  }
+
+  100% {
+    left: 140%;
+  }
+}
