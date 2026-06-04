@@ -7,6 +7,7 @@ import { getPublicRoundResults, type RoundResult, type RoundResultEntry } from "
 import backgroundImage from "../../assets/background.png";
 import waveImage from "../../assets/wave.png";
 import logoImage from "../../assets/logo.png";
+import "../../assets/css/stage-final.css"
 
 const RANK_CONFIG = [
   {
@@ -14,7 +15,7 @@ const RANK_CONFIG = [
     label: "👑 VUA KIẾN THỨC",
     border: "border-yellow-500",
     bg: "from-yellow-300/70 to-amber-400/50",
-    glow: "shadow-[0_0_30px_rgba(255,215,0,0.5)]",
+    glow: "shadow-[0_0_20px_rgba(255,215,0,0.6),0_0_50px_rgba(255,215,0,0.4),0_0_80px_rgba(255,215,0,0.25)]",
   },
   {
     icon: "🥈",
@@ -54,6 +55,15 @@ function RankingRow({ entry, rank, }: {
         px-6 py-5
       `}
     >
+      {rank === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="champion-halo" />
+        </div>
+      )}
+      {rank === 0 && (
+        <div className="champion-shimmer" />
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center">
           <div className="text-5xl">
@@ -154,10 +164,11 @@ export default function StageFinal() {
   const gameId = searchParams.get("gameId");
 
   const [rounds, setRounds] = useState<RoundResult[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !!gameId);
 
   useEffect(() => {
-    if (!gameId) { setLoading(false); return; }
+    if (!gameId) return;
+    
     getPublicRoundResults(gameId)
       .then((res) => setRounds(res.data.data ?? []))
       .catch(console.error)
