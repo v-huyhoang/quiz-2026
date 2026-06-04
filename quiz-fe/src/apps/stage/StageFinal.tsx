@@ -6,6 +6,7 @@ import confetti from "canvas-confetti";
 import { getPublicRoundResults, type RoundResult, type RoundResultEntry } from "../../services/gameService";
 import backgroundImage from "../../assets/background.png";
 import waveImage from "../../assets/wave.png";
+import logoImage from "../../assets/logo.png";
 
 const RANK_CONFIG = [
   {
@@ -203,6 +204,14 @@ export default function StageFinal() {
         className="absolute w-1/3 h-1/3 bottom-0 right-0 opacity-40 pointer-events-none select-none z-0"
       />
 
+      <div className="absolute top-4 right-8 px-4 py-2 rounded-2xl bg-white/20 backdrop-blur-sm z-10">
+        <img
+          src={logoImage}
+          alt="Logo"
+          className="h-28 w-auto object-contain"
+        />
+      </div>
+
       <div className="relative z-10 w-full h-screen px-10 py-8 flex flex-col">
         {/* Header */}
         <motion.div
@@ -214,7 +223,7 @@ export default function StageFinal() {
             <Trophy size={20} className="text-amber-400 font-extrabold" />
             <span className="text-xs font-black uppercase tracking-[0.2em] text-black/50">Kết quả thi đấu</span>
           </div>
-          <h1 className="flex items-center justify-center gap-4">
+          <h1 className="flex items-center justify-center gap-4 drop-shadow-lg">
             <span className="text-5xl font-black uppercase text-white">
               VINH DANH
             </span>
