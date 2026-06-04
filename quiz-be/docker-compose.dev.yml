@@ -5,6 +5,8 @@ services:
     ports:
       - "8000:80"
       - "8080:8080"
+    volumes:
+      - storage_public_dev:/var/www/html/storage/app/public
     env_file:
       - .env.dev
     depends_on:
@@ -31,3 +33,4 @@ services:
 
 volumes:
   mysql_data_dev:
+  storage_public_dev:

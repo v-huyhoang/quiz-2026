@@ -60,6 +60,7 @@ jobs:
               echo "Waiting for MySQL before migration... attempt $i/30"
               sleep 5
             done
+            docker exec quiz-be-dev php artisan storage:link --force
             docker exec quiz-be-dev php artisan optimize:clear
 
   deploy-prod:
@@ -109,4 +110,5 @@ jobs:
               echo "Waiting for MySQL before migration... attempt $i/30"
               sleep 5
             done
+            docker exec quiz-be-prod php artisan storage:link --force
             docker exec quiz-be-prod php artisan optimize
