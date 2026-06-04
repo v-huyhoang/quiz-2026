@@ -11,13 +11,14 @@ export interface TeamSubmission {
 }
 
 export interface GameAnswer {
-  id: number;
+  id: number | null;
   content: string;
   is_correct: boolean | null;
 }
 
 export interface MySubmission {
-  answer_id: number;
+  answer_id: number | null;
+  submitted_data: { answer_id?: number; text?: string } | null;
   is_correct: boolean;
   response_time_ms: number;
 }
@@ -25,7 +26,9 @@ export interface MySubmission {
 export interface CurrentQuestion {
   round_question_id: number;
   order_number: number;
-  content: string;
+  type: "single_choice" | "image_input";
+  content: string | null;
+  image_url: string | null;
   status: "open" | "closed";
   opened_at: string | null;
   time_limit_seconds: number;

@@ -7,7 +7,7 @@ import backgroundImage from "../../assets/background.png";
 import StageRoundComplete from "./StageRoundComplete";
 import { QuestionTimer } from "../../components/ui/QuestionTimer";
 import { GridBg } from "../../components/ui/GridBg";
-import { ANSWER_LABELS } from "../../libs/utils";
+import { ANSWER_LABELS, resolveStorageUrl } from "../../libs/utils";
 import { useGameSocket } from "../../hooks/useGameSocket";
 
 const LABELS = ANSWER_LABELS;
@@ -25,11 +25,19 @@ interface QuestionStartedEvent {
   round_number: number;
   total_questions: number;
   opened_at: string;
-  question: { content: string; answers: GameAnswer[] };
+  question: {
+    type: "single_choice" | "image_input";
+    content: string | null;
+    image_url: string | null;
+    answers: GameAnswer[];
+  };
 }
 
 interface QuestionClosedEvent {
-  question: { answers: GameAnswer[] };
+  question: {
+    type?: "single_choice" | "image_input";
+    answers: GameAnswer[];
+  };
 }
 
 interface RoundFinishedEvent {
@@ -96,12 +104,14 @@ export default function StageGame() {
       setTotalQ(data.total_questions);
       setQuestion({
         round_question_id: data.round_question_id,
-        order_number: data.order_number,
-        content: data.question.content,
-        status: "open",
-        opened_at: data.opened_at ?? new Date().toISOString(),
+        order_number:      data.order_number,
+        type:              data.question.type ?? "single_choice",
+        content:           data.question.content ?? null,
+        image_url:         data.question.image_url ?? null,
+        status:            "open",
+        opened_at:         data.opened_at ?? new Date().toISOString(),
         time_limit_seconds: data.time_limit_seconds,
-        answers: data.question.answers,
+        answers:           data.question.answers,
       });
     },
     ".question.closed": (data: QuestionClosedEvent) => {
@@ -202,63 +212,128 @@ export default function StageGame() {
           )}
         </div>
 
-        {/* Question text */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={question.round_question_id}
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="text-center mb-16"
-          >
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-gray-900 leading-tight">
-              {question.content}
-            </h1>
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Answer options */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.15 }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto w-full"
-        >
-          {question.answers.map((ans, i) => {
-            const isCorrect = ans.is_correct === true;
-            const revealed = question.status === "closed";
-
-            return (
-              <motion.div
-                key={ans.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 + i * 0.08 }}
-                className={`border-4 rounded-2xl p-8 flex items-center gap-6 shadow-lg transition-all ${revealed
-                  ? isCorrect
-                    ? "bg-green-50 border-green-400"
-                    : "bg-gray-50 border-gray-200 opacity-50"
-                  : "bg-white border-gray-200"
-                  }`}
-              >
-                <span className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-black shrink-0 border-2 ${revealed && isCorrect
-                  ? "bg-green-500 text-white border-green-500"
-                  : "bg-gray-100 border-gray-300 text-gray-600"
-                  }`}>
-                  {LABELS[i]}
-                </span>
-                <span className={`text-2xl md:text-3xl font-bold flex-1 ${revealed && isCorrect ? "text-green-800" : "text-gray-900"
-                  }`}>
-                  {ans.content}
-                </span>
-                {revealed && isCorrect && <CheckCircle size={32} className="text-green-500 shrink-0" />}
-              </motion.div>
-            );
-          })}
-        </motion.div>
+        {/* Question content — branches by type */}
+        {question.type === "image_input" ? (
+          <StageImageInputQuestion question={question} />
+        ) : (
+          <StageChoiceQuestion question={question} />
+        )}
       </main>
       <GridBg />
     </div>
+  );
+}
+
+// ── Stage question sub-components ────────────────────────────────────────────
+
+function StageImageInputQuestion({ question }: { question: CurrentQuestion }) {
+  const revealed   = question.status === "closed";
+  const correctAns = question.answers.find((a) => a.is_correct === true);
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={question.round_question_id}
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
+        className="flex flex-col items-center gap-8"
+      >
+        {/* Image */}
+        <div className="w-fit max-w-5xl rounded-3xl overflow-hidden border-4 border-white shadow-2xl bg-transparent flex items-center justify-center mx-auto">
+          {question.image_url ? (
+            <img src={resolveStorageUrl(question.image_url) ?? ""} alt="Câu hỏi" className="max-w-full h-auto max-h-[60vh] block" />
+          ) : (
+            <div className="py-24 text-gray-300 text-center">
+              <span className="text-lg font-bold">Không tải được ảnh</span>
+            </div>
+          )}
+        </div>
+
+        {question.type === "image_input" ? (
+          <p className="text-2xl font-bold text-primary text-center">Nhìn hình đoán câu thành ngữ</p>
+        ) : question.content && (
+          <p className="text-2xl font-bold text-gray-500 text-center">{question.content}</p>
+        )}
+
+        {/* Reveal correct answer when closed */}
+        {revealed && correctAns && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="w-full max-w-2xl rounded-3xl border-4 border-green-400 bg-green-50 px-10 py-8 text-center shadow-xl"
+          >
+            <p className="text-sm font-black text-green-500 uppercase tracking-widest mb-3">Đáp án đúng</p>
+            <p className="text-5xl md:text-6xl font-black text-green-800 leading-tight">{correctAns.content}</p>
+          </motion.div>
+        )}
+
+        {!revealed && (
+          <p className="text-xl font-bold text-gray-400 uppercase tracking-widest animate-pulse">
+            Đang chờ player trả lời...
+          </p>
+        )}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+function StageChoiceQuestion({ question }: { question: CurrentQuestion }) {
+  const revealed = question.status === "closed";
+
+  return (
+    <>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={question.round_question_id}
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="text-center mb-16"
+        >
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-gray-900 leading-tight">
+            {question.content}
+          </h1>
+        </motion.div>
+      </AnimatePresence>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.15 }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto w-full"
+      >
+        {question.answers.map((ans, i) => {
+          const isCorrect = ans.is_correct === true;
+          return (
+            <motion.div
+              key={ans.id ?? i}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 + i * 0.08 }}
+              className={`border-4 rounded-2xl p-8 flex items-center gap-6 shadow-lg transition-all ${
+                revealed
+                  ? isCorrect ? "bg-green-50 border-green-400" : "bg-gray-50 border-gray-200 opacity-50"
+                  : "bg-white border-gray-200"
+              }`}
+            >
+              <span className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-black shrink-0 border-2 ${
+                revealed && isCorrect
+                  ? "bg-green-500 text-white border-green-500"
+                  : "bg-gray-100 border-gray-300 text-gray-600"
+              }`}>
+                {LABELS[i]}
+              </span>
+              <span className={`text-2xl md:text-3xl font-bold flex-1 ${revealed && isCorrect ? "text-green-800" : "text-gray-900"}`}>
+                {ans.content}
+              </span>
+              {revealed && isCorrect && <CheckCircle size={32} className="text-green-500 shrink-0" />}
+            </motion.div>
+          );
+        })}
+      </motion.div>
+    </>
   );
 }
 

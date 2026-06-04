@@ -13,10 +13,12 @@ use App\Http\Requests\Game\GetCurrentQuestionRequest;
 use App\Http\Requests\Game\JoinGameRequest;
 use App\Http\Requests\Game\SubmitAnswerRequest;
 use App\Models\Game;
+use App\Models\RoundQuestion;
 use App\Models\Team;
 use App\Services\GameService;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class GameController extends Controller
 {
@@ -88,7 +90,11 @@ class GameController extends Controller
         $team = $request->user();
 
         try {
-            $isCorrect = $this->gameService->submitAnswer($team->id, $request->round_question_id, $request->answer_id, $request->response_time_ms);
+            $answerPayload = $request->answer_id
+                ? ['answer_id' => $request->answer_id]
+                : ['text' => $request->text_answer ?? ''];
+
+            $isCorrect = $this->gameService->submitAnswer($team->id, $request->round_question_id, $answerPayload, $request->response_time_ms);
             return $this->successResponse(['is_correct' => $isCorrect], 'Answer submitted');
         } catch (\Exception $e) {
             $status = str_contains($e->getMessage(), 'Already') ? HttpStatus::Conflict->value : HttpStatus::UnprocessableEntity->value;
@@ -120,22 +126,8 @@ class GameController extends Controller
     {
         try {
             $this->gameService->startNextRound($id);
-
             $rq = $this->gameService->openNextQuestion($id);
-
-            $questionData = [
-                'id'                 => $rq->question->id,
-                'content'            => $rq->question->content,
-                'time_limit_seconds' => $rq->question->time_limit_seconds,
-                'answers'            => $rq->question->answers->map(fn ($a) => [
-                    'id'         => $a->id,
-                    'content'    => $a->content,
-                    'is_correct' => null,
-                ])->all(),
-            ];
-
-            broadcast(new QuestionStarted($rq, $questionData));
-
+            broadcast(new QuestionStarted($rq, $this->buildQuestionData($rq, revealCorrect: false)));
             return $this->successResponse($this->gameService->getAdminState($id), 'Round started');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
@@ -146,20 +138,7 @@ class GameController extends Controller
     {
         try {
             $rq = $this->gameService->openNextQuestion($id);
-
-            $questionData = [
-                'id'                 => $rq->question->id,
-                'content'            => $rq->question->content,
-                'time_limit_seconds' => $rq->question->time_limit_seconds,
-                'answers'            => $rq->question->answers->map(fn ($a) => [
-                    'id'         => $a->id,
-                    'content'    => $a->content,
-                    'is_correct' => null,
-                ])->all(),
-            ];
-
-            broadcast(new QuestionStarted($rq, $questionData));
-
+            broadcast(new QuestionStarted($rq, $this->buildQuestionData($rq, revealCorrect: false)));
             return $this->successResponse($this->gameService->getAdminState($id), 'Question opened');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
@@ -170,20 +149,7 @@ class GameController extends Controller
     {
         try {
             $rq = $this->gameService->closeCurrentQuestion($id);
-
-            $questionData = [
-                'id'                 => $rq->question->id,
-                'content'            => $rq->question->content,
-                'time_limit_seconds' => $rq->question->time_limit_seconds,
-                'answers'            => $rq->question->answers->map(fn ($a) => [
-                    'id'         => $a->id,
-                    'content'    => $a->content,
-                    'is_correct' => (bool) $a->is_correct,
-                ])->all(),
-            ];
-
-            broadcast(new QuestionClosed($rq, $questionData));
-
+            broadcast(new QuestionClosed($rq, $this->buildQuestionData($rq, revealCorrect: true)));
             return $this->successResponse($this->gameService->getAdminState($id), 'Question closed');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
@@ -249,5 +215,31 @@ class GameController extends Controller
     {
         $rq = $this->gameService->getCurrentQuestion($request->game_id);
         return $this->successResponse($rq);
+    }
+
+    private function buildQuestionData(RoundQuestion $rq, bool $revealCorrect): array
+    {
+        $question = $rq->question;
+
+        $answers = $question->type === 'single_choice'
+            ? $question->answers->map(fn ($a) => [
+                'id'         => $a->id,
+                'content'    => $a->content,
+                'is_correct' => $revealCorrect ? (bool) $a->is_correct : null,
+            ])->all()
+            : ($revealCorrect
+                ? [['id' => null, 'content' => $question->answers->firstWhere('is_correct', true)?->content, 'is_correct' => true]]
+                : []);
+
+        return [
+            'id'                 => $question->id,
+            'type'               => $question->type,
+            'content'            => $question->content,
+            'image_url'          => $question->image_path
+                ? Storage::disk('public')->url($question->image_path)
+                : null,
+            'time_limit_seconds' => $question->time_limit_seconds,
+            'answers'            => $answers,
+        ];
     }
 }
