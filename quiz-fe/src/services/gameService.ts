@@ -55,6 +55,12 @@ export const getRoundResults = (id: number | string) =>
 export const getPublicRoundResults = (id: number | string) =>
   api.get<ApiResponse<RoundResult[]>>(`/games/${id}/round-results`);
 
+export const getGameResult = (id: number | string) =>
+  api.get<ApiResponse<{ total_rounds: number; top_teams: RoundResultEntry[] }>>(`/games/${id}/game-result`);
+
+export const publishResults = (id: number | string) =>
+  api.post<ApiResponse<null>>(`/admin/games/${id}/publish-result`);
+
 export const startGame = (id: number) =>
   api.post<ApiResponse<GameState>>(`/admin/games/${id}/start`);
 

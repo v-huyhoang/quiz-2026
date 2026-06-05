@@ -52,5 +52,6 @@ Route::group(['prefix' => 'admin'], function () {
         Route::post('/games/{id}/close-question', [\App\Http\Controllers\GameController::class, 'closeQuestion']);
         Route::post('/games/{id}/finish-round', [\App\Http\Controllers\GameController::class, 'finishRound']);
         Route::post('/games/{id}/finish', [\App\Http\Controllers\GameController::class, 'finish']);
+        Route::post('/games/{id}/publish-result', [\App\Http\Controllers\GameController::class, 'publishResult']);
     });
 });

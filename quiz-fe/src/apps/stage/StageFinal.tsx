@@ -3,7 +3,8 @@ import { Trophy, Loader2 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
-import { getPublicRoundResults, type RoundResult, type RoundResultEntry } from "../../services/gameService";
+import { getPublicRoundResults, getGameResult, type RoundResult, type RoundResultEntry } from "../../services/gameService";
+import { useGameSocket } from "../../hooks/useGameSocket";
 import backgroundImage from "../../assets/background.png";
 import waveImage from "../../assets/wave.png";
 import logoImage from "../../assets/logo.png";
@@ -31,13 +32,42 @@ const RANK_CONFIG = [
     bg: "from-orange-300/40 to-orange-400/20",
     glow: "",
   },
+  {
+    icon: "🏅",
+    label: "💡 Tư duy sắc bén",
+    border: "border-amber-300",
+    bg: "from-amber-200/60 to-amber-100/40",
+    glow: "shadow-[0_8px_30px_rgba(250,184,28,0.14)]",
+    titleColor: "text-slate-900",
+    labelColor: "text-amber-700",
+  },
+  {
+    icon: "🎖️",
+    label: "📚 Học giả tiềm năng",
+    border: "border-amber-200",
+    bg: "from-amber-50/60 to-amber-50/30",
+    glow: "shadow-[0_6px_24px_rgba(250,184,28,0.08)]",
+    titleColor: "text-slate-900",
+    labelColor: "text-amber-700",
+  },
 ];
 
-function RankingRow({ entry, rank, }: {
+function RankingRow({ entry, rank, variant = "round", }: {
   entry: RoundResultEntry;
   rank: number;
+  variant?: "final" | "round";
 }) {
-  const config = RANK_CONFIG[rank];
+  const defaultConfig = {
+    icon: "🏅",
+    label: `TOP ${rank + 1}`,
+    border: "border-gray-300",
+    bg: "from-white/10 to-white/5",
+    glow: "",
+  };
+
+  const config = RANK_CONFIG[rank] ?? defaultConfig;
+
+  const isFinal = variant === "final";
 
   return (
     <motion.div
@@ -52,7 +82,7 @@ function RankingRow({ entry, rank, }: {
         bg-gradient-to-r
         ${config.bg}
         ${config.glow}
-        px-6 py-5
+        ${isFinal ? 'px-8 py-6' : 'px-6 py-5'}
       `}
     >
       {rank === 0 && (
@@ -66,24 +96,24 @@ function RankingRow({ entry, rank, }: {
 
       <div className="flex items-center justify-between">
         <div className="flex items-center">
-          <div className="text-5xl">
+          <div className={`${isFinal ? 'text-6xl mr-4' : 'text-5xl'}`}>
             {config.icon}
           </div>
 
           <div>
-            <p className="text-xl font-black text-slate-900">
+            <p className={`${isFinal ? 'text-2xl' : 'text-xl'} font-black ${config.titleColor ?? 'text-slate-900'}`}>
               {entry.team_name}
             </p>
 
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-tight">
+            <p className={`text-xs ${config.labelColor ?? 'text-slate-500'} font-bold uppercase tracking-tight`}>
               {config.label}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-8">
+        <div className={`flex items-center ${isFinal ? 'gap-10' : 'gap-8'}`}>
           <div className="text-center">
-            <p className="text-emerald-700 font-extrabold text-2xl">
+            <p className={`text-emerald-700 font-extrabold ${isFinal ? 'text-3xl' : 'text-2xl'}`}>
               {entry.correct_count}
             </p>
             <p className="text-xs text-slate-700 font-semibold uppercase tracking-wide">
@@ -91,8 +121,8 @@ function RankingRow({ entry, rank, }: {
             </p>
           </div>
 
-          <div className="text-center min-w-[70px]">
-            <p className="text-slate-900 font-black text-xl">
+          <div className={`text-center min-w-[${isFinal ? 90 : 70}px]`}>
+            <p className={`${isFinal ? 'text-2xl' : 'text-xl'} text-slate-900 font-black`}>
               {entry.total_time_seconds}s
             </p>
             <p className="text-sm text-slate-700 font-semibold uppercase tracking-wide">
@@ -152,6 +182,7 @@ function RoundSection({ round, index, }: {
             key={entry.team_id}
             entry={entry}
             rank={rank}
+            variant="round"
           />
         ))}
       </div>
@@ -165,15 +196,37 @@ export default function StageFinal() {
 
   const [rounds, setRounds] = useState<RoundResult[]>([]);
   const [loading, setLoading] = useState(() => !!gameId);
+  const [totalTop, setTotalTop] = useState<RoundResultEntry[] | null>(null);
+  const [published, setPublished] = useState(false);
 
   useEffect(() => {
     if (!gameId) return;
-    
+
+    setLoading(true);
+    // By default show per-round results. When admin publishes, a socket event will trigger total leaderboard.
     getPublicRoundResults(gameId)
-      .then((res) => setRounds(res.data.data ?? []))
+      .then((r) => setRounds(r.data.data ?? []))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [gameId]);
+
+  // Subscribe to results published event to switch to total leaderboard
+  useGameSocket(gameId ? Number(gameId) : null, {
+    ".results.published": async () => {
+      if (!gameId) return;
+      setPublished(true);
+      setLoading(true);
+      try {
+        const res = await getGameResult(gameId);
+        setTotalTop(res.data.data?.top_teams ?? []);
+        setRounds([]);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    },
+  });
 
   useEffect(() => {
     if (loading || rounds.length === 0) return;
@@ -252,6 +305,22 @@ export default function StageFinal() {
           {loading ? (
             <div className="flex items-center justify-center py-24">
               <Loader2 className="animate-spin text-white/40" size={40} />
+            </div>
+          ) : totalTop && totalTop.length > 0 ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div
+                className="max-w-[1200px] w-full space-y-6 rounded-3xl bg-white/45 border-2 border-white/50 shadow-2xl p-10"
+                style={{
+                  background: 'linear-gradient(180deg, #ffffff0a, #ffffff05)',
+                  boxShadow: '0 0 20px #25202453, 0 0 30px #14f6ff33',
+                  border: '1px solid rgba(0,84,166,0.08)',
+                  backgroundClip: 'padding-box',
+                }}
+              >
+                {totalTop.slice(0, 5).map((entry, i) => (
+                  <RankingRow key={entry.team_id} entry={entry} rank={i} variant="final" />
+                ))}
+              </div>
             </div>
           ) : rounds.length === 0 ? (
             <div className="text-center py-24 text-white/40">

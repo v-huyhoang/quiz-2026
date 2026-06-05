@@ -102,7 +102,6 @@ export const AdminRoom = () => {
     try {
       setFetchingQuestions(true);
       const { data } = await getQuestions();
-      console.log("🚀 ~ fetchQuestions ~ data:", data);
       const questionsData = data.map((q) => ({
         id: q.id,
         text: q.text,
@@ -380,29 +379,28 @@ export const AdminRoom = () => {
               </div>
 
               <div className="px-6 py-4 bg-gray-50 flex gap-3">
-                {room.status !== "finished" ? (
-                  <>
-                    <button
-                      onClick={() => navigate(`/admin/game-control/${room.id}`)}
-                      className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-primary/90 transition-all"
-                    >
-                      Điều khiển
-                    </button>
+                  <button
+                    onClick={() => navigate(`/admin/game-control/${room.id}`)}
+                    className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-primary/90 transition-all"
+                  >
+                    Điều khiển
+                  </button>
+
+                  {room.status !== "finished" ? (
                     <button
                       onClick={() => window.open(`/stage/waiting?room=${room.accessCode}`, "_blank")}
                       className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-purple-700 transition-all"
                     >
                       Màn hình stage
                     </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => handleOpenResults(room)}
-                    className="flex-1 py-2 bg-amber-500 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-amber-600 transition-all flex items-center justify-center gap-2"
-                  >
-                    <Trophy size={14} /> Xem kết quả
-                  </button>
-                )}
+                  ) : (
+                    <button
+                      onClick={() => handleOpenResults(room)}
+                      className="flex-1 py-2 bg-amber-500 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-amber-600 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Trophy size={14} /> Xem kết quả
+                    </button>
+                  )}
                 <button
                   onClick={() => handleOpenDetail(room.id)}
                   className="py-2 px-3 border border-gray-200 text-gray-500 rounded-lg hover:bg-white transition-all"
