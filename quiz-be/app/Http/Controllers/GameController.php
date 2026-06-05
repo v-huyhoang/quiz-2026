@@ -196,6 +196,15 @@ class GameController extends Controller
         }
     }
 
+    public function gameResult(int $id)
+    {
+        try {
+            return $this->successResponse($this->gameService->getGameResults($id));
+        } catch (\Exception $e) {
+            return $this->resourceNotFoundResponse('Game not found');
+        }
+    }
+
     public function announce(int $id)
     {
         $team = request()->user();
