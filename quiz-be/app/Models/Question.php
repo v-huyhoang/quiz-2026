@@ -10,7 +10,7 @@ class Question extends Model
     /** @use HasFactory<\Database\Factories\QuestionFactory> */
     use HasFactory;
 
-    protected $fillable = ['content', 'type', 'time_limit_seconds'];
+    protected $fillable = ['content', 'type', 'image_path', 'time_limit_seconds'];
 
     public function answers()
     {

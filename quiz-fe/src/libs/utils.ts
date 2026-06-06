@@ -7,6 +7,23 @@ export function cn(...inputs: ClassValue[]) {
 
 export const ANSWER_LABELS = ["A", "B", "C", "D"] as const;
 
+// BE generates image URLs using APP_URL (e.g. 192.168.1.x:8000) which may differ
+// from what the browser uses to reach the API (e.g. localhost:8000).
+// This replaces the origin in the URL with the API's origin so images always load.
+export function resolveStorageUrl(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null;
+  try {
+    const imgUrl = new URL(imageUrl);
+    const apiUrl = new URL(import.meta.env.VITE_API_BASE_URL as string);
+    imgUrl.protocol = apiUrl.protocol;
+    imgUrl.hostname = apiUrl.hostname;
+    imgUrl.port     = apiUrl.port;
+    return imgUrl.toString();
+  } catch {
+    return imageUrl;
+  }
+}
+
 export function getApiErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === "object") {
     const axiosError = error as {

@@ -37,12 +37,12 @@ export const getPlayerGameState = (gameId: number | string) =>
 export const getLeaderboard = (gameId: number | string) =>
   api.get<ApiResponse<LeaderboardEntry[]>>(`/games/${gameId}/leaderboard`);
 
-export const submitAnswer = (roundQuestionId: number, answerId: number, responseTimeMs: number) =>
-  api.post<ApiResponse<{ is_correct: boolean }>>("/games/submit", {
-    round_question_id: roundQuestionId,
-    answer_id: answerId,
-    response_time_ms: responseTimeMs,
-  });
+export const submitAnswer = (payload: {
+  round_question_id: number;
+  answer_id?: number;
+  text_answer?: string;
+  response_time_ms?: number;
+}) => api.post<ApiResponse<{ is_correct: boolean }>>("/games/submit", payload);
 
 // ── Admin endpoints ───────────────────────────────────────────────────────────
 

@@ -3,7 +3,8 @@ name: Deploy Frontend
 on:
   push:
     branches:
-      - develop
+      # - develop
+      - dev_phase2
       - main
     paths:
       - "quiz-fe/**"
@@ -12,7 +13,7 @@ on:
 
 jobs:
   deploy-dev:
-    if: github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/dev_phase2'
     runs-on: ubuntu-latest
 
     steps:

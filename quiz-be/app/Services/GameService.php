@@ -8,7 +8,9 @@ use App\Models\Question;
 use App\Models\Round;
 use App\Models\RoundQuestion;
 use App\Models\Submission;
+use App\QuestionTypes\QuestionTypeResolver;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class GameService
 {
@@ -113,16 +115,24 @@ class GameService
 
                     $currentQuestion = [
                         'round_question_id' => $currentRQ->id,
-                        'order_number' => $currentRQ->order_number,
-                        'content' => $question->content,
-                        'status' => $currentRQ->status,
-                        'opened_at' => $currentRQ->opened_at?->toISOString(),
-                        'time_limit_seconds' => $question->time_limit_seconds,
-                        'answers' => $question->answers->map(fn($a) => [
-                            'id' => $a->id,
-                            'content' => $a->content,
-                            'is_correct' => $revealCorrect ? (bool) $a->is_correct : null,
-                        ])->all(),
+                        'order_number'      => $currentRQ->order_number,
+                        'type'              => $question->type,
+                        'content'           => $question->content,
+                        'image_url'         => $question->image_path
+                            ? Storage::disk('public')->url($question->image_path)
+                            : null,
+                        'status'            => $currentRQ->status,
+                        'opened_at'         => $currentRQ->opened_at?->toISOString(),
+                        'time_limit_seconds'=> $question->time_limit_seconds,
+                        'answers'           => $question->type === 'single_choice'
+                            ? $question->answers->map(fn($a) => [
+                                'id'         => $a->id,
+                                'content'    => $a->content,
+                                'is_correct' => $revealCorrect ? (bool) $a->is_correct : null,
+                            ])->all()
+                            : ($revealCorrect
+                                ? [['id' => null, 'content' => $question->answers->firstWhere('is_correct', true)?->content, 'is_correct' => true]]
+                                : []),
                     ];
 
                     if ($teamId !== null) {
@@ -131,8 +141,9 @@ class GameService
                             ->first();
 
                         $currentQuestion['my_submission'] = $mySubmission ? [
-                            'answer_id' => $mySubmission->answer_id,
-                            'is_correct' => (bool) $mySubmission->is_correct,
+                            'answer_id'      => $mySubmission->answer_id,
+                            'submitted_data' => $mySubmission->submitted_data,
+                            'is_correct'     => (bool) $mySubmission->is_correct,
                             'response_time_ms' => $mySubmission->response_time_ms,
                         ] : null;
                     }
@@ -200,46 +211,59 @@ class GameService
 
     // ── Player: submit answer ─────────────────────────────────────────────────
 
-    public function submitAnswer(int $teamId, int $rqId, int $answerId, ?int $clientResponseTimeMs = null): bool
+    public function submitAnswer(int $teamId, int $rqId, array $answerPayload, ?int $clientResponseTimeMs = null): bool
     {
         $rq = RoundQuestion::findOrFail($rqId);
         if ($rq->status !== 'open') {
             throw new \Exception('Question is not open');
         }
 
+        $question = $rq->question()->with('answers')->firstOrFail();
+        $strategy = QuestionTypeResolver::resolve($question->type);
+
         $isCorrect = false;
-        DB::transaction(function () use ($teamId, $rqId, $answerId, $clientResponseTimeMs, &$isCorrect) {
-            $exists = Submission::where('team_id', $teamId)
-                ->where('round_question_id', $rqId)
-                ->lockForUpdate()
-                ->exists();
-
-            if ($exists) {
-                throw new \Exception('Already submitted for this question');
-            }
-
-            $rq = RoundQuestion::findOrFail($rqId);
+        DB::transaction(function () use ($teamId, $rqId, $answerPayload, $clientResponseTimeMs, $question, $strategy, &$isCorrect) {
+            $rq = RoundQuestion::lockForUpdate()->findOrFail($rqId);
             if ($rq->status !== 'open') {
                 throw new \Exception('Question is not open');
             }
 
-            $answer = Answer::where('id', $answerId)
-                ->where('question_id', $rq->question_id)
-                ->firstOrFail();
-            // Use client-provided time when available; fall back to server-side calculation
-            $ms = $clientResponseTimeMs ?? ($rq->opened_at ? now()->diffInMilliseconds($rq->opened_at) : 0);
-            $isCorrect = (bool) $answer->is_correct;
+            $existing = Submission::where('team_id', $teamId)
+                ->where('round_question_id', $rqId)
+                ->first();
 
-            try {
-                Submission::create([
-                    'team_id' => $teamId,
-                    'round_question_id' => $rqId,
-                    'answer_id' => $answerId,
-                    'is_correct' => $isCorrect,
-                    'response_time_ms' => $ms,
-                ]);
-            } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+            // single_choice: no retry once answered
+            if ($existing && $question->type === 'single_choice') {
                 throw new \Exception('Already submitted for this question');
+            }
+
+            // image_input: block retry if already correct
+            if ($existing && $existing->is_correct) {
+                throw new \Exception('Already answered correctly');
+            }
+
+            $ms        = $clientResponseTimeMs ?? ($rq->opened_at ? now()->diffInMilliseconds($rq->opened_at) : 0);
+            $isCorrect = $strategy->evaluate($answerPayload, $question);
+
+            $submissionData = [
+                'answer_id'      => $answerPayload['answer_id'] ?? null,
+                'submitted_data' => $answerPayload,
+                'is_correct'     => $isCorrect,
+                'response_time_ms' => $ms,
+            ];
+
+            if ($existing) {
+                // image_input retry: update the existing record
+                $existing->update($submissionData);
+            } else {
+                try {
+                    Submission::create(array_merge($submissionData, [
+                        'team_id'           => $teamId,
+                        'round_question_id' => $rqId,
+                    ]));
+                } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+                    throw new \Exception('Already submitted for this question');
+                }
             }
         });
 

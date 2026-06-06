@@ -82,7 +82,7 @@ export default function JoinRoom() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center p-4 relative overflow-hidden"
+      className="min-h-screen flex flex-col items-center p-4 sm:p-6 relative overflow-hidden"
       style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
     >
       {/* Wave bottom-right */}
@@ -95,7 +95,7 @@ export default function JoinRoom() {
       <img
         src={logoImage}
         alt="Logo"
-        className="h-24 w-auto object-contain drop-shadow-md"
+        className="h-16 sm:h-24 w-auto object-contain drop-shadow-md"
       />
 
       {/* Form - center */}
@@ -106,20 +106,20 @@ export default function JoinRoom() {
           className="w-full max-w-md"
         >
           {/* Header */}
-          <div className="text-center mb-10">
+          <div className="text-center mb-6 sm:mb-10">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 200 }}
-              className="w-16 h-16 btn rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/30"
+              className="w-12 h-12 sm:w-16 sm:h-16 btn rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4 shadow-lg shadow-primary/30"
             >
-              <Users size={32} className="text-white" />
+              <Users size={24} className="sm:w-8 sm:h-8 text-white" />
             </motion.div>
-            <h1 className="text-3xl font-black text-primary tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-black text-primary tracking-tight">
               Tham gia phòng
             </h1>
             {step === 1 && (
-              <p className="text-sm text-gray-500 mt-2 font-medium">
+              <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2 font-medium">
                 Vui lòng nhập mã phòng hoặc quét QR để tiếp tục
               </p>
             )}
@@ -127,7 +127,7 @@ export default function JoinRoom() {
 
           {/* Form */}
           <div
-            className="rounded-[5px] p-8"
+            className="rounded-[5px] p-6 sm:p-8"
             style={{
               background: 'linear-gradient(180deg, #ffffff0a, #ffffff05)',
               boxShadow: '0 0 20px #25202453, 0 0 30px #14f6ff33',
@@ -136,10 +136,10 @@ export default function JoinRoom() {
             }}
           >
             {step === 1 ? (
-              <form onSubmit={handleNextStep} className="space-y-5">
+              <form onSubmit={handleNextStep} className="space-y-4 sm:space-y-5">
                 {/* Room Code */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                  <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 sm:mb-2">
                     Mã phòng
                   </label>
                   <input
@@ -152,7 +152,7 @@ export default function JoinRoom() {
                     placeholder="Ví dụ: XYZ123"
                     maxLength={10}
                     disabled={loading}
-                    className="w-full px-4 py-3 rounded-xl border-2 bg-gray-50
+                    className="w-full px-4 py-2.5 sm:py-3 rounded-xl border-2 bg-gray-50
                               text-gray-900 font-bold text-lg text-center tracking-widest uppercase
                               focus:outline-none border-[#0054a6] focus:bg-white transition-all
                               disabled:opacity-50 disabled:cursor-not-allowed"
@@ -167,10 +167,10 @@ export default function JoinRoom() {
                       initial={{ opacity: 0, y: -8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg"
+                      className="flex items-center gap-2 p-2.5 sm:p-3 bg-red-50 border border-red-200 rounded-lg"
                     >
                       <AlertCircle size={16} className="text-red-500 shrink-0" />
-                      <p className="text-red-600 text-sm font-semibold">
+                      <p className="text-red-600 text-xs sm:text-sm font-semibold">
                         {error}
                       </p>
                     </motion.div>
@@ -181,8 +181,8 @@ export default function JoinRoom() {
                   type="submit"
                   disabled={!roomCode.trim()}
                   whileTap={{ scale: 0.97 }}
-                  className="w-full flex items-center justify-center gap-3
-                            btn text-white font-black text-lg py-4 rounded-xl
+                  className="w-full flex items-center justify-center gap-2 sm:gap-3
+                            btn text-white font-black text-lg py-3.5 sm:py-4 rounded-xl
                              transition-all
                             disabled:opacity-40 disabled:cursor-not-allowed"
                 >
@@ -191,14 +191,14 @@ export default function JoinRoom() {
                 </motion.button>
               </form>
             ) : (
-              <form onSubmit={handleJoin} className="space-y-5">
+              <form onSubmit={handleJoin} className="space-y-4 sm:space-y-5">
                 {/* Room Code Readonly */}
-                <div className="flex items-center justify-between bg-primary/5 px-4 py-3 rounded-xl border border-primary/10">
+                <div className="flex items-center justify-between bg-primary/5 px-4 py-2.5 sm:py-3 rounded-xl border border-primary/10">
                   <div>
-                    <p className="text-xs font-bold text-primary uppercase tracking-widest mb-0.5">
+                    <p className="text-[10px] sm:text-xs font-bold text-primary uppercase tracking-widest mb-0.5">
                       Mã phòng
                     </p>
-                    <p className="text-xl font-black text-primary font-mono leading-none">
+                    <p className="text-lg sm:text-xl font-black text-primary font-mono leading-none">
                       {roomCode}
                     </p>
                   </div>
@@ -212,7 +212,7 @@ export default function JoinRoom() {
                       setError("");
                       setStep(1);
                     }}
-                    className="text-sm font-bold text-primary/70 hover:text-primary transition-colors uppercase tracking-wider"
+                    className="text-xs sm:text-sm font-bold text-primary/70 hover:text-primary transition-colors uppercase tracking-wider"
                   >
                     Đổi mã
                   </button>
@@ -220,7 +220,7 @@ export default function JoinRoom() {
 
                 {/* Team Name */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                  <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 sm:mb-2">
                     Tên đội của bạn
                   </label>
                   <input
@@ -233,16 +233,16 @@ export default function JoinRoom() {
                     placeholder="Nhập tên đội..."
                     maxLength={50}
                     disabled={loading}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50
+                    className="w-full px-4 py-2.5 sm:py-3 rounded-xl border-2 border-gray-200 bg-gray-50
                             text-gray-900 font-semibold text-lg
                             focus:outline-none focus:border-primary focus:bg-white transition-all
                             disabled:opacity-50 disabled:cursor-not-allowed"
                     autoFocus={!!roomCodeFromUrl}
                   />
                   <div className="flex justify-between mt-1">
-                    <span className="text-xs text-gray-400">Tối đa 50 ký tự</span>
+                    <span className="text-[10px] sm:text-xs text-gray-400">Tối đa 50 ký tự</span>
                     <span
-                      className={`text-xs font-bold ${teamName.length > 45 ? "text-secondary" : "text-gray-300"}`}
+                      className={`text-[10px] sm:text-xs font-bold ${teamName.length > 45 ? "text-secondary" : "text-gray-300"}`}
                     >
                       {teamName.length}/50
                     </span>
@@ -256,10 +256,10 @@ export default function JoinRoom() {
                       initial={{ opacity: 0, y: -8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg"
+                      className="flex items-center gap-2 p-2.5 sm:p-3 bg-red-50 border border-red-200 rounded-lg"
                     >
                       <AlertCircle size={16} className="text-red-500 shrink-0" />
-                      <p className="text-red-600 text-sm font-semibold">
+                      <p className="text-red-600 text-xs sm:text-sm font-semibold">
                         {error}
                       </p>
                     </motion.div>
@@ -270,8 +270,8 @@ export default function JoinRoom() {
                   type="submit"
                   disabled={loading || !teamName.trim()}
                   whileTap={{ scale: 0.97 }}
-                  className="w-full flex items-center justify-center gap-3
-                          bg-primary text-white font-black text-lg py-4 rounded-xl
+                  className="w-full flex items-center justify-center gap-2 sm:gap-3
+                          bg-primary text-white font-black text-lg py-3.5 sm:py-4 rounded-xl
                           hover:bg-primary/90 transition-all
                           disabled:opacity-40 disabled:cursor-not-allowed"
                 >
@@ -291,7 +291,7 @@ export default function JoinRoom() {
             )}
           </div>
 
-          <p className="text-center text-xs text-gray-600 font-bold mt-5">
+          <p className="text-center text-[10px] sm:text-xs text-gray-600 font-bold mt-4 sm:mt-5">
             Quét QR code từ màn hình để tham gia tự động
           </p>
         </motion.div>

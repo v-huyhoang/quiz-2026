@@ -80,22 +80,22 @@ export default function PlayerWaiting() {
       <img
         src={logoImage}
         alt="Logo"
-        className="h-16 w-auto object-contain drop-shadow-md"
+        className="h-12 sm:h-16 w-auto object-contain drop-shadow-md"
       />
-      <main className="grow w-full max-w-5xl mx-auto px-6 py-12 flex flex-col items-center">
+      <main className="grow w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-12 flex flex-col items-center">
         {/* Status banner */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white border border-gray-200 p-8 rounded-xl flex flex-col items-center gap-4 mb-12 w-full text-center relative overflow-hidden shadow-sm"
+          className="bg-white border border-gray-200 p-6 sm:p-8 rounded-xl flex flex-col items-center gap-4 mb-8 sm:mb-12 w-full text-center relative overflow-hidden shadow-sm"
         >
           <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
 
           <div className="relative z-10 flex items-center justify-center gap-3 mb-1">
-            <div className={`w-3 h-3 rounded-full ${
+            <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full ${
               gameStatus === "active" ? "bg-green-500 animate-pulse" : "bg-primary animate-ping"
             }`} />
-            <h1 className={`text-2xl font-bold uppercase tracking-widest ${
+            <h1 className={`text-xl sm:text-2xl font-bold uppercase tracking-widest ${
               gameStatus === "active" ? "text-green-600" : "text-primary"
             }`}>
               {gameStatus === "active" ? "Game has started" : "Đã kết nối"}
@@ -103,18 +103,18 @@ export default function PlayerWaiting() {
           </div>
 
           <div className="relative z-10 flex flex-col items-center gap-1">
-            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Đội của bạn</p>
-            <p className="text-2xl uppercase truncate font-black text-gray-900">{teamName ?? "Unknown Team"}</p>
-            <p className="text-xs text-gray-400 font-mono">#{teamId}</p>
+            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Đội của bạn</p>
+            <p className="text-xl sm:text-2xl uppercase truncate font-black text-gray-900">{teamName ?? "Unknown Team"}</p>
+            <p className="text-[10px] text-gray-400 font-mono">#{teamId}</p>
           </div>
 
-          <div className="relative z-10 flex items-center gap-2 mt-2">
+          <div className="relative z-10 flex items-center gap-2 mt-1 sm:mt-2">
             <Clock
               size={14}
               className={gameStatus === "active" ? "animate-pulse text-green-600" : "animate-pulse text-gray-500"}
             />
             <p
-              className={`font-medium text-sm ${gameStatus === "active" ? "text-green-600" : "text-gray-500"}`}
+              className={`font-medium text-xs sm:text-sm ${gameStatus === "active" ? "text-green-600" : "text-gray-500"}`}
             >
               {gameStatus === "active"
                 ? "Vui lòng đợi câu hỏi tiếp theo..."
@@ -132,16 +132,16 @@ export default function PlayerWaiting() {
         </motion.div>
 
         {/* Team list */}
-        <div className="w-full flex flex-col gap-6">
+        <div className="w-full flex flex-col gap-4 sm:gap-6">
           <div className="flex justify-between items-end">
-            <h2 className="text-2xl font-bold text-gray-900">Sảnh chờ</h2>
-            <div className="text-4xl font-black text-primary">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Sảnh chờ</h2>
+            <div className="text-3xl sm:text-4xl font-black text-primary">
               {teams.length}
-              <span className="text-xl text-gray-300">/{MAX_TEAMS}</span>
+              <span className="text-lg sm:text-xl text-gray-300">/{MAX_TEAMS}</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {teams.map((team, index) => (
               <TeamCard key={team.id} team={team} index={index} isMe={team.id === teamId} />
             ))}
@@ -151,9 +151,9 @@ export default function PlayerWaiting() {
           </div>
         </div>
 
-        <div className="mt-12 flex items-center gap-2 text-gray-400">
+        <div className="mt-8 sm:mt-12 flex items-center gap-2 text-gray-400">
           <Group size={16} />
-          <p className="text-xs font-medium">Game sẽ bắt đầu khi Chủ phòng khởi động</p>
+          <p className="text-[10px] sm:text-xs font-medium">Game sẽ bắt đầu khi Chủ phòng khởi động</p>
         </div>
       </main>
     </div>

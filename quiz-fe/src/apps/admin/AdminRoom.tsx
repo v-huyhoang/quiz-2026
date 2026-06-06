@@ -38,6 +38,7 @@ import {
   type GameTeam,
   type RoundResult,
 } from "../../services/gameService";
+import QuestionTypeBadge from "../../components/ui/QuestionTypeBadge";
 
 const APP_URL = import.meta.env.VITE_APP_URL ?? "http://localhost:5173";
 
@@ -101,10 +102,11 @@ export const AdminRoom = () => {
     try {
       setFetchingQuestions(true);
       const { data } = await getQuestions();
+      console.log("🚀 ~ fetchQuestions ~ data:", data);
       const questionsData = data.map((q) => ({
         id: q.id,
         text: q.text,
-        category: "General",
+        type: q.type,
       }));
       setQuestionBank(questionsData);
     } catch (error) {
@@ -731,9 +733,7 @@ export const AdminRoom = () => {
                                         <p className="text-sm font-semibold text-gray-800">
                                           {q.text}
                                         </p>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-                                          {q.category}
-                                        </p>
+                                        <QuestionTypeBadge type={q.type} />
                                       </div>
                                     </div>
                                   );
