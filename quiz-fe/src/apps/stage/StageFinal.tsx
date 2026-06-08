@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trophy, Loader2 } from "lucide-react";
+import { Trophy, Loader2, Timer, CheckCircle2 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
@@ -190,6 +190,149 @@ function RoundSection({ round, index, }: {
   );
 }
 
+function PodiumCard({ entry, delay, pos, }: {
+  entry: RoundResultEntry;
+  delay: number;
+  pos: 1 | 2 | 3;
+}) {
+  const isChampion = pos === 1;
+  const isSecond = pos === 2;
+  const cardSize = isChampion ? "podium-card champion-card" : "podium-card";
+  const ribbonText = {
+    1: "👑 VUA KIẾN THỨC",
+    2: "⚔️ CHIẾN BINH TRI THỨC",
+    3: "🔥 NGÔI SAO TRIỂN VỌNG",
+  }[pos];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+      }}
+      transition={{
+        delay,
+        duration: 0.5,
+      }}
+      className={`relative overflow-visible flex flex-col items-center gap-4 ${cardSize} rounded-[32px] bg-white/95 backdrop-blur-xl border shadow-2xl`}
+      style={{ borderColor: isChampion ? '#EAB308' : '#9CA3AF' }}
+    >
+      <div
+        className={`podium-ribbon ${isChampion
+          ? "champion"
+          : isSecond
+            ? "second"
+            : "third"
+          }`}
+      >
+        {ribbonText}
+      </div>
+
+      {/* Avatar */}
+      <div
+        className={`avatar ${isChampion
+          ? "avatar-gold"
+          : isSecond
+            ? "avatar-silver"
+            : "avatar-bronze"
+          }`}
+      >
+        {entry.team_name.charAt(0).toUpperCase()}
+      </div>
+
+      {/* Team */}
+      <p className={`font-black text-slate-900 text-center ${isChampion ? 'text-4xl' : 'text-3xl'} text-center`} title={entry.team_name}>
+        {entry.team_name.length > (isChampion ? 12 : 10) ? `${entry.team_name.slice(0, isChampion ? 12 : 10)}…` : entry.team_name}
+      </p>
+
+      {/* Stats */}
+      <div className="podium-stats">
+        <div>
+          <CheckCircle2 size={14} />
+
+          <span>
+            {entry.correct_count}/{entry.correct_count} câu đúng
+          </span>
+        </div>
+
+        <div>
+          <Timer size={14} />
+
+          <span>
+            {entry.total_time_seconds}s
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function GameFinal({ round, index }: { round: RoundResult; index: number }) {
+  const top3 = round.top_teams.slice(0, 3);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.15, duration: 0.4 }}
+      className="final-result-board"
+      style={{
+        background: 'linear-gradient(180deg, #ffffff0a, #ffffff05)',
+        boxShadow: '0 0 20px #25202453, 0 0 30px #14f6ff33',
+        border: '1px solid #0054a6',
+        backgroundClip: 'padding-box',
+      }}
+    >
+      {top3.length === 0 ? (
+        <p className="text-center text-white text-sm py-4">Chưa có kết quả</p>
+      ) : (
+        <div className="honor-layout">
+          {/* TOP 2 */}
+          <div className="podium-column podium-second">
+            <PodiumCard
+              entry={top3[1]}
+              delay={0.2}
+              pos={2}
+            />
+
+            <div className="podium-base silver">
+              <span>2</span>
+            </div>
+          </div>
+
+          {/* TOP 1 */}
+          <div className="podium-column podium-first">
+
+            <PodiumCard
+              entry={top3[0]}
+              delay={0.1}
+              pos={1}
+            />
+
+            <div className="podium-base gold">
+              <span>1</span>
+            </div>
+          </div>
+
+          {/* TOP 3 */}
+          <div className="podium-column podium-third">
+            <PodiumCard
+              entry={top3[2]}
+              delay={0.3}
+              pos={3}
+            />
+
+            <div className="podium-base bronze">
+              <span>3</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 export default function StageFinal() {
   const [searchParams] = useSearchParams();
   const gameId = searchParams.get("gameId");
@@ -198,7 +341,7 @@ export default function StageFinal() {
   const [loading, setLoading] = useState(() => !!gameId);
   const [totalTop, setTotalTop] = useState<RoundResultEntry[] | null>(null);
   const [published, setPublished] = useState(false);
-
+  console.log(published)
   useEffect(() => {
     if (!gameId) return;
 
@@ -276,22 +419,22 @@ export default function StageFinal() {
         />
       </div>
 
-      <div className="relative z-10 w-full h-screen px-10 py-8 flex flex-col">
+      <div className="relative z-10 w-full h-screen px-10 pt-4 pb-6 flex flex-col">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-4 shrink-0"
+          className="text-center mb-2 shrink-0"
         >
           <div className="inline-flex items-center gap-3 bg-gray-200 backdrop-blur-sm border border-white/20 rounded-full px-6 py-2 mb-4">
             <Trophy size={20} className="text-amber-400 font-extrabold" />
             <span className="text-xs font-black uppercase tracking-[0.2em] text-black/50">Kết quả thi đấu</span>
           </div>
           <h1 className="flex items-center justify-center gap-4 drop-shadow-lg">
-            <span className="text-5xl font-black uppercase text-white">
+            <span className="text-4xl xl:text-5xl font-black uppercase text-white">
               VINH DANH
             </span>
-            <span className="h-16 px-8 rounded-full bg-yellow-400 flex items-center justify-center text-slate-900 text-4xl font-black">
+            <span className="h-14 px-6 rounded-full bg-yellow-400 flex items-center justify-center text-slate-900 text-4xl font-black">
               TOP 3
             </span>
           </h1>
@@ -308,18 +451,12 @@ export default function StageFinal() {
             </div>
           ) : totalTop && totalTop.length > 0 ? (
             <div className="flex-1 flex items-center justify-center">
-              <div
-                className="max-w-[1200px] w-full space-y-6 rounded-3xl bg-white/45 border-2 border-white/50 shadow-2xl p-10"
-                style={{
-                  background: 'linear-gradient(180deg, #ffffff0a, #ffffff05)',
-                  boxShadow: '0 0 20px #25202453, 0 0 30px #14f6ff33',
-                  border: '1px solid rgba(0,84,166,0.08)',
-                  backgroundClip: 'padding-box',
-                }}
-              >
-                {totalTop.slice(0, 5).map((entry, i) => (
-                  <RankingRow key={entry.team_id} entry={entry} rank={i} variant="final" />
-                ))}
+              <div className="max-w-[1400px] w-full space-y-6">
+                {/* Use GameFinal component to render podium from aggregated results */}
+                <GameFinal
+                  round={{ round_number: 0, top_teams: totalTop }}
+                  index={0}
+                />
               </div>
             </div>
           ) : rounds.length === 0 ? (
