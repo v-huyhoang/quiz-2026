@@ -210,7 +210,7 @@ function PodiumCard({ entry, delay, pos, }: {
   return (
     <motion.div
       initial={pos === 1 ? { opacity: 0, y: -30, scale: 0.8 } : pos === 2 ? { opacity: 0, y: 20, rotate: -10 } : { opacity: 0, y: 40 }}
-      animate={pos === 1 ? { opacity: 1, y: 0, scale: 1.3, transition: { type: "spring", stiffness: 250, damping: 20, delay: 6 } } : pos === 2 ? { opacity: 1, scale: 1.1, y: 0, rotate: 0, transition: { type: "spring", stiffness: 200, damping: 20, delay: 4 } } : { opacity: 1, y: 0, transition: { delay: 2 } }}
+      animate={pos === 1 ? { opacity: 1, y: 0, scale: 1.3, transition: { type: "spring", stiffness: 140, damping: 24, delay: 8.5 } } : pos === 2 ? { opacity: 1, scale: 1.1, y: 0, rotate: 0, transition: { type: "spring", stiffness: 150, damping: 22, delay: 5.5 } } : { opacity: 1, y: 0, transition: { delay: 3, duration: 0.8 } }}
       transition={{ delay }}
       className={`relative overflow-visible flex flex-col items-center gap-4 ${cardSize} rounded-[32px] bg-white/95 backdrop-blur-xl border shadow-2xl`}
       style={{ borderColor: isChampion ? '#EAB308' : '#9CA3AF' }}
@@ -274,76 +274,158 @@ function PodiumCard({ entry, delay, pos, }: {
   );
 }
 
-const banTumLumTuaLua = () => {
-  const duration = 6 * 1000;
-  const animationEnd = Date.now() + duration;
-  const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
-  const rand = (min: number, max: number) => Math.random() * (max - min) + min;
+const FIREWORK_COLORS = [
+  '#FFD700', '#FFC200', '#FF6B35',
+  '#FF4060', '#FF1493',
+  '#00E5FF', '#4488FF',
+  '#FFFFFF', '#F8F0FF',
+  '#ADFF2F', '#00FF87',
+];
 
-  const interval = setInterval(() => {
-    const timeLeft = animationEnd - Date.now();
-    if (timeLeft <= 0) return clearInterval(interval);
-    const count = 50 * (timeLeft / duration);
-    confetti({ ...defaults, particleCount: count, origin: { x: rand(0.1, 0.3), y: Math.random() - 0.2 } });
-    confetti({ ...defaults, particleCount: count, origin: { x: rand(0.7, 0.9), y: Math.random() - 0.2 } });
-  }, 250);
-  return () => clearInterval(interval);
+// Small side burst when a rank card appears
+const smallBurst = (fromLeft: boolean) => confetti({
+  particleCount: 45,
+  angle: fromLeft ? 65 : 115,
+  spread: 48,
+  origin: { x: fromLeft ? 0.04 : 0.96, y: 0.85 },
+  colors: FIREWORK_COLORS,
+  shapes: ['star', 'circle'],
+  scalar: 1.1,
+  ticks: 170,
+  startVelocity: 52,
+  gravity: 0.82,
+  decay: 0.93,
+  zIndex: 9999,
+});
+
+// Champion celebration bursts when top 1 is revealed
+const championBurst = () => {
+  const rand = (min: number, max: number) => Math.random() * (max - min) + min;
+  confetti({ particleCount: 80, angle: 65, spread: 52, origin: { x: 0.05, y: 0.95 }, colors: FIREWORK_COLORS, shapes: ['star'], scalar: 1.4, ticks: 240, startVelocity: 68, gravity: 0.82, decay: 0.93, zIndex: 9999 });
+  confetti({ particleCount: 80, angle: 115, spread: 52, origin: { x: 0.95, y: 0.95 }, colors: FIREWORK_COLORS, shapes: ['star'], scalar: 1.4, ticks: 240, startVelocity: 68, gravity: 0.82, decay: 0.93, zIndex: 9999 });
+  confetti({ particleCount: 110, spread: 360, origin: { x: rand(0.35, 0.65), y: rand(0.2, 0.38) }, colors: FIREWORK_COLORS, shapes: ['star', 'circle'], scalar: rand(1.2, 1.7), ticks: 280, startVelocity: 24, gravity: 0.55, decay: 0.91, zIndex: 9999 });
+};
+
+// Brief "CHAMPION" flash that appears between top 2 and top 1
+function ChampionBanner() {
+  return (
+    <motion.div
+      key="champion-banner"
+      initial={{ opacity: 0, scale: 0.55 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 1.18 }}
+      transition={{ duration: 0.42, ease: [0.34, 1.56, 0.64, 1] }}
+      style={{
+        height: '100vh',
+        position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(2, 0, 18, 0.68)',
+        backdropFilter: 'blur(3px)',
+      }}
+    >
+      {/* Pulse rings */}
+      {[0, 1].map((i) => (
+        <motion.div
+          key={i}
+          initial={{ scale: 0.2, opacity: 0.7 }}
+          animate={{ scale: 4.5, opacity: 0 }}
+          transition={{ duration: 1.4, repeat: Infinity, delay: i * 0.6, ease: 'easeOut' }}
+          style={{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', border: '1.5px solid rgba(255,215,0,0.5)', pointerEvents: 'none' }}
+        />
+      ))}
+
+      <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
+        <div style={{ fontSize: 'clamp(52px, 6.5vw, 110px)', lineHeight: 1, marginBottom: 6 }}>🏆</div>
+        <div
+          style={{
+            fontSize: 'clamp(60px, 9.5vw, 168px)',
+            fontWeight: 900,
+            fontFamily: "'Arial Black', Arial, sans-serif",
+            background: 'linear-gradient(175deg, #FFF5A0 0%, #FFD700 32%, #FFA800 62%, #FFD700 88%, #FFF5A0 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            filter: 'drop-shadow(0 0 36px rgba(255,215,0,0.95)) drop-shadow(0 0 70px rgba(255,140,0,0.65))',
+            letterSpacing: '0.1em',
+            lineHeight: 1.05,
+            textTransform: 'uppercase',
+          }}
+        >
+          CHAMPION
+        </div>
+        <motion.p
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, duration: 0.35 }}
+          style={{ color: 'rgba(255,255,255,0.55)', fontSize: 'clamp(12px, 1.6vw, 24px)', fontWeight: 700, letterSpacing: '0.42em', textTransform: 'uppercase', marginTop: 14 }}
+        >
+          Vinh danh quán quân xuất sắc nhất
+        </motion.p>
+      </div>
+    </motion.div>
+  );
 }
 
 function GameFinal({ round, index }: { round: RoundResult; index: number }) {
   const top3 = round.top_teams.slice(0, 3);
+  const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
-    setTimeout(() => {
-      banTumLumTuaLua();
-    }, 6100);
+    const timers = [
+      // Top 3 appears at ~3s → small burst after it settles
+      setTimeout(() => { smallBurst(true); smallBurst(false); }, 3900),
+      // Top 2 appears at ~5.5s → small burst after it settles
+      setTimeout(() => { smallBurst(true); smallBurst(false); }, 6400),
+      // Show CHAMPION banner after top 2 settles, before top 1 at 8.5s
+      setTimeout(() => setShowBanner(true), 7200),
+      setTimeout(() => setShowBanner(false), 8400),
+      // Top 1 appears at ~8.5s → celebration bursts
+      setTimeout(() => championBurst(), 8900),
+      setTimeout(() => championBurst(), 9500),
+      setTimeout(() => championBurst(), 10100),
+    ];
+    return () => timers.forEach(clearTimeout);
   }, []);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.15, duration: 0.4 }}
-      className="final-result-board"
-      style={{
-        background: 'linear-gradient(180deg, #ffffff0a, #ffffff05)',
-        boxShadow: '0 0 20px #25202453, 0 0 30px #14f6ff33',
-        border: '1px solid #0054a6',
-        backgroundClip: 'padding-box',
-      }}
-    >
-      {top3.length === 0 ? (
-        <p className="text-center text-white text-sm py-4">Chưa có kết quả</p>
-      ) : (
-        <div className="honor-layout">
-          {/* TOP 2 */}
-          <div className="podium-column podium-second">
-            <PodiumCard
-              entry={top3[1]}
-              delay={5}
-              pos={2}
-            />
-          </div>
+    <>
+      <AnimatePresence>
+        {showBanner && <ChampionBanner key="champion-banner" />}
+      </AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: index * 0.15, duration: 0.4 }}
+        className="final-result-board"
+        style={{
+          background: 'linear-gradient(180deg, #ffffff0a, #ffffff05)',
+          boxShadow: '0 0 20px #25202453, 0 0 30px #14f6ff33',
+          border: '1px solid #0054a6',
+          backgroundClip: 'padding-box',
+        }}
+      >
+        {top3.length === 0 ? (
+          <p className="text-center text-white text-sm py-4">Chưa có kết quả</p>
+        ) : (
+          <div className="honor-layout">
+            {/* TOP 2 */}
+            <div className="podium-column podium-second">
+              <PodiumCard entry={top3[1]} delay={5} pos={2} />
+            </div>
 
-          {/* TOP 1 */}
-          <div className="podium-column podium-first">
-            <PodiumCard
-              entry={top3[0]}
-              delay={0}
-              pos={1}
-            />
-          </div>
+            {/* TOP 1 */}
+            <div className="podium-column podium-first">
+              <PodiumCard entry={top3[0]} delay={0} pos={1} />
+            </div>
 
-          {/* TOP 3 */}
-          <div className="podium-column podium-third">
-            <PodiumCard
-              entry={top3[2]}
-              delay={10}
-              pos={3}
-            />
+            {/* TOP 3 */}
+            <div className="podium-column podium-third">
+              <PodiumCard entry={top3[2]} delay={10} pos={3} />
+            </div>
           </div>
-        </div>
-      )}
-    </motion.div>
+        )}
+      </motion.div>
+    </>
   );
 }
 
