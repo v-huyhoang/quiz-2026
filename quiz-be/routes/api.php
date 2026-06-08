@@ -44,6 +44,7 @@ Route::group(['prefix' => 'admin'], function () {
         // Game flow controls
         Route::get('/games/{id}/state', [\App\Http\Controllers\GameController::class, 'adminState']);
         Route::get('/games/{id}/round-results', [\App\Http\Controllers\GameController::class, 'roundResults']);
+        Route::post('/games/{id}/reveal', [\App\Http\Controllers\GameController::class, 'reveal']);
         Route::post('/games/{id}/start', [\App\Http\Controllers\GameController::class, 'start']);
         Route::post('/games/{id}/start-round', [\App\Http\Controllers\GameController::class, 'startRound']);
         Route::post('/games/{id}/open-question', [\App\Http\Controllers\GameController::class, 'openQuestion']);
