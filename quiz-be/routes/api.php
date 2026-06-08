@@ -7,6 +7,7 @@ Route::post('/rooms/{code}/join', [\App\Http\Controllers\GameController::class, 
 Route::get('/games/{id}/state', [\App\Http\Controllers\GameController::class, 'publicState']);
 Route::get('/games/{id}/leaderboard', [\App\Http\Controllers\GameController::class, 'leaderboard']);
 Route::get('/games/{id}/round-results', [\App\Http\Controllers\GameController::class, 'roundResults']);
+Route::get('/games/{id}/game-result', [\App\Http\Controllers\GameController::class, 'gameResult']);
 
 Route::get('/rooms/code/{code}', [\App\Http\Controllers\RoomController::class, 'getByCode']);
 
@@ -44,6 +45,7 @@ Route::group(['prefix' => 'admin'], function () {
         // Game flow controls
         Route::get('/games/{id}/state', [\App\Http\Controllers\GameController::class, 'adminState']);
         Route::get('/games/{id}/round-results', [\App\Http\Controllers\GameController::class, 'roundResults']);
+        Route::get('/games/{id}/game-result', [\App\Http\Controllers\GameController::class, 'gameResult']);
         Route::post('/games/{id}/reveal', [\App\Http\Controllers\GameController::class, 'reveal']);
         Route::post('/games/{id}/start', [\App\Http\Controllers\GameController::class, 'start']);
         Route::post('/games/{id}/start-round', [\App\Http\Controllers\GameController::class, 'startRound']);
@@ -51,5 +53,7 @@ Route::group(['prefix' => 'admin'], function () {
         Route::post('/games/{id}/close-question', [\App\Http\Controllers\GameController::class, 'closeQuestion']);
         Route::post('/games/{id}/finish-round', [\App\Http\Controllers\GameController::class, 'finishRound']);
         Route::post('/games/{id}/finish', [\App\Http\Controllers\GameController::class, 'finish']);
+        Route::post('/games/{id}/publish-result', [\App\Http\Controllers\GameController::class, 'publishResult']);
+        Route::post('/games/{id}/reveal-champion', [\App\Http\Controllers\GameController::class, 'revealChampion']);
     });
 });

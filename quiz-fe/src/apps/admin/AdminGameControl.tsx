@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  getAdminGameState, revealScreen, startGame, startRound, openQuestion, closeQuestion,
+  getAdminGameState, publishResults, revealChampion, revealScreen, startGame, startRound, openQuestion, closeQuestion,
   finishRound, finishGame,
   type GameState,
 } from "../../services/gameService";
@@ -20,13 +20,14 @@ const LABELS = ANSWER_LABELS;
 
 export default function AdminGameControl() {
   const { gameId } = useParams<{ gameId: string }>();
-  const navigate   = useNavigate();
-  const id         = Number(gameId);
+  const navigate = useNavigate();
+  const id = Number(gameId);
 
-  const [gameState, setGameState]  = useState<GameState | null>(null);
-  const [loading, setLoading]      = useState(true);
+  const [gameState, setGameState] = useState<GameState | null>(null);
+  const [loading, setLoading] = useState(true);
   const [actionLoading, setAction] = useState(false);
-  const [error, setError]          = useState("");
+  const [error, setError] = useState("");
+  const [resultsPublished, setResultsPublished] = useState(false);
 
   // ── Initial fetch ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -51,10 +52,10 @@ export default function AdminGameControl() {
         return { ...prev, teams: prev.teams.filter((t) => t.id !== data.team.id) };
       });
     },
-    ".game.started":    () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => {}),
-    ".question.started": () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => {}),
-    ".question.closed": () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => {}),
-    ".game.finished":   () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => {}),
+    ".game.started": () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => { }),
+    ".question.started": () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => { }),
+    ".question.closed": () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => { }),
+    ".game.finished": () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => { }),
   });
 
   // ── Reveal waiting screen (doesn't change game state) ────────────────────────
@@ -110,18 +111,18 @@ export default function AdminGameControl() {
     );
   }
 
-  const round       = gameState.current_round;
-  const question    = round?.current_question ?? null;
-  const teams       = gameState.teams;
+  const round = gameState.current_round;
+  const question = round?.current_question ?? null;
+  const teams = gameState.teams;
   const submissions = question?.team_submissions ?? [];
 
-  const isLastRound    = !!round && round.round_number === gameState.rounds_total;
-  const canStartGame   = gameState.status === "pending";
-  const canStartRound  = gameState.status === "active" && (!round || round.status === "finished");
-  const canCloseQ      = question?.status === "open";
-  const canOpenNext    = question?.status === "closed" && round && round.questions_done < round.total_questions;
+  const isLastRound = !!round && round.round_number === gameState.rounds_total;
+  const canStartGame = gameState.status === "pending";
+  const canStartRound = gameState.status === "active" && (!round || round.status === "finished");
+  const canCloseQ = question?.status === "open";
+  const canOpenNext = question?.status === "closed" && round && round.questions_done < round.total_questions;
   const canFinishRound = !isLastRound && !!round && round.status === "active" && question?.status === "closed";
-  const canFinishGame  = gameState.status === "active";
+  const canFinishGame = gameState.status === "active";
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col">
@@ -223,9 +224,8 @@ export default function AdminGameControl() {
                         {question.answers.map((ans, i) => (
                           <div
                             key={ans.id}
-                            className={`p-4 rounded-xl border ${
-                              ans.is_correct ? "bg-green-50 border-green-300" : "bg-gray-50 border-gray-100"
-                            }`}
+                            className={`p-4 rounded-xl border ${ans.is_correct ? "bg-green-50 border-green-300" : "bg-gray-50 border-gray-100"
+                              }`}
                           >
                             <div className="flex items-center gap-3">
                               <span className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-sm font-bold text-gray-600">
@@ -266,8 +266,50 @@ export default function AdminGameControl() {
                     {canOpenNext    && <CtrlBtn color="bg-blue-500"   icon={<SkipForward size={16} />} label="Câu tiếp theo"  loading={actionLoading} onClick={() => act(() => openQuestion(id))} />}
                     {canFinishRound && <CtrlBtn color="bg-gray-800"   icon={<Trophy size={16} />}      label="Kết thúc vòng"  loading={actionLoading} onClick={() => act(() => finishRound(id))} />}
                     {canFinishGame  && <CtrlBtn color="bg-secondary"  icon={<Trophy size={16} />}      label="Kết thúc game"  loading={actionLoading} onClick={() => act(() => finishGame(id))} />}
-                    {gameState.status === "finished" && (
-                      <span className="text-sm font-bold text-gray-400 self-center">Game đã kết thúc</span>
+                    {gameState.status === "finished" && !resultsPublished && (
+                      <div className="flex items-center gap-3">
+                        <CtrlBtn
+                          color="bg-indigo-600"
+                          icon={<Trophy size={16} />}
+                          label="Công bố kết quả"
+                          loading={actionLoading}
+                          onClick={async () => {
+                            setAction(true);
+                            setError("");
+                            try {
+                              await publishResults(id);
+                              setResultsPublished(true);
+                            } catch (e) {
+                              setError(getApiErrorMessage(e, "Có lỗi khi công bố kết quả."));
+                            } finally {
+                              setAction(false);
+                            }
+                          }}
+                        />
+                        <span className="text-sm font-bold text-gray-400 self-center">Game đã kết thúc</span>
+                      </div>
+                    )}
+                    {gameState.status === "finished" && resultsPublished && (
+                      <div className="flex items-center gap-3">
+                        <CtrlBtn
+                          color="bg-yellow-500"
+                          icon={<Trophy size={16} />}
+                          label="Công bố Quán Quân 🏆"
+                          loading={actionLoading}
+                          onClick={async () => {
+                            setAction(true);
+                            setError("");
+                            try {
+                              await revealChampion(id);
+                            } catch (e) {
+                              setError(getApiErrorMessage(e, "Có lỗi khi công bố quán quân."));
+                            } finally {
+                              setAction(false);
+                            }
+                          }}
+                        />
+                        <span className="text-sm font-bold text-gray-400 self-center">Đã công bố top 2 & 3</span>
+                      </div>
                     )}
                   </div>
                 </motion.div>
@@ -296,11 +338,10 @@ export default function AdminGameControl() {
                       {submissions.map((s) => (
                         <div
                           key={s.team_id}
-                          className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm ${
-                            s.submitted
+                          className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm ${s.submitted
                               ? s.is_correct ? "bg-green-50 border-green-200" : "bg-red-50 border-red-100"
                               : "bg-gray-50 border-gray-100"
-                          }`}
+                            }`}
                         >
                           <span className="font-bold text-gray-800 truncate">{s.team_name}</span>
                           {s.submitted ? (
@@ -348,11 +389,10 @@ export default function AdminGameControl() {
 
 const StatusBadge = memo(function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest ${
-      status === "active"   ? "bg-green-100 text-green-700"  :
-      status === "finished" ? "bg-gray-200 text-gray-500"    :
-      "bg-yellow-100 text-yellow-700"
-    }`}>
+    <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest ${status === "active" ? "bg-green-100 text-green-700" :
+        status === "finished" ? "bg-gray-200 text-gray-500" :
+          "bg-yellow-100 text-yellow-700"
+      }`}>
       {status}
     </span>
   );

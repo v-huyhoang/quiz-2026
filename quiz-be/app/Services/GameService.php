@@ -407,6 +407,42 @@ class GameService
         })->all();
     }
 
+    public function getGameResults(int $id): array
+    {
+        $game = Game::findOrFail($id);
+
+        $topTeams = DB::table('submissions as s')
+            ->join('round_questions as rq', 's.round_question_id', '=', 'rq.id')
+            ->join('rounds as r', 'rq.round_id', '=', 'r.id')
+            ->join('teams as t', 's.team_id', '=', 't.id')
+            ->select(
+                't.id as team_id',
+                't.name as team_name',
+                DB::raw('SUM(s.is_correct) as correct_count'),
+                DB::raw('SUM(CASE WHEN s.is_correct = 1 THEN s.response_time_ms ELSE 0 END) as total_time_ms')
+            )
+            ->where('r.game_id', $game->id)
+            ->groupBy('t.id', 't.name')
+            ->orderByDesc('correct_count')
+            ->orderBy('total_time_ms')
+            ->limit(20)
+            ->get()
+            ->values()
+            ->map(fn($entry, $i) => [
+                'rank' => $i + 1,
+                'team_id' => $entry->team_id,
+                'team_name' => $entry->team_name,
+                'correct_count' => (int) $entry->correct_count,
+                'total_time_seconds' => round($entry->total_time_ms / 1000, 2),
+            ])
+            ->all();
+
+        return [
+            'total_rounds' => $game->rounds()->count(),
+            'top_teams' => $topTeams,
+        ];
+    }
+
     // ── Legacy compatibility ──────────────────────────────────────────────────
 
     public function getActiveGame(): ?Game
