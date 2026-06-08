@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Trophy, Loader2, Timer, CheckCircle2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Trophy, Loader2, Timer, CheckCircle2, Zap } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
@@ -8,6 +8,9 @@ import { useGameSocket } from "../../hooks/useGameSocket";
 import backgroundImage from "../../assets/background.png";
 import waveImage from "../../assets/wave.png";
 import logoImage from "../../assets/logo.png";
+import medal1 from "../../assets/medal_1.png";
+import medal2 from "../../assets/medal_2.png";
+import medal3 from "../../assets/medal_3.png";
 import "../../assets/css/stage-final.css"
 
 const RANK_CONFIG = [
@@ -206,15 +209,9 @@ function PodiumCard({ entry, delay, pos, }: {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      animate={{
-        opacity: 1,
-        y: 0,
-      }}
-      transition={{
-        delay,
-        duration: 0.5,
-      }}
+      initial={pos === 1 ? { opacity: 0, y: -30, scale: 0.8 } : pos === 2 ? { opacity: 0, y: 20, rotate: -10 } : { opacity: 0, y: 40 }}
+      animate={pos === 1 ? { opacity: 1, y: 0, scale: 1.3, transition: { type: "spring", stiffness: 250, damping: 20, delay: 6 } } : pos === 2 ? { opacity: 1, scale: 1.1, y: 0, rotate: 0, transition: { type: "spring", stiffness: 200, damping: 20, delay: 4 } } : { opacity: 1, y: 0, transition: { delay: 2 } }}
+      transition={{ delay }}
       className={`relative overflow-visible flex flex-col items-center gap-4 ${cardSize} rounded-[32px] bg-white/95 backdrop-blur-xl border shadow-2xl`}
       style={{ borderColor: isChampion ? '#EAB308' : '#9CA3AF' }}
     >
@@ -226,20 +223,27 @@ function PodiumCard({ entry, delay, pos, }: {
             : "third"
           }`}
       >
-        {ribbonText}
+        <motion.span
+          className="order-text"
+          initial={{ scale: 0 }}
+          animate={{ scale: [1, 1.2, 1], rotate: [0, 5, -5, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+        >
+          {ribbonText}
+        </motion.span>
       </div>
 
-      {/* Avatar */}
-      <div
-        className={`avatar ${isChampion
-          ? "avatar-gold"
-          : isSecond
-            ? "avatar-silver"
-            : "avatar-bronze"
-          }`}
+      <motion.div
+        className="avatar-medal-wrapper"
+        animate={{ rotate: [0, 5, -5, 0], scale: [1, 1.05, 1] }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
       >
-        {entry.team_name.charAt(0).toUpperCase()}
-      </div>
+        <img
+          src={pos === 1 ? medal1 : pos === 2 ? medal2 : medal3}
+          alt={`medal-${pos}`}
+          className="avatar-medal-img"
+        />
+      </motion.div>
 
       {/* Team */}
       <p className={`font-black text-slate-900 text-center ${isChampion ? 'text-4xl' : 'text-3xl'} text-center`} title={entry.team_name}>
@@ -248,19 +252,21 @@ function PodiumCard({ entry, delay, pos, }: {
 
       {/* Stats */}
       <div className="podium-stats">
-        <div>
-          <CheckCircle2 size={14} />
-
-          <span>
-            {entry.correct_count}/{entry.correct_count} câu đúng
+        <div className="stat-row">
+          <span className="stat-icon-wrapper check">
+            <CheckCircle2 size={16} />
+          </span>
+          <span className="stat-value">
+            {entry.correct_count} câu đúng
           </span>
         </div>
 
-        <div>
-          <Timer size={14} />
-
-          <span>
-            {entry.total_time_seconds}s
+        <div className="stat-row">
+          <span className="stat-icon-wrapper time">
+            {isChampion ? <Zap size={16} /> : <Timer size={16} />}
+          </span>
+          <span className="stat-value">
+            {entry.total_time_seconds} giây
           </span>
         </div>
       </div>
@@ -268,9 +274,30 @@ function PodiumCard({ entry, delay, pos, }: {
   );
 }
 
+const banTumLumTuaLua = () => {
+  const duration = 6 * 1000;
+  const animationEnd = Date.now() + duration;
+  const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+  const rand = (min: number, max: number) => Math.random() * (max - min) + min;
+
+  const interval = setInterval(() => {
+    const timeLeft = animationEnd - Date.now();
+    if (timeLeft <= 0) return clearInterval(interval);
+    const count = 50 * (timeLeft / duration);
+    confetti({ ...defaults, particleCount: count, origin: { x: rand(0.1, 0.3), y: Math.random() - 0.2 } });
+    confetti({ ...defaults, particleCount: count, origin: { x: rand(0.7, 0.9), y: Math.random() - 0.2 } });
+  }, 250);
+  return () => clearInterval(interval);
+}
+
 function GameFinal({ round, index }: { round: RoundResult; index: number }) {
   const top3 = round.top_teams.slice(0, 3);
 
+  useEffect(() => {
+    setTimeout(() => {
+      banTumLumTuaLua();
+    }, 6100);
+  }, []);
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -292,40 +319,27 @@ function GameFinal({ round, index }: { round: RoundResult; index: number }) {
           <div className="podium-column podium-second">
             <PodiumCard
               entry={top3[1]}
-              delay={0.2}
+              delay={5}
               pos={2}
             />
-
-            <div className="podium-base silver">
-              <span>2</span>
-            </div>
           </div>
 
           {/* TOP 1 */}
           <div className="podium-column podium-first">
-
             <PodiumCard
               entry={top3[0]}
-              delay={0.1}
+              delay={0}
               pos={1}
             />
-
-            <div className="podium-base gold">
-              <span>1</span>
-            </div>
           </div>
 
           {/* TOP 3 */}
           <div className="podium-column podium-third">
             <PodiumCard
               entry={top3[2]}
-              delay={0.3}
+              delay={10}
               pos={3}
             />
-
-            <div className="podium-base bronze">
-              <span>3</span>
-            </div>
           </div>
         </div>
       )}
@@ -340,8 +354,8 @@ export default function StageFinal() {
   const [rounds, setRounds] = useState<RoundResult[]>([]);
   const [loading, setLoading] = useState(() => !!gameId);
   const [totalTop, setTotalTop] = useState<RoundResultEntry[] | null>(null);
-  const [published, setPublished] = useState(false);
-  console.log(published)
+  const [_, setPublished] = useState(false);
+
   useEffect(() => {
     if (!gameId) return;
 
@@ -370,24 +384,6 @@ export default function StageFinal() {
       }
     },
   });
-
-  useEffect(() => {
-    if (loading || rounds.length === 0) return;
-    const duration = 6 * 1000;
-    const animationEnd = Date.now() + duration;
-    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
-    const rand = (min: number, max: number) => Math.random() * (max - min) + min;
-
-    const interval = setInterval(() => {
-      const timeLeft = animationEnd - Date.now();
-      if (timeLeft <= 0) return clearInterval(interval);
-      const count = 50 * (timeLeft / duration);
-      confetti({ ...defaults, particleCount: count, origin: { x: rand(0.1, 0.3), y: Math.random() - 0.2 } });
-      confetti({ ...defaults, particleCount: count, origin: { x: rand(0.7, 0.9), y: Math.random() - 0.2 } });
-    }, 250);
-
-    return () => clearInterval(interval);
-  }, [loading, rounds.length]);
 
   return (
     <div className="min-h-screen text-white relative overflow-y-auto"

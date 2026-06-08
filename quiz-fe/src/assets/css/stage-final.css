@@ -70,7 +70,7 @@
 
   justify-content: center;
 
-  align-items: flex-end;
+  align-items: center;
 
   box-shadow:
     0 15px 40px rgba(0, 0, 0, .12);
@@ -99,7 +99,6 @@
 }
 
 .podium-card {
-  width: 240px;
   min-height: 320px;
 
   background: white;
@@ -140,33 +139,19 @@
     0 12px 40px rgba(255, 193, 7, .25);
 }
 
-.avatar {
-  width: 110px;
-  height: 110px;
-
-  border-radius: 999px;
-
+.avatar-medal-wrapper {
+  width: 260px;
+  height: 260px;
   display: flex;
   align-items: center;
   justify-content: center;
-
-  font-size: 52px;
-
-  font-weight: 900;
-
-  color: white;
 }
 
-.avatar-gold {
-  background: #f4c242;
-}
-
-.avatar-silver {
-  background: #b5c4dd;
-}
-
-.avatar-bronze {
-  background: #f2a36c;
+.avatar-medal-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
 }
 
 .podium-badge {
@@ -196,7 +181,7 @@
 
   align-items: flex-end;
 
-  gap: 50px;
+  gap: 100px;
 }
 
 .podium-column {
@@ -210,58 +195,106 @@
 }
 
 .podium-base {
-  width: 220px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.podium-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 30px;
+  border-radius: 50%;
+  z-index: 2;
+  transform: translateY(-50%);
+}
+
+.podium-body {
+  position: relative;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-
-  font-size: 90px;
-  font-weight: 900;
-  color: white;
+  z-index: 1;
 }
 
-.podium-base span {
-  margin-top: -10px;
+.podium-medal {
+  object-fit: contain;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.25));
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
 }
 
 .gold {
-  width: 290px;
-  height: 160px;
+  width: 270px;
+  height: 110px;
+}
 
-  background:
-    linear-gradient(180deg,
-      #ffd970,
-      #f0ad21);
+.gold .podium-body {
+  background: linear-gradient(90deg, #d97706 0%, #f59e0b 20%, #fef08a 50%, #f59e0b 80%, #d97706 100%);
+  border-radius: 0 0 135px 135px / 0 0 20px 20px;
+}
 
-  border-radius: 50px 50px 12px 12px;
+.gold .podium-top {
+  background: radial-gradient(circle, #fef9c3 0%, #facc15 100%);
+  border: 1px solid #eab308;
+}
+
+.gold .podium-medal {
+  width: 100px;
+  height: 100px;
 }
 
 .silver {
-  width: 240px;
-  height: 130px;
+  width: 230px;
+  height: 90px;
+}
 
-  background:
-    linear-gradient(180deg,
-      #dce6f3,
-      #8ea6cc);
+.silver .podium-body {
+  background: linear-gradient(90deg, #475569 0%, #94a3b8 20%, #f1f5f9 50%, #94a3b8 80%, #475569 100%);
+  border-radius: 0 0 115px 115px / 0 0 20px 20px;
+}
 
-  border-radius: 50px 50px 12px 12px;
+.silver .podium-top {
+  background: radial-gradient(circle, #f8fafc 0%, #cbd5e1 100%);
+  border: 1px solid #94a3b8;
+}
+
+.silver .podium-medal {
+  width: 85px;
+  height: 85px;
 }
 
 .bronze {
-  width: 240px;
-  height: 110px;
+  width: 230px;
+  height: 75px;
+}
 
-  background:
-    linear-gradient(180deg,
-      #ffc39d,
-      #d97c4b);
+.bronze .podium-body {
+  background: linear-gradient(90deg, #7c2d12 0%, #ea580c 20%, #ffedd5 50%, #ea580c 80%, #7c2d12 100%);
+  border-radius: 0 0 115px 115px / 0 0 20px 20px;
+}
 
-  border-radius: 50px 50px 12px 12px;
+.bronze .podium-top {
+  background: radial-gradient(circle, #fff7ed 0%, #f97316 100%);
+  border: 1px solid #ea580c;
+}
+
+.bronze .podium-medal {
+  width: 75px;
+  height: 75px;
 }
 
 .podium-first {
-  margin-bottom: 30px;
+  margin-bottom: 0px;
 }
 
 .podium-second {
@@ -269,70 +302,82 @@
 }
 
 .podium-third {
-  transform: translateY(12px);
+  transform: translateY(0);
 }
 
 .podium-ribbon {
   position: absolute;
-
-  top: -18px;
-
+  top: -16px;
   left: 50%;
-
   transform: translateX(-50%);
-
-  padding: 10px 22px;
-
+  padding: 6px 16px;
   border-radius: 999px;
-
-  font-size: 11px;
-
-  font-weight: 900;
-
+  font-size: 16px;
+  font-weight: 800;
   white-space: nowrap;
-
-  color: #222;
-  text-overflow: ellipsis;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .podium-ribbon.champion {
-  background: #f4c242;
+  background: #fef08a;
+  color: #a16207;
+  border: 1px solid #fde047;
 }
 
 .podium-ribbon.second {
-  background: #dce6f3;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
 }
 
 .podium-ribbon.third {
-  background: #ffc39d;
+  background: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
 }
 
 .podium-stats {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-
-  margin-top: 6px;
-
-  font-size: 18px;
-  font-weight: 600;
-
-  color: #334155;
+  gap: 12px;
+  margin-top: 10px;
+  width: 100%;
+  padding: 0 8px;
 }
 
-.podium-stats svg {
-  color: #16a34a;
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-}
-
-.podium-stats div {
+.stat-row {
   display: flex;
-
   align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #475569;
+}
 
-  gap: 6px;
+.stat-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.stat-icon-wrapper.check {
+  background-color: #d1fae5;
+  color: #059669;
+}
+
+.stat-icon-wrapper.time {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.stat-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
 }
 
 @keyframes shimmerMove {
