@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Trophy, Loader2, Timer, CheckCircle2, Zap } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -210,7 +210,7 @@ function PodiumCard({ entry, delay, pos, }: {
   return (
     <motion.div
       initial={pos === 1 ? { opacity: 0, y: -30, scale: 0.8 } : pos === 2 ? { opacity: 0, y: 20, rotate: -10 } : { opacity: 0, y: 40 }}
-      animate={pos === 1 ? { opacity: 1, y: 0, scale: 1.3, transition: { type: "spring", stiffness: 140, damping: 24, delay: 8.5 } } : pos === 2 ? { opacity: 1, scale: 1.1, y: 0, rotate: 0, transition: { type: "spring", stiffness: 150, damping: 22, delay: 5.5 } } : { opacity: 1, y: 0, transition: { delay: 3, duration: 0.8 } }}
+      animate={pos === 1 ? { opacity: 1, y: 0, scale: 1.3, transition: { type: "spring", stiffness: 140, damping: 24, delay } } : pos === 2 ? { opacity: 1, scale: 1.1, y: 0, rotate: 0, transition: { type: "spring", stiffness: 150, damping: 22, delay: 5.5 } } : { opacity: 1, y: 0, transition: { delay: 3, duration: 0.8 } }}
       transition={{ delay }}
       className={`relative overflow-visible flex flex-col items-center gap-4 ${cardSize} rounded-[32px] bg-white/95 backdrop-blur-xl border shadow-2xl`}
       style={{ borderColor: isChampion ? '#EAB308' : '#9CA3AF' }}
@@ -306,35 +306,121 @@ const championBurst = () => {
   confetti({ particleCount: 110, spread: 360, origin: { x: rand(0.35, 0.65), y: rand(0.2, 0.38) }, colors: FIREWORK_COLORS, shapes: ['star', 'circle'], scalar: rand(1.2, 1.7), ticks: 280, startVelocity: 24, gravity: 0.55, decay: 0.91, zIndex: 9999 });
 };
 
-// Brief "CHAMPION" flash that appears between top 2 and top 1
+// Massive particle explosion for champion reveal
+const massiveChampionReveal = () => {
+  const rand = (min: number, max: number) => Math.random() * (max - min) + min;
+  // Central supernova
+  confetti({ particleCount: 220, spread: 360, origin: { x: 0.5, y: 0.42 }, colors: FIREWORK_COLORS, shapes: ['star', 'circle'], scalar: rand(1.3, 1.9), ticks: 340, startVelocity: 38, gravity: 0.52, decay: 0.9, zIndex: 9999 });
+  // 4 corner cannons
+  setTimeout(() => confetti({ particleCount: 90, angle: 55, spread: 55, origin: { x: 0, y: 1 }, colors: FIREWORK_COLORS, shapes: ['star'], scalar: 1.5, ticks: 260, startVelocity: 78, gravity: 0.8, decay: 0.92, zIndex: 9999 }), 120);
+  setTimeout(() => confetti({ particleCount: 90, angle: 125, spread: 55, origin: { x: 1, y: 1 }, colors: FIREWORK_COLORS, shapes: ['star'], scalar: 1.5, ticks: 260, startVelocity: 78, gravity: 0.8, decay: 0.92, zIndex: 9999 }), 120);
+  setTimeout(() => confetti({ particleCount: 70, angle: -50, spread: 50, origin: { x: 0, y: 0 }, colors: FIREWORK_COLORS, shapes: ['circle'], scalar: 1.2, ticks: 220, startVelocity: 60, gravity: 0.9, decay: 0.91, zIndex: 9999 }), 250);
+  setTimeout(() => confetti({ particleCount: 70, angle: -130, spread: 50, origin: { x: 1, y: 0 }, colors: FIREWORK_COLORS, shapes: ['circle'], scalar: 1.2, ticks: 220, startVelocity: 60, gravity: 0.9, decay: 0.91, zIndex: 9999 }), 250);
+  // Mid-air rockets
+  setTimeout(() => confetti({ particleCount: 130, spread: 360, origin: { x: rand(0.3, 0.7), y: rand(0.15, 0.35) }, colors: FIREWORK_COLORS, shapes: ['star'], scalar: rand(1.4, 2.0), ticks: 300, startVelocity: 20, gravity: 0.45, decay: 0.89, zIndex: 9999 }), 400);
+  setTimeout(() => confetti({ particleCount: 100, spread: 360, origin: { x: rand(0.2, 0.5), y: rand(0.2, 0.4) }, colors: FIREWORK_COLORS, shapes: ['star', 'circle'], scalar: rand(1.2, 1.7), ticks: 280, startVelocity: 18, gravity: 0.5, decay: 0.9, zIndex: 9999 }), 580);
+  setTimeout(() => confetti({ particleCount: 100, spread: 360, origin: { x: rand(0.5, 0.8), y: rand(0.2, 0.4) }, colors: FIREWORK_COLORS, shapes: ['star', 'circle'], scalar: rand(1.2, 1.7), ticks: 280, startVelocity: 18, gravity: 0.5, decay: 0.9, zIndex: 9999 }), 700);
+};
+
+function GlowRays({ visible }: { visible: boolean }) {
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          key="glow-rays"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.6 }}
+          style={{ position: 'fixed', inset: 0, zIndex: 9996, pointerEvents: 'none', overflow: 'hidden' }}
+        >
+          {/* Rotating rays */}
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+            style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            {Array.from({ length: 18 }).map((_, i) => (
+              <div key={i} style={{
+                position: 'absolute', width: 3, height: '120vh',
+                background: `linear-gradient(to bottom, transparent 0%, rgba(255,215,0,${0.06 + (i % 3) * 0.04}) 40%, transparent 100%)`,
+                transformOrigin: 'center center',
+                transform: `rotate(${i * 20}deg)`,
+              }} />
+            ))}
+          </motion.div>
+          {/* Pulsing radial glow */}
+          <motion.div
+            animate={{ opacity: [0.5, 0.85, 0.5], scale: [1, 1.12, 1] }}
+            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 48%, rgba(255,215,0,0.18) 0%, rgba(255,140,0,0.08) 38%, transparent 68%)' }}
+          />
+          {/* Expanding rings */}
+          {[0, 1, 2, 3].map((i) => (
+            <motion.div key={i}
+              initial={{ scale: 0.1, opacity: 0.6 }}
+              animate={{ scale: 3.5, opacity: 0 }}
+              transition={{ duration: 2.2, repeat: Infinity, delay: i * 0.55, ease: 'easeOut' }}
+              style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 240, height: 240, borderRadius: '50%', border: '1.5px solid rgba(255,215,0,0.45)' }}
+            />
+          ))}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function ScreenFlash({ visible }: { visible: boolean }) {
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          key="screen-flash"
+          initial={{ opacity: 0.9 }}
+          animate={{ opacity: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.55, ease: 'easeOut' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 9998, pointerEvents: 'none', background: 'radial-gradient(ellipse at 50% 45%, rgba(255,230,100,0.72) 0%, rgba(255,180,0,0.45) 30%, transparent 65%)' }}
+        />
+      )}
+    </AnimatePresence>
+  );
+}
+
 function ChampionBanner() {
   return (
+    // Outer: only opacity — no scale, so fixed overlay covers full screen
     <motion.div
-      key="champion-banner"
-      initial={{ opacity: 0, scale: 0.55 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 1.18 }}
-      transition={{ duration: 0.42, ease: [0.34, 1.56, 0.64, 1] }}
+      key="champion-banner-outer"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
       style={{
-        height: '100vh',
         position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         background: 'rgba(2, 0, 18, 0.68)',
         backdropFilter: 'blur(3px)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       }}
     >
-      {/* Pulse rings */}
-      {[0, 1].map((i) => (
-        <motion.div
-          key={i}
-          initial={{ scale: 0.2, opacity: 0.7 }}
-          animate={{ scale: 4.5, opacity: 0 }}
-          transition={{ duration: 1.4, repeat: Infinity, delay: i * 0.6, ease: 'easeOut' }}
-          style={{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', border: '1.5px solid rgba(255,215,0,0.5)', pointerEvents: 'none' }}
-        />
-      ))}
-
-      <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
+      {/* Inner: scale animation on the content only */}
+      <motion.div
+        initial={{ scale: 0.55, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 1.18, opacity: 0 }}
+        transition={{ duration: 0.42, ease: [0.34, 1.56, 0.64, 1] }}
+        style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}
+      >
+        {/* Pulse rings */}
+        {[0, 1].map((i) => (
+          <motion.div
+            key={i}
+            initial={{ scale: 0.2, opacity: 0.7 }}
+            animate={{ scale: 4.5, opacity: 0 }}
+            transition={{ duration: 1.4, repeat: Infinity, delay: i * 0.6, ease: 'easeOut' }}
+            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 180, height: 180, borderRadius: '50%', border: '1.5px solid rgba(255,215,0,0.5)', pointerEvents: 'none' }}
+          />
+        ))}
         <div style={{ fontSize: 'clamp(52px, 6.5vw, 110px)', lineHeight: 1, marginBottom: 6 }}>🏆</div>
         <div
           style={{
@@ -361,34 +447,50 @@ function ChampionBanner() {
         >
           Vinh danh quán quân xuất sắc nhất
         </motion.p>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
 
-function GameFinal({ round, index }: { round: RoundResult; index: number }) {
+function GameFinal({ round, index, championRevealed }: {
+  round: RoundResult;
+  index: number;
+  championRevealed: boolean;
+}) {
   const top3 = round.top_teams.slice(0, 3);
   const [showBanner, setShowBanner] = useState(false);
+  const [showGlow, setShowGlow] = useState(false);
+  const [showFlash, setShowFlash] = useState(false);
 
+  // Timers for top 3 & top 2 on mount
   useEffect(() => {
     const timers = [
-      // Top 3 appears at ~3s → small burst after it settles
       setTimeout(() => { smallBurst(true); smallBurst(false); }, 3900),
-      // Top 2 appears at ~5.5s → small burst after it settles
       setTimeout(() => { smallBurst(true); smallBurst(false); }, 6400),
-      // Show CHAMPION banner after top 2 settles, before top 1 at 8.5s
-      setTimeout(() => setShowBanner(true), 7200),
-      setTimeout(() => setShowBanner(false), 8400),
-      // Top 1 appears at ~8.5s → celebration bursts
-      setTimeout(() => championBurst(), 8900),
-      setTimeout(() => championBurst(), 9500),
-      setTimeout(() => championBurst(), 10100),
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
 
+  // Champion sequence fires when admin triggers reveal
+  useEffect(() => {
+    if (!championRevealed) return;
+    const timers = [
+      setTimeout(() => { setShowBanner(true); setShowGlow(true); }, 100),
+      setTimeout(() => setShowBanner(false), 1400),
+      setTimeout(() => setShowFlash(true), 1550),
+      setTimeout(() => setShowFlash(false), 2150),
+      setTimeout(() => massiveChampionReveal(), 1700),
+      setTimeout(() => championBurst(), 2600),
+      setTimeout(() => championBurst(), 3300),
+      setTimeout(() => setShowGlow(false), 7000),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [championRevealed]);
+
   return (
     <>
+      <GlowRays visible={showGlow} />
+      <ScreenFlash visible={showFlash} />
       <AnimatePresence>
         {showBanner && <ChampionBanner key="champion-banner" />}
       </AnimatePresence>
@@ -413,9 +515,11 @@ function GameFinal({ round, index }: { round: RoundResult; index: number }) {
               <PodiumCard entry={top3[1]} delay={5} pos={2} />
             </div>
 
-            {/* TOP 1 */}
+            {/* TOP 1 — only renders after champion.revealed */}
             <div className="podium-column podium-first">
-              <PodiumCard entry={top3[0]} delay={0} pos={1} />
+              {championRevealed
+                ? <PodiumCard entry={top3[0]} delay={1.4} pos={1} />
+                : <div style={{ width: 290, minHeight: 390 }} />}
             </div>
 
             {/* TOP 3 */}
@@ -437,6 +541,7 @@ export default function StageFinal() {
   const [loading, setLoading] = useState(() => !!gameId);
   const [totalTop, setTotalTop] = useState<RoundResultEntry[] | null>(null);
   const [_, setPublished] = useState(false);
+  const [championRevealed, setChampionRevealed] = useState(false);
 
   useEffect(() => {
     if (!gameId) return;
@@ -449,7 +554,6 @@ export default function StageFinal() {
       .finally(() => setLoading(false));
   }, [gameId]);
 
-  // Subscribe to results published event to switch to total leaderboard
   useGameSocket(gameId ? Number(gameId) : null, {
     ".results.published": async () => {
       if (!gameId) return;
@@ -464,6 +568,9 @@ export default function StageFinal() {
       } finally {
         setLoading(false);
       }
+    },
+    ".champion.revealed": () => {
+      setChampionRevealed(true);
     },
   });
 
@@ -557,6 +664,7 @@ export default function StageFinal() {
                 <GameFinal
                   round={{ round_number: 0, top_teams: totalTop }}
                   index={0}
+                  championRevealed={championRevealed}
                 />
               </div>
             </div>

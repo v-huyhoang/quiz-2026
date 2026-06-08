@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  getAdminGameState, publishResults, revealScreen, startGame, startRound, openQuestion, closeQuestion,
+  getAdminGameState, publishResults, revealChampion, revealScreen, startGame, startRound, openQuestion, closeQuestion,
   finishRound, finishGame,
   type GameState,
 } from "../../services/gameService";
@@ -27,6 +27,7 @@ export default function AdminGameControl() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setAction] = useState(false);
   const [error, setError] = useState("");
+  const [resultsPublished, setResultsPublished] = useState(false);
 
   // ── Initial fetch ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -265,7 +266,7 @@ export default function AdminGameControl() {
                     {canOpenNext    && <CtrlBtn color="bg-blue-500"   icon={<SkipForward size={16} />} label="Câu tiếp theo"  loading={actionLoading} onClick={() => act(() => openQuestion(id))} />}
                     {canFinishRound && <CtrlBtn color="bg-gray-800"   icon={<Trophy size={16} />}      label="Kết thúc vòng"  loading={actionLoading} onClick={() => act(() => finishRound(id))} />}
                     {canFinishGame  && <CtrlBtn color="bg-secondary"  icon={<Trophy size={16} />}      label="Kết thúc game"  loading={actionLoading} onClick={() => act(() => finishGame(id))} />}
-                    {gameState.status === "finished" && (
+                    {gameState.status === "finished" && !resultsPublished && (
                       <div className="flex items-center gap-3">
                         <CtrlBtn
                           color="bg-indigo-600"
@@ -277,6 +278,7 @@ export default function AdminGameControl() {
                             setError("");
                             try {
                               await publishResults(id);
+                              setResultsPublished(true);
                             } catch (e) {
                               setError(getApiErrorMessage(e, "Có lỗi khi công bố kết quả."));
                             } finally {
@@ -285,6 +287,28 @@ export default function AdminGameControl() {
                           }}
                         />
                         <span className="text-sm font-bold text-gray-400 self-center">Game đã kết thúc</span>
+                      </div>
+                    )}
+                    {gameState.status === "finished" && resultsPublished && (
+                      <div className="flex items-center gap-3">
+                        <CtrlBtn
+                          color="bg-yellow-500"
+                          icon={<Trophy size={16} />}
+                          label="Công bố Quán Quân 🏆"
+                          loading={actionLoading}
+                          onClick={async () => {
+                            setAction(true);
+                            setError("");
+                            try {
+                              await revealChampion(id);
+                            } catch (e) {
+                              setError(getApiErrorMessage(e, "Có lỗi khi công bố quán quân."));
+                            } finally {
+                              setAction(false);
+                            }
+                          }}
+                        />
+                        <span className="text-sm font-bold text-gray-400 self-center">Đã công bố top 2 & 3</span>
                       </div>
                     )}
                   </div>

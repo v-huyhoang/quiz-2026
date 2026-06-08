@@ -202,6 +202,17 @@ class GameController extends Controller
         }
     }
 
+    public function revealChampion(int $id)
+    {
+        try {
+            $game = Game::findOrFail($id);
+            broadcast(new \App\Events\ChampionRevealed($game));
+            return $this->successResponse(null, 'Champion revealed');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
+        }
+    }
+
     public function leave(int $id)
     {
         $team = request()->user();
