@@ -28,6 +28,11 @@ class GameService
             throw new \Exception('Game is not accepting new players');
         }
 
+        $presentCount = $game->teams()->where('is_present', true)->count();
+        if ($presentCount >= $game->max_teams) {
+            throw new \Exception('Phòng chơi đã đạt giới hạn số người tham gia.');
+        }
+
         $existingTeam = $game->teams()->where('name', $teamName)->first();
 
         if ($existingTeam) {
@@ -177,6 +182,7 @@ class GameService
             'access_code' => $game->access_code,
             'rounds_total' => $game->rounds,
             'questions_per_round' => $game->questions_per_round,
+            'max_teams' => $game->max_teams,
             'teams' => $teams->map(fn($t) => ['id' => $t->id, 'name' => $t->name])->all(),
             'current_round' => $currentRound,
         ];

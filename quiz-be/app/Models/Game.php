@@ -19,6 +19,7 @@ class Game extends Model
         'rounds',
         'questions_per_round',
         'question_mode',
+        'max_teams',
     ];
 
     protected $casts = [

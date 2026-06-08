@@ -11,10 +11,9 @@ import Header from "../../components/Header";
 import { GridBg } from "../../components/ui/GridBg";
 import { useGameSocket } from "../../hooks/useGameSocket";
 
-const MAX_TEAMS = 30;
 const APP_URL = import.meta.env.VITE_APP_URL ?? "http://localhost:5173";
 
-type GameInfo = Pick<GameState, "name" | "access_code" | "rounds_total" | "questions_per_round">;
+type GameInfo = Pick<GameState, "name" | "access_code" | "rounds_total" | "questions_per_round" | "max_teams">;
 
 export default function StageWaitting() {
   const [searchParams] = useSearchParams();
@@ -43,6 +42,7 @@ export default function StageWaitting() {
           access_code: d.access_code,
           rounds_total: d.rounds_total,
           questions_per_round: d.questions_per_round,
+          max_teams: d.max_teams ?? 30,
         });
       })
       .catch(() => {});
@@ -77,7 +77,8 @@ export default function StageWaitting() {
   });
 
   const joinUrl    = gameInfo ? `${APP_URL}/join?room=${gameInfo.access_code}` : "";
-  const emptySlots = Math.max(0, MAX_TEAMS - teams.length);
+  const maxTeams   = gameInfo?.max_teams ?? 30;
+  const emptySlots = Math.max(0, maxTeams - teams.length);
 
   return (
     <div
@@ -116,12 +117,12 @@ export default function StageWaitting() {
               <span className="text-sm font-bold text-gray-500 uppercase tracking-widest">Đội đã tham gia</span>
               <span className="text-4xl font-black text-primary tabular-nums">
                 {teams.length}
-                <span className="text-xl text-gray-400 font-bold">/{MAX_TEAMS}</span>
+                <span className="text-xl text-gray-400 font-bold">/{maxTeams}</span>
               </span>
             </div>
             <div className="w-full h-2 bg-gray-300 rounded-full overflow-hidden">
               <motion.div
-                animate={{ width: `${(teams.length / MAX_TEAMS) * 100}%` }}
+                animate={{ width: `${(teams.length / maxTeams) * 100}%` }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
                 className="h-full bg-primary rounded-full"
               />
