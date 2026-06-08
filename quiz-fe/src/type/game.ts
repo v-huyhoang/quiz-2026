@@ -51,6 +51,7 @@ export interface GameState {
   access_code: string;
   rounds_total: number;
   questions_per_round: number;
+  max_teams: number;
   teams: GameTeam[];
   current_round: CurrentRound | null;
 }
