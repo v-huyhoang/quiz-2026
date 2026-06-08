@@ -95,19 +95,43 @@ export default function StageWaitting() {
       {/* Top bar */}
       <Header title="Sảnh chờ" />
 
-      <main className="grow w-full max-w-7xl mx-auto px-8 py-10 grid grid-cols-[1fr_320px] gap-10">
+      {/* Content: flex row, fills remaining height */}
+      <div className="flex-1 flex min-h-0 relative">
         <img
           src={waveImage}
           alt="waveImage"
           className="absolute w-1/3 h-1/3 bottom-0 right-0 opacity-40 pointer-events-none select-none z-0"
         />
 
-        {/* ── Left: game title + team grid ─────────────────────────────── */}
-        <div className="flex flex-col gap-8 min-w-0">
+        {/* ── Left: scrollable content ──────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto px-12 py-10 flex flex-col gap-8 min-w-0">
           {gameInfo && (
-            <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-[0.3em] mb-1">Trò chơi</p>
-              <h1 className="text-5xl font-black text-gray-900 leading-tight truncate">{gameInfo.name}</h1>
+            <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-3">
+              <div>
+                <p className="text-xs font-black text-gray-400 uppercase tracking-[0.3em] mb-1">Trò chơi</p>
+                <h1 className="text-5xl font-black text-gray-900 leading-tight truncate">{gameInfo.name}</h1>
+              </div>
+              <div className="flex items-center gap-5 flex-wrap">
+                <div className="flex items-center gap-1.5 text-gray-500">
+                  <Layers size={13} />
+                  <span className="text-sm font-semibold">Số vòng:</span>
+                  <span className="text-sm font-black text-gray-900">{gameInfo.rounds_total}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-gray-500">
+                  <HelpCircle size={13} />
+                  <span className="text-sm font-semibold">Câu hỏi / vòng:</span>
+                  <span className="text-sm font-black text-gray-900">{gameInfo.questions_per_round}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-gray-500">
+                  <HelpCircle size={13} />
+                  <span className="text-sm font-semibold">Tổng:</span>
+                  <span className="text-sm font-black text-gray-900">{gameInfo.rounds_total * gameInfo.questions_per_round} câu</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold text-gray-500">Mã phòng:</span>
+                  <span className="text-sm font-black text-primary font-mono tracking-widest">{gameInfo.access_code}</span>
+                </div>
+              </div>
             </motion.div>
           )}
 
@@ -148,63 +172,70 @@ export default function StageWaitting() {
           </div>
         </div>
 
-        {/* ── Right: QR code + access code ─────────────────────────────── */}
-        <div className="flex flex-col items-center gap-6 sticky top-10 self-start">
+        {/* ── Right: fixed-width panel, QR always centered in viewport ──── */}
+        <div className="w-[600px] shrink-0 flex flex-col items-center justify-center px-8 py-10">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col items-center gap-4 shadow-md w-full"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="border border-gray-200 rounded-2xl p-6 flex flex-col items-center gap-5 shadow-xl w-full"
+            style={{ backgroundColor: '#ffffff' }}
           >
-            <p className="text-[16px] font-black text-gray-400 uppercase tracking-[0.25em]">Quét để tham gia</p>
+            <p className="text-[15px] font-black text-gray-400 uppercase tracking-[0.25em]">Quét để tham gia</p>
 
-            <div className="p-3 bg-white rounded-xl border-2 border-gray-100">
+            {/* QR wrapper with scan effect */}
+            <div className="relative rounded-xl overflow-hidden" style={{ backgroundColor: '#ffffff', padding: '12px' }}>
+              {/* Corner brackets */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.9 }}
+                className="absolute inset-0 pointer-events-none z-20"
+              >
+                <div className="absolute top-2 left-2 w-7 h-7 border-t-[3px] border-l-[3px] border-primary rounded-tl-sm" />
+                <div className="absolute top-2 right-2 w-7 h-7 border-t-[3px] border-r-[3px] border-primary rounded-tr-sm" />
+                <div className="absolute bottom-2 left-2 w-7 h-7 border-b-[3px] border-l-[3px] border-primary rounded-bl-sm" />
+                <div className="absolute bottom-2 right-2 w-7 h-7 border-b-[3px] border-r-[3px] border-primary rounded-br-sm" />
+              </motion.div>
+
+              {/* Scan line */}
+              <motion.div
+                className="absolute left-3 right-3 h-[2px] z-10 pointer-events-none rounded-full"
+                style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9, #6366f1, #0ea5e9, transparent)', boxShadow: '0 0 10px 2px rgba(99,102,241,0.4)' }}
+                initial={{ top: '12px', opacity: 0 }}
+                animate={{ top: ['12px', '442px', '12px'], opacity: [0, 1, 1, 1, 0] }}
+                transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut', delay: 1.2 }}
+              />
+
               {joinUrl ? (
-                <QRCodeSVG value={joinUrl} size={200} bgColor="#ffffff" fgColor="#1a1a2e" level="M" />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.75, filter: 'blur(6px)' }}
+                  animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                  transition={{ type: 'spring', stiffness: 160, damping: 18, delay: 0.35 }}
+                >
+                  <QRCodeSVG value={joinUrl} size={430} bgColor="#ffffff" fgColor="#1a1a2e" level="H" />
+                </motion.div>
               ) : (
-                <div className="w-[200px] h-[200px] bg-gray-100 rounded-lg animate-pulse" />
+                <div className="w-[430px] h-[430px] bg-gray-100 rounded-lg animate-pulse" />
               )}
             </div>
 
             {gameInfo && (
-              <>
-                <div className="w-full border-t border-gray-100 pt-4 flex flex-col items-center gap-1">
-                  <p className="text-[14px] font-bold text-gray-400 uppercase tracking-[0.2em]">Mã phòng</p>
-                  <p className="text-4xl font-extrabold text-primary font-mono tracking-widest">
-                    {gameInfo.access_code}
-                  </p>
-                </div>
-                <p className="text-[11px] text-gray-400 font-medium text-center leading-relaxed">
-                  Truy cập <span className="font-bold text-gray-600 break-all">{APP_URL}/join?room={gameInfo.access_code}</span><br />
-                  hoặc quét mã QR bên trên
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                className="flex flex-col items-center gap-1"
+              >
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em]">Mã phòng</p>
+                <p className="text-4xl font-extrabold text-primary font-mono tracking-widest">
+                  {gameInfo.access_code}
                 </p>
-              </>
+              </motion.div>
             )}
           </motion.div>
-
-          {gameInfo && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white border border-gray-200 rounded-2xl p-5 w-full shadow-sm"
-            >
-              <p className="text-[14px] text-center font-black text-gray-400 uppercase tracking-[0.25em] mb-6">
-                Thông tin trò chơi
-              </p>
-              <div className="space-y-3">
-                <GameInfoRow icon={<Layers size={14} />} label="Số vòng đấu" value={gameInfo.rounds_total} />
-                <GameInfoRow icon={<HelpCircle size={14} />} label="Câu hỏi / vòng" value={gameInfo.questions_per_round} />
-                <GameInfoRow
-                  icon={<HelpCircle size={14} />}
-                  label="Tổng câu hỏi"
-                  value={gameInfo.rounds_total * gameInfo.questions_per_round}
-                />
-              </div>
-            </motion.div>
-          )}
         </div>
-      </main>
+      </div>
 
       {/* Toast notifications */}
       <AnimatePresence>
@@ -246,37 +277,6 @@ const StageTeamCard = memo(function StageTeamCard({ team, index }: { team: GameT
       </div>
       <p className="text-xs font-black text-gray-900 truncate uppercase tracking-wide flex-1">{team.name}</p>
     </motion.div>
-  );
-});
-
-// const StageEmptySlot = memo(function StageEmptySlot() {
-//   return (
-//     <div className="border-2 border-dashed border-gray-200 bg-gray-50/40 p-3 rounded-xl flex items-center gap-3 opacity-40">
-//       <div className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-300 shrink-0">
-//         <UserPlus size={16} />
-//       </div>
-//       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Trống</p>
-//     </div>
-//   );
-// });
-
-const GameInfoRow = memo(function GameInfoRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2 text-gray-500">
-        {icon}
-        <span className="text-sm font-semibold">{label}</span>
-      </div>
-      <span className="text-xl font-black text-gray-900">{value}</span>
-    </div>
   );
 });
 
