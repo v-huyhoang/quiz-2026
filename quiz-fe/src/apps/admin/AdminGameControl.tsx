@@ -3,11 +3,11 @@ import { Navbar } from "./parts/Navbar";
 import { motion } from "motion/react";
 import {
   Play, Pause, SkipForward, Trophy, Clock,
-  Users, CheckCircle, XCircle, ArrowLeft, Loader2,
+  Users, CheckCircle, XCircle, ArrowLeft, Loader2, Monitor,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  getAdminGameState, publishResults, startGame, startRound, openQuestion, closeQuestion,
+  getAdminGameState, publishResults, revealScreen, startGame, startRound, openQuestion, closeQuestion,
   finishRound, finishGame,
   type GameState,
 } from "../../services/gameService";
@@ -56,6 +56,13 @@ export default function AdminGameControl() {
     ".question.closed": () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => { }),
     ".game.finished": () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => { }),
   });
+
+  // ── Reveal waiting screen (doesn't change game state) ────────────────────────
+  const handleReveal = useCallback(async () => {
+    setAction(true);
+    setError("");
+    try { await revealScreen(id); } catch (e) { setError(getApiErrorMessage(e, "Có lỗi xảy ra.")); } finally { setAction(false); }
+  }, [id]);
 
   // ── Action helpers ────────────────────────────────────────────────────────────
   const act = useCallback(async (fn: () => Promise<{ data: { data: GameState } }>) => {
@@ -251,12 +258,13 @@ export default function AdminGameControl() {
                     Điều khiển game
                   </h3>
                   <div className="flex flex-wrap gap-3">
-                    {canStartGame && <CtrlBtn color="bg-green-600" icon={<Play size={16} />} label="Bắt đầu game" loading={actionLoading} onClick={() => act(() => startGame(id))} />}
-                    {canStartRound && <CtrlBtn color="bg-primary" icon={<Play size={16} />} label="Bắt đầu vòng" loading={actionLoading} onClick={() => act(() => startRound(id))} />}
-                    {canCloseQ && <CtrlBtn color="bg-red-500" icon={<Pause size={16} />} label="Đóng câu hỏi" loading={actionLoading} onClick={() => act(() => closeQuestion(id))} />}
-                    {canOpenNext && <CtrlBtn color="bg-blue-500" icon={<SkipForward size={16} />} label="Câu tiếp theo" loading={actionLoading} onClick={() => act(() => openQuestion(id))} />}
-                    {canFinishRound && <CtrlBtn color="bg-gray-800" icon={<Trophy size={16} />} label="Kết thúc vòng" loading={actionLoading} onClick={() => act(() => finishRound(id))} />}
-                    {canFinishGame && <CtrlBtn color="bg-secondary" icon={<Trophy size={16} />} label="Kết thúc game" loading={actionLoading} onClick={() => act(() => finishGame(id))} />}
+                    {canStartGame   && <CtrlBtn color="bg-indigo-500" icon={<Monitor size={16} />}     label="Hiển thị màn hình chờ" loading={actionLoading} onClick={handleReveal} />}
+                    {canStartGame   && <CtrlBtn color="bg-green-600"  icon={<Play size={16} />}        label="Bắt đầu game"   loading={actionLoading} onClick={() => act(() => startGame(id))} />}
+                    {canStartRound  && <CtrlBtn color="bg-primary"    icon={<Play size={16} />}        label="Bắt đầu vòng"   loading={actionLoading} onClick={() => act(() => startRound(id))} />}
+                    {canCloseQ      && <CtrlBtn color="bg-red-500"    icon={<Pause size={16} />}       label="Đóng câu hỏi"   loading={actionLoading} onClick={() => act(() => closeQuestion(id))} />}
+                    {canOpenNext    && <CtrlBtn color="bg-blue-500"   icon={<SkipForward size={16} />} label="Câu tiếp theo"  loading={actionLoading} onClick={() => act(() => openQuestion(id))} />}
+                    {canFinishRound && <CtrlBtn color="bg-gray-800"   icon={<Trophy size={16} />}      label="Kết thúc vòng"  loading={actionLoading} onClick={() => act(() => finishRound(id))} />}
+                    {canFinishGame  && <CtrlBtn color="bg-secondary"  icon={<Trophy size={16} />}      label="Kết thúc game"  loading={actionLoading} onClick={() => act(() => finishGame(id))} />}
                     {gameState.status === "finished" && (
                       <div className="flex items-center gap-3">
                         <CtrlBtn

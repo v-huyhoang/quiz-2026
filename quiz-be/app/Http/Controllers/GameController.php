@@ -9,6 +9,7 @@ use App\Events\QuestionClosed;
 use App\Events\QuestionStarted;
 use App\Events\RoundFinished;
 use App\Events\TeamJoined;
+use App\Events\WaitingScreenRevealed;
 use App\Http\Requests\Game\GetCurrentQuestionRequest;
 use App\Http\Requests\Game\JoinGameRequest;
 use App\Http\Requests\Game\SubmitAnswerRequest;
@@ -108,6 +109,17 @@ class GameController extends Controller
             return $this->successResponse($this->gameService->getAdminState($id));
         } catch (\Exception $e) {
             return $this->resourceNotFoundResponse('Game not found');
+        }
+    }
+
+    public function reveal(int $id)
+    {
+        try {
+            $game = Game::findOrFail($id);
+            broadcast(new WaitingScreenRevealed($game));
+            return $this->successResponse(null, 'Waiting screen revealed');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
         }
     }
 

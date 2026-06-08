@@ -66,6 +66,7 @@ class RoomService
                 'rounds' => $data['rounds'],
                 'questions_per_round' => $data['questions_per_round'],
                 'question_mode' => $data['question_mode'],
+                'max_teams' => $data['max_teams'] ?? 30,
                 'status' => 'pending',
             ];
 
@@ -130,6 +131,7 @@ class RoomService
                 'rounds' => $game->rounds,
                 'questions_per_round' => $game->questions_per_round,
                 'question_mode' => $game->question_mode,
+                'max_teams' => $game->max_teams,
                 'status' => $game->status,
                 'join_url' => url("/join?room={$game->access_code}"),
             ];

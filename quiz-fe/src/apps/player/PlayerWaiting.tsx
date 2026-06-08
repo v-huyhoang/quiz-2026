@@ -9,14 +9,13 @@ import backgroundImage from "../../assets/background.png";
 import logoImage from "../../assets/logo.png";
 import { useGameSocket } from "../../hooks/useGameSocket";
 
-const MAX_TEAMS = 30;
-
 export default function PlayerWaiting() {
   const { teamName, teamId, gameId } = useAuthStore();
   const { gameStatus, currentQuestion } = useGameStore();
   const navigate = useNavigate();
 
   const [teams, setTeams] = useState<GameTeam[]>([]);
+  const [maxTeams, setMaxTeams] = useState(30);
 
   // ── Initial state fetch and visibility refresh ─────────────────────────────
   useEffect(() => {
@@ -28,6 +27,7 @@ export default function PlayerWaiting() {
         .then((res) => {
           if (!active) return;
           setTeams(res.data.data.teams);
+          setMaxTeams(res.data.data.max_teams ?? 30);
           if (res.data.data.status !== "pending") {
             navigate("/player/game", { replace: true });
           }
@@ -70,7 +70,7 @@ export default function PlayerWaiting() {
     }
   }, [currentQuestion, gameStatus, navigate]);
 
-  const emptySlots = MAX_TEAMS - teams.length;
+  const emptySlots = maxTeams - teams.length;
 
   return (
     <div 
@@ -124,7 +124,7 @@ export default function PlayerWaiting() {
 
           <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden z-10">
             <motion.div
-              animate={{ width: `${(teams.length / MAX_TEAMS) * 100}%` }}
+              animate={{ width: `${(teams.length / maxTeams) * 100}%` }}
               transition={{ duration: 0.5 }}
               className="h-full bg-primary rounded-full"
             />
@@ -137,7 +137,7 @@ export default function PlayerWaiting() {
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Sảnh chờ</h2>
             <div className="text-3xl sm:text-4xl font-black text-primary">
               {teams.length}
-              <span className="text-lg sm:text-xl text-gray-300">/{MAX_TEAMS}</span>
+              <span className="text-lg sm:text-xl text-gray-300">/{maxTeams}</span>
             </div>
           </div>
 

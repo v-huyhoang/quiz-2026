@@ -60,6 +60,8 @@ export const getGameResult = (id: number | string) =>
 
 export const publishResults = (id: number | string) =>
   api.post<ApiResponse<null>>(`/admin/games/${id}/publish-result`);
+export const revealScreen = (id: number) =>
+  api.post<ApiResponse<null>>(`/admin/games/${id}/reveal`);
 
 export const startGame = (id: number) =>
   api.post<ApiResponse<GameState>>(`/admin/games/${id}/start`);

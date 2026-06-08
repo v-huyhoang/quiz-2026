@@ -85,6 +85,7 @@ export const AdminRoom = () => {
         name: room.name,
         rounds: room.rounds,
         questionsPerRound: room.questions_per_round,
+        maxTeams: room.max_teams ?? 30,
         status: room.status,
         accessCode: room.access_code,
         questionMode: room.question_mode,
@@ -120,6 +121,7 @@ export const AdminRoom = () => {
     name: "",
     rounds: "3",
     questionsPerRound: "10",
+    maxTeams: "30",
     accessCode: "",
     questionMode: "random",
   });
@@ -180,6 +182,7 @@ export const AdminRoom = () => {
         name: form.name,
         rounds: Number(form.rounds),
         questions_per_round: Number(form.questionsPerRound),
+        max_teams: Number(form.maxTeams) || 30,
         access_code: form.accessCode,
         question_mode: form.questionMode,
       };
@@ -281,6 +284,7 @@ export const AdminRoom = () => {
       name: "",
       rounds: "3",
       questionsPerRound: "10",
+      maxTeams: "30",
       accessCode: "",
       questionMode: "random",
     });
@@ -357,7 +361,7 @@ export const AdminRoom = () => {
                 </p>
               </div>
 
-              <div className="p-6 grid grid-cols-2 gap-6">
+              <div className="p-6 grid grid-cols-3 gap-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-50 text-blue-500 rounded-lg">
                     <Layout size={20} />
@@ -374,6 +378,15 @@ export const AdminRoom = () => {
                   <div>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Questions</p>
                     <p className="text-lg font-bold text-gray-900">{room.questionsPerRound} / round</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-50 text-green-500 rounded-lg">
+                    <Users size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Max</p>
+                    <p className="text-lg font-bold text-gray-900">{room.maxTeams} players</p>
                   </div>
                 </div>
               </div>
@@ -494,7 +507,7 @@ export const AdminRoom = () => {
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-3 gap-4">
                         <div className="flex flex-col gap-2">
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
                             <Clock size={10} /> Rounds
@@ -524,6 +537,21 @@ export const AdminRoom = () => {
                                 ...f,
                                 questionsPerRound: e.target.value,
                               }))
+                            }
+                            className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-primary"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                            <Users size={10} /> Max Players
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={500}
+                            value={form.maxTeams}
+                            onChange={(e) =>
+                              setForm((f) => ({ ...f, maxTeams: e.target.value }))
                             }
                             className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-primary"
                           />

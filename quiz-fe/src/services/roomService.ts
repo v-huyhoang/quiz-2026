@@ -22,6 +22,7 @@ export interface CreateRoomPayload {
   name: string;
   rounds: number;
   questions_per_round: number;
+  max_teams: number;
   access_code: string;
   question_mode: "random" | "manual";
   round_questions?: RoundQuestionAssignment[];
@@ -33,6 +34,7 @@ export interface CreateRoomData {
   access_code: string;
   rounds: number;
   questions_per_round: number;
+  max_teams: number;
   question_mode: "random" | "manual";
   status: "pending" | "active" | "finished";
   join_url: string;
