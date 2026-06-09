@@ -148,7 +148,7 @@ export default function PlayerGame() {
     if (!gameId) return;
     getPlayerGameState(gameId)
       .then((res) => applyGameState(res.data.data))
-      .catch(() => {});
+      .catch(() => { });
   }, [applyGameState, gameId]);
 
   // ── WebSocket subscription ────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ export default function PlayerGame() {
             questions_done: prev.current_round.questions_done + 1,
             current_question: {
               ...prev.current_round.current_question,
-              status:  "closed",
+              status: "closed",
               answers: data.question.answers,
             },
           },
@@ -291,7 +291,7 @@ export default function PlayerGame() {
     } catch (e: unknown) {
       const status = (e as { response?: { status?: number } })?.response?.status;
       if (status === 409) {
-        if (gameId) getPlayerGameState(gameId).then((res) => applyGameState(res.data.data)).catch(() => {});
+        if (gameId) getPlayerGameState(gameId).then((res) => applyGameState(res.data.data)).catch(() => { });
       } else {
         setSubmitError(getApiErrorMessage(e, "Không thể nộp. Thử lại."));
       }
@@ -331,7 +331,7 @@ export default function PlayerGame() {
       className="min-h-screen flex flex-col"
       style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
     >
-      <main className="flex-grow w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-12">
+      <main className="flex-grow flex flex-col w-full max-w-4xl mx-auto px-4 sm:px-6 py-6">
 
         {/* Header */}
         <div className="flex justify-between items-center mb-4 sm:mb-8">
@@ -412,10 +412,10 @@ function ImageInputQuestion({
       key={question.round_question_id}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col gap-4 sm:gap-6"
+      className="flex flex-col items-center justify-center min-h-[70vh]"
     >
       {/* Image */}
-      <div className="w-fit mx-auto rounded-2xl overflow-hidden border-2 sm:border-4 border-white shadow-xl bg-transparent flex items-center justify-center">
+      {/* <div className="w-fit mx-auto rounded-2xl overflow-hidden border-2 sm:border-4 border-white shadow-xl bg-transparent flex items-center justify-center">
         {question.image_url ? (
           <img
             src={resolveStorageUrl(question.image_url) ?? ""}
@@ -428,19 +428,24 @@ function ImageInputQuestion({
             <span className="text-sm font-bold">Không tải được ảnh</span>
           </div>
         )}
-      </div>
+      </div> */}
 
-      {question.type === "image_input" ? (
+      {/* {question.type === "image_input" ? (
         <p className="text-center text-base sm:text-lg font-bold text-primary">Nhìn hình đoán câu thành ngữ</p>
       ) : question.content && (
         <p className="text-center text-base sm:text-lg font-bold text-gray-500">{question.content}</p>
-      )}
+      )} */}
+
+      <div className="w-full max-w-xl mx-auto text-center">
+        <h2 className="text-2xl sm:text-4xl font-black text-primary mb-3">
+          Nhập đáp án
+        </h2>
+      </div>
 
       {/* Input area */}
-      <div className="flex flex-col gap-3">
-        <div className={`flex gap-2 sm:gap-3 p-1.5 sm:p-2 rounded-2xl border-2 sm:border-4 bg-white transition-colors ${
-          isCorrect ? "border-green-400" : isWrong && retryCountdown > 0 ? "border-red-300" : "border-white"
-        }`}>
+      <div className="w-full max-w-xl flex flex-col gap-3">
+        <div className={`flex gap-2 sm:gap-3 p-1.5 sm:p-2 rounded-2xl border-2 sm:border-4 bg-white transition-colors ${isCorrect ? "border-green-400" : isWrong && retryCountdown > 0 ? "border-red-300" : "border-white"
+          }`}>
           <input
             type="text"
             value={textInput}
@@ -453,13 +458,12 @@ function ImageInputQuestion({
           <button
             onClick={onSubmit}
             disabled={inputDisabled || !textInput.trim()}
-            className={`px-4 sm:px-6 py-2 rounded-xl font-bold text-xs sm:text-sm uppercase tracking-widest transition-all flex items-center gap-2 ${
-              isCorrect
-                ? "bg-green-500 text-white cursor-default"
-                : inputDisabled || !textInput.trim()
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-primary text-white hover:bg-primary/90"
-            }`}
+            className={`px-4 sm:px-6 py-2 rounded-xl font-bold text-xs sm:text-sm uppercase tracking-widest transition-all flex items-center gap-2 ${isCorrect
+              ? "bg-green-500 text-white cursor-default"
+              : inputDisabled || !textInput.trim()
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-primary text-white hover:bg-primary/90"
+              }`}
           >
             {submitting ? (
               <Loader2 size={16} className="animate-spin" />
@@ -479,7 +483,7 @@ function ImageInputQuestion({
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-green-50 border-2 border-green-200 text-green-700 font-bold text-sm"
+              className="flex items-center justify-center text-center gap-2 px-4 py-3 rounded-xl bg-green-50 border-2 border-green-200 text-green-700 font-bold text-sm"
             >
               <CheckCircle size={18} className="text-green-500 shrink-0" />
               <span>Chính xác! 🎉</span>
@@ -547,7 +551,7 @@ function SingleChoiceQuestion({
   isLastQuestion: boolean;
 }) {
   return (
-    <>
+    <div className="flex-1 flex flex-col justify-center">
       <motion.div
         key={question.round_question_id}
         initial={{ opacity: 0, x: -20 }}
@@ -578,9 +582,8 @@ function SingleChoiceQuestion({
                 }`}
             >
               <div className="flex items-center gap-3 sm:gap-4">
-                <span className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-bold border-2 ${
-                  isSelected ? "bg-primary text-white border-primary" : "text-gray-400 border-gray-100"
-                }`}>
+                <span className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-bold border-2 ${isSelected ? "bg-primary text-white border-primary" : "text-gray-400 border-gray-100"
+                  }`}>
                   {ANSWER_LABELS[i]}
                 </span>
                 <span className={`font-bold text-base sm:text-lg ${isSelected ? "text-primary" : "text-gray-700"}`}>
@@ -609,9 +612,8 @@ function SingleChoiceQuestion({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className={`group relative flex items-center gap-2 sm:gap-3 px-6 sm:px-7 py-3.5 sm:py-4 rounded-2xl font-bold text-xs sm:text-sm tracking-widest uppercase text-white overflow-hidden transition-all ${
-                selectedId && !submitting ? "bg-primary cursor-pointer" : "bg-gray-300 cursor-not-allowed"
-              }`}
+              className={`group relative flex items-center gap-2 sm:gap-3 px-6 sm:px-7 py-3.5 sm:py-4 rounded-2xl font-bold text-xs sm:text-sm tracking-widest uppercase text-white overflow-hidden transition-all ${selectedId && !submitting ? "bg-primary cursor-pointer" : "bg-gray-300 cursor-not-allowed"
+                }`}
             >
               {submitting
                 ? <Loader2 size={18} className="animate-spin relative z-10" />
@@ -653,7 +655,7 @@ function SingleChoiceQuestion({
           )}
         </AnimatePresence>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -676,7 +678,7 @@ function ClosedScreen({
       className="min-h-screen flex flex-col"
       style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
     >
-      <main className="flex-grow w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-12">
+      <main className="flex-grow flex flex-col w-full max-w-4xl mx-auto px-4 sm:px-6 py-6">
         <div className="flex items-center justify-between mb-4 sm:mb-6">
           <div className="flex items-center gap-2 sm:gap-2.5">
             <span className="text-xs sm:text-sm font-black text-gray-900">
@@ -720,33 +722,30 @@ function ClosedScreen({
           </div>
         ) : (
           // ── single_choice: existing grid ─────────────────────────────────────
-          <>
+          <div className="flex-1 flex flex-col justify-center">
             <h2 className="text-2xl sm:text-3xl font-black text-gray-900 leading-tight mb-6 sm:mb-8 text-center">
               {question.content}
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:gap-4">
               {question.answers.map((ans, i) => {
                 const isCorrect = ans.is_correct === true;
-                const isMine    = myAnswerId !== null && myAnswerId === ans.id;
+                const isMine = myAnswerId !== null && myAnswerId === ans.id;
                 return (
                   <div
                     key={ans.id ?? i}
-                    className={`p-4 sm:p-6 rounded-xl border-2 sm:border-4 flex items-center gap-3 sm:gap-4 transition-all ${
-                      isCorrect ? "border-green-400 bg-green-50"
-                        : isMine  ? "border-red-300 bg-red-50"
+                    className={`p-4 sm:p-6 rounded-xl border-2 sm:border-4 flex items-center gap-3 sm:gap-4 transition-all ${isCorrect ? "border-green-400 bg-green-50"
+                      : isMine ? "border-red-300 bg-red-50"
                         : "border-gray-200 bg-gray-50 opacity-50"
-                    }`}
+                      }`}
                   >
-                    <span className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-bold border-2 ${
-                      isCorrect ? "bg-green-500 text-white border-green-500"
-                        : isMine  ? "bg-red-400 text-white border-red-400"
+                    <span className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-bold border-2 ${isCorrect ? "bg-green-500 text-white border-green-500"
+                      : isMine ? "bg-red-400 text-white border-red-400"
                         : "text-gray-300 border-gray-200"
-                    }`}>
+                      }`}>
                       {ANSWER_LABELS[i]}
                     </span>
-                    <span className={`font-bold text-base sm:text-lg flex-1 ${
-                      isCorrect ? "text-green-800" : isMine ? "text-red-700" : "text-gray-400"
-                    }`}>
+                    <span className={`font-bold text-base sm:text-lg flex-1 ${isCorrect ? "text-green-800" : isMine ? "text-red-700" : "text-gray-400"
+                      }`}>
                       {ans.content}
                     </span>
                     {isCorrect && <CheckCircle className="text-green-500 shrink-0 sm:w-6 sm:h-6" size={20} />}
@@ -764,7 +763,7 @@ function ClosedScreen({
                 </span>
               </div>
             )}
-          </>
+          </div>
         )}
       </main>
     </div>
@@ -797,11 +796,10 @@ const QuestionProgress = memo(function QuestionProgress({ current, total }: { cu
         return (
           <div
             key={n}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              n === current ? "w-5 bg-primary" :
-              n <  current  ? "w-2 bg-primary/30" :
-                              "w-2 bg-gray-200"
-            }`}
+            className={`h-1.5 rounded-full transition-all duration-300 ${n === current ? "w-5 bg-primary" :
+              n < current ? "w-2 bg-primary/30" :
+                "w-2 bg-gray-200"
+              }`}
           />
         );
       })}
