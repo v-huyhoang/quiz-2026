@@ -1,6 +1,6 @@
 import { useState, useEffect, memo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { CheckCircle, Clock, Loader2, Trophy, XCircle, ImageIcon } from "lucide-react";
+import { CheckCircle, Clock, Loader2, Trophy, XCircle } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import {
   getPlayerGameState,
