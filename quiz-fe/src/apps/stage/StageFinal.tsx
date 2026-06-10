@@ -194,10 +194,11 @@ function RoundSection({ round, index, }: {
 }
 
 function PodiumCard({ entry, delay, pos, }: {
-  entry: RoundResultEntry;
+  entry?: RoundResultEntry;
   delay: number;
   pos: 1 | 2 | 3;
 }) {
+  if (!entry) return null;
   const isChampion = pos === 1;
   const isSecond = pos === 2;
   const cardSize = isChampion ? "podium-card champion-card" : "podium-card";
@@ -511,21 +512,27 @@ function GameFinal({ round, index, championRevealed }: {
         ) : (
           <div className="honor-layout">
             {/* TOP 2 */}
-            <div className="podium-column podium-second">
-              <PodiumCard entry={top3[1]} delay={5} pos={2} />
-            </div>
+            {top3[1] && (
+              <div className="podium-column podium-second">
+                <PodiumCard entry={top3[1]} delay={5} pos={2} />
+              </div>
+            )}
 
             {/* TOP 1 — only renders after champion.revealed */}
-            <div className="podium-column podium-first">
-              {championRevealed
-                ? <PodiumCard entry={top3[0]} delay={1.4} pos={1} />
-                : <div style={{ width: 290, minHeight: 390 }} />}
-            </div>
+            {top3[0] && (
+              <div className="podium-column podium-first">
+                {championRevealed
+                  ? <PodiumCard entry={top3[0]} delay={1.4} pos={1} />
+                  : <div style={{ width: 290, minHeight: 390 }} />}
+              </div>
+            )}
 
             {/* TOP 3 */}
-            <div className="podium-column podium-third">
-              <PodiumCard entry={top3[2]} delay={10} pos={3} />
-            </div>
+            {top3[2] && (
+              <div className="podium-column podium-third">
+                <PodiumCard entry={top3[2]} delay={10} pos={3} />
+              </div>
+            )}
           </div>
         )}
       </motion.div>
