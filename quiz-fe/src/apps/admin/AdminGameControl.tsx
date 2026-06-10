@@ -312,6 +312,7 @@ export default function AdminGameControl() {
                         <span className="text-sm font-bold text-gray-400 self-center">
                           {gameState.champion_revealed ? "Đã vinh danh Quán Quân" : "Đã công bố top 2 & 3"}
                         </span>
+                      </div>
                     )}
                   </div>
                 </motion.div>
