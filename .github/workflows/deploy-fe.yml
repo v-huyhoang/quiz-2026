@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - develop
-      - main
+      - deploy
     paths:
       - "quiz-fe/**"
       - ".github/workflows/deploy-fe.yml"
@@ -57,7 +57,7 @@ jobs:
             docker image prune -f
 
   deploy-prod:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/deploy'
     runs-on: ubuntu-latest
 
     steps:
@@ -85,12 +85,37 @@ jobs:
             VITE_REVERB_PORT=${{ vars.PROD_REVERB_PORT || '443' }}
             VITE_REVERB_SCHEME=${{ vars.PROD_REVERB_SCHEME || 'https' }}
 
+      - name: Ensure production directory
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SERVER_SSH_KEY }}
+          password: ${{ secrets.PROD_SERVER_PASSWORD }}
+          port: ${{ secrets.PROD_SERVER_PORT }}
+          script: |
+            set -e
+            mkdir -p /var/www/quiz-fe-prod
+
+      - name: Sync production compose
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SERVER_SSH_KEY }}
+          password: ${{ secrets.PROD_SERVER_PASSWORD }}
+          port: ${{ secrets.PROD_SERVER_PORT }}
+          source: "quiz-fe/docker-compose.prod.yml"
+          target: "/var/www/quiz-fe-prod"
+          strip_components: 1
+
       - name: Deploy production
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.PROD_SERVER_HOST }}
           username: ${{ secrets.PROD_SERVER_USER }}
           key: ${{ secrets.PROD_SERVER_SSH_KEY }}
+          password: ${{ secrets.PROD_SERVER_PASSWORD }}
           port: ${{ secrets.PROD_SERVER_PORT }}
           script: |
             set -e
