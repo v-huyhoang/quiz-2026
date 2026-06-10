@@ -37,12 +37,12 @@ export const getPlayerGameState = (gameId: number | string) =>
 export const getLeaderboard = (gameId: number | string) =>
   api.get<ApiResponse<LeaderboardEntry[]>>(`/games/${gameId}/leaderboard`);
 
-export const submitAnswer = (roundQuestionId: number, answerId: number, responseTimeMs: number) =>
-  api.post<ApiResponse<{ is_correct: boolean }>>("/games/submit", {
-    round_question_id: roundQuestionId,
-    answer_id: answerId,
-    response_time_ms: responseTimeMs,
-  });
+export const submitAnswer = (payload: {
+  round_question_id: number;
+  answer_id?: number;
+  text_answer?: string;
+  response_time_ms?: number;
+}) => api.post<ApiResponse<{ is_correct: boolean }>>("/games/submit", payload);
 
 // ── Admin endpoints ───────────────────────────────────────────────────────────
 
@@ -54,6 +54,17 @@ export const getRoundResults = (id: number | string) =>
 
 export const getPublicRoundResults = (id: number | string) =>
   api.get<ApiResponse<RoundResult[]>>(`/games/${id}/round-results`);
+
+export const getGameResult = (id: number | string) =>
+  api.get<ApiResponse<{ total_rounds: number; top_teams: RoundResultEntry[] }>>(`/games/${id}/game-result`);
+
+export const publishResults = (id: number | string) =>
+  api.post<ApiResponse<GameState>>(`/admin/games/${id}/publish-result`);
+export const revealScreen = (id: number) =>
+  api.post<ApiResponse<null>>(`/admin/games/${id}/reveal`);
+
+export const revealChampion = (id: number) =>
+  api.post<ApiResponse<GameState>>(`/admin/games/${id}/reveal-champion`);
 
 export const startGame = (id: number) =>
   api.post<ApiResponse<GameState>>(`/admin/games/${id}/start`);

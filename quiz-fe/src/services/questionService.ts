@@ -10,6 +10,7 @@ export interface Question {
   id: string;
   text: string;
   totalTime: number;
+  type: string;
   options: QuestionOption[];
 }
 

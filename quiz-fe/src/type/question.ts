@@ -1,6 +1,11 @@
+export type QuestionType = "single_choice" | "image_input";
+
 export interface Question {
   id: string;
-  text: string;
+  type: QuestionType;
+  text: string | null;
+  imageUrl?: string | null;
+  answerText?: string | null;
   number?: number;
   total?: number;
   timeRemaining?: number;

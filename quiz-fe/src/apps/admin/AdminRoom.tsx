@@ -38,6 +38,7 @@ import {
   type GameTeam,
   type RoundResult,
 } from "../../services/gameService";
+import QuestionTypeBadge from "../../components/ui/QuestionTypeBadge";
 
 const APP_URL = import.meta.env.VITE_APP_URL ?? "http://localhost:5173";
 
@@ -84,6 +85,7 @@ export const AdminRoom = () => {
         name: room.name,
         rounds: room.rounds,
         questionsPerRound: room.questions_per_round,
+        maxTeams: room.max_teams ?? 30,
         status: room.status,
         accessCode: room.access_code,
         questionMode: room.question_mode,
@@ -104,7 +106,7 @@ export const AdminRoom = () => {
       const questionsData = data.map((q) => ({
         id: q.id,
         text: q.text,
-        category: "General",
+        type: q.type,
       }));
       setQuestionBank(questionsData);
     } catch (error) {
@@ -119,6 +121,7 @@ export const AdminRoom = () => {
     name: "",
     rounds: "3",
     questionsPerRound: "10",
+    maxTeams: "30",
     accessCode: "",
     questionMode: "random",
   });
@@ -179,6 +182,7 @@ export const AdminRoom = () => {
         name: form.name,
         rounds: Number(form.rounds),
         questions_per_round: Number(form.questionsPerRound),
+        max_teams: Number(form.maxTeams) || 30,
         access_code: form.accessCode,
         question_mode: form.questionMode,
       };
@@ -280,6 +284,7 @@ export const AdminRoom = () => {
       name: "",
       rounds: "3",
       questionsPerRound: "10",
+      maxTeams: "30",
       accessCode: "",
       questionMode: "random",
     });
@@ -356,7 +361,7 @@ export const AdminRoom = () => {
                 </p>
               </div>
 
-              <div className="p-6 grid grid-cols-2 gap-6">
+              <div className="p-6 grid grid-cols-3 gap-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-50 text-blue-500 rounded-lg">
                     <Layout size={20} />
@@ -375,32 +380,40 @@ export const AdminRoom = () => {
                     <p className="text-lg font-bold text-gray-900">{room.questionsPerRound} / round</p>
                   </div>
                 </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-50 text-green-500 rounded-lg">
+                    <Users size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Max</p>
+                    <p className="text-lg font-bold text-gray-900">{room.maxTeams} players</p>
+                  </div>
+                </div>
               </div>
 
               <div className="px-6 py-4 bg-gray-50 flex gap-3">
-                {room.status !== "finished" ? (
-                  <>
-                    <button
-                      onClick={() => navigate(`/admin/game-control/${room.id}`)}
-                      className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-primary/90 transition-all"
-                    >
-                      Điều khiển
-                    </button>
+                  <button
+                    onClick={() => navigate(`/admin/game-control/${room.id}`)}
+                    className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-primary/90 transition-all"
+                  >
+                    Điều khiển
+                  </button>
+
+                  {room.status !== "finished" ? (
                     <button
                       onClick={() => window.open(`/stage/waiting?room=${room.accessCode}`, "_blank")}
                       className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-purple-700 transition-all"
                     >
                       Màn hình stage
                     </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => handleOpenResults(room)}
-                    className="flex-1 py-2 bg-amber-500 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-amber-600 transition-all flex items-center justify-center gap-2"
-                  >
-                    <Trophy size={14} /> Xem kết quả
-                  </button>
-                )}
+                  ) : (
+                    <button
+                      onClick={() => handleOpenResults(room)}
+                      className="flex-1 py-2 bg-amber-500 text-white rounded-lg font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-amber-600 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Trophy size={14} /> Xem kết quả
+                    </button>
+                  )}
                 <button
                   onClick={() => handleOpenDetail(room.id)}
                   className="py-2 px-3 border border-gray-200 text-gray-500 rounded-lg hover:bg-white transition-all"
@@ -494,7 +507,7 @@ export const AdminRoom = () => {
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-3 gap-4">
                         <div className="flex flex-col gap-2">
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
                             <Clock size={10} /> Rounds
@@ -524,6 +537,21 @@ export const AdminRoom = () => {
                                 ...f,
                                 questionsPerRound: e.target.value,
                               }))
+                            }
+                            className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-primary"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                            <Users size={10} /> Max Players
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={500}
+                            value={form.maxTeams}
+                            onChange={(e) =>
+                              setForm((f) => ({ ...f, maxTeams: e.target.value }))
                             }
                             className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-primary"
                           />
@@ -731,9 +759,7 @@ export const AdminRoom = () => {
                                         <p className="text-sm font-semibold text-gray-800">
                                           {q.text}
                                         </p>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-                                          {q.category}
-                                        </p>
+                                        <QuestionTypeBadge type={q.type} />
                                       </div>
                                     </div>
                                   );
