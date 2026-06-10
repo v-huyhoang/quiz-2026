@@ -1,8 +1,8 @@
 {
   "baseUrl": "http://localhost:5173",
-  "roomCode": "ABC123",
+  "roomCode": "VUPGEK",
   "teamCount": 5,
-  "headless": false,
+  "headless": true,
   "submitDelayMinMs": 300,
   "submitDelayMaxMs": 2000,
   "randomAnswer": true,

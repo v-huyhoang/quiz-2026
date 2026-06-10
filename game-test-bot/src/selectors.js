@@ -10,13 +10,13 @@ module.exports = {
 
   // ── PlayerGame (/player/game) ─────────────────────────────────────────────
   // Grid containing the 4 answer buttons
-  answerGrid:     '.grid.gap-4',
+  answerGrid:     '[data-testid="answer-grid"]',
   // All answer buttons within the grid
-  answerButtons:  '.grid.gap-4 button',
+  answerButtons:  '[data-testid="answer-button"]',
   // The label span (A / B / C / D) inside each answer button
-  answerLabel:    'span.w-8',
+  answerLabel:    '[data-testid="answer-label"]',
   // Submit button
-  submitButton:   'button:has-text("Chốt kèo")',
+  submitButton:   '[data-testid="submit-button"]',
   // Submitted state indicator
   submittedBadge: ':text("Đã nộp")',
 };

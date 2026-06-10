@@ -156,7 +156,12 @@ class PlayerBot {
 
     // Try to submit
     try {
-      const label = await this._selectAndSubmit();
+      let label;
+      if (qData.question?.type === 'image_input') {
+        label = await this._submitTextAnswer();
+      } else {
+        label = await this._selectAndSubmit();
+      }
       logger.log(this.teamName, `Question #${qNum} Selected: ${label} Submitted`);
       this.stats.successfulSubmissions++;
     } catch (err) {
@@ -174,6 +179,28 @@ class PlayerBot {
 
     // Wait for question to close, or round/game to end
     await this._waitForQuestionEnd(qNum);
+  }
+
+  async _submitTextAnswer() {
+    // Wait for text input to be visible
+    await this.page.locator('[data-testid="image-answer-input"]').waitFor({ timeout: 10000 });
+
+    const mockAnswers = [
+      "Ăn quả nhớ kẻ trồng cây",
+      "Lá lành đùm lá rách",
+      "Tốt gỗ hơn tốt nước sơn",
+      "Đi một ngày đàng học một sàng khôn",
+      "Có công mài sắt có ngày nên kim"
+    ];
+    const randomAnswer = mockAnswers[Math.floor(Math.random() * mockAnswers.length)];
+
+    await this.page.locator('[data-testid="image-answer-input"]').fill(randomAnswer);
+
+    // Click submit/send button
+    await this.page.locator('[data-testid="image-answer-submit"]').waitFor({ timeout: 5000 });
+    await this.page.locator('[data-testid="image-answer-submit"]').click();
+
+    return randomAnswer;
   }
 
   async _selectAndSubmit() {
