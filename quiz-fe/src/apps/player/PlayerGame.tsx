@@ -447,6 +447,7 @@ function ImageInputQuestion({
         <div className={`flex gap-2 sm:gap-3 p-1.5 sm:p-2 rounded-2xl border-2 sm:border-4 bg-white transition-colors ${isCorrect ? "border-green-400" : isWrong && retryCountdown > 0 ? "border-red-300" : "border-white"
           }`}>
           <input
+            data-testid="image-answer-input"
             type="text"
             value={textInput}
             onChange={(e) => onTextChange(e.target.value)}
@@ -456,6 +457,7 @@ function ImageInputQuestion({
             className="flex-1 bg-transparent px-3 py-2 text-base sm:text-lg font-bold text-gray-900 focus:outline-none placeholder:text-gray-300 disabled:opacity-50"
           />
           <button
+            data-testid="image-answer-submit"
             onClick={onSubmit}
             disabled={inputDisabled || !textInput.trim()}
             className={`px-4 sm:px-6 py-2 rounded-xl font-bold text-xs sm:text-sm uppercase tracking-widest transition-all flex items-center gap-2 ${isCorrect
@@ -563,11 +565,12 @@ function SingleChoiceQuestion({
         </h2>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+      <div data-testid="answer-grid" className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
         {question.answers.map((ans, i) => {
           const isSelected = selectedId === ans.id;
           return (
             <motion.button
+              data-testid="answer-button"
               key={ans.id}
               whileTap={!alreadySubmitted ? { scale: 0.98 } : {}}
               onClick={() => { if (!alreadySubmitted) onSelect(ans.id!); }}
@@ -582,7 +585,7 @@ function SingleChoiceQuestion({
                 }`}
             >
               <div className="flex items-center gap-3 sm:gap-4">
-                <span className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-bold border-2 ${isSelected ? "bg-primary text-white border-primary" : "text-gray-400 border-gray-100"
+                <span data-testid="answer-label" className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-bold border-2 ${isSelected ? "bg-primary text-white border-primary" : "text-gray-400 border-gray-100"
                   }`}>
                   {ANSWER_LABELS[i]}
                 </span>
@@ -604,6 +607,7 @@ function SingleChoiceQuestion({
         <AnimatePresence mode="wait">
           {!alreadySubmitted ? (
             <motion.button
+              data-testid="submit-button"
               key="submit"
               onClick={onSubmit}
               disabled={!selectedId || submitting}

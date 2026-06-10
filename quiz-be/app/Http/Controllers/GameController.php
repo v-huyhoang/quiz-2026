@@ -195,8 +195,9 @@ class GameController extends Controller
     {
         try {
             $game = Game::findOrFail($id);
+            \Illuminate\Support\Facades\Cache::put("game.{$id}.results_published", true, now()->addHours(6));
             broadcast(new \App\Events\ResultsPublished($game));
-            return $this->successResponse(null, 'Results published');
+            return $this->successResponse($this->gameService->getAdminState($id), 'Results published');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
         }
@@ -206,8 +207,9 @@ class GameController extends Controller
     {
         try {
             $game = Game::findOrFail($id);
+            \Illuminate\Support\Facades\Cache::put("game.{$id}.champion_revealed", true, now()->addHours(6));
             broadcast(new \App\Events\ChampionRevealed($game));
-            return $this->successResponse(null, 'Champion revealed');
+            return $this->successResponse($this->gameService->getAdminState($id), 'Champion revealed');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), null, HttpStatus::UnprocessableEntity->value);
         }

@@ -54,6 +54,8 @@ export interface GameState {
   max_teams: number;
   teams: GameTeam[];
   current_round: CurrentRound | null;
+  results_published?: boolean;
+  champion_revealed?: boolean;
 }
 
 export interface LeaderboardEntry {

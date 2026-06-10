@@ -185,6 +185,8 @@ class GameService
             'max_teams' => $game->max_teams,
             'teams' => $teams->map(fn($t) => ['id' => $t->id, 'name' => $t->name])->all(),
             'current_round' => $currentRound,
+            'results_published' => (bool) \Illuminate\Support\Facades\Cache::get("game.{$game->id}.results_published", false),
+            'champion_revealed' => (bool) \Illuminate\Support\Facades\Cache::get("game.{$game->id}.champion_revealed", false),
         ];
     }
 
@@ -285,6 +287,9 @@ class GameService
         if ($game->status !== 'pending') {
             throw new \Exception('Game is not in pending status');
         }
+
+        \Illuminate\Support\Facades\Cache::forget("game.{$gameId}.results_published");
+        \Illuminate\Support\Facades\Cache::forget("game.{$gameId}.champion_revealed");
 
         $game->update(['status' => 'active', 'started_at' => now()]);
         return $game->fresh();
