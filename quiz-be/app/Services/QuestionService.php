@@ -14,9 +14,9 @@ class QuestionService
     ) {
     }
 
-    public function paginate(int $perPage): array
+    public function paginate(int $perPage, ?string $search = null): array
     {
-        $paginator = $this->questionRepository->paginateWithAnswers($perPage);
+        $paginator = $this->questionRepository->paginateWithAnswers($perPage, $search);
 
         return [
             'data' => $paginator

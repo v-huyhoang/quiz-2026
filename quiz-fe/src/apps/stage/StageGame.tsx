@@ -183,7 +183,7 @@ export default function StageGame() {
 
   return (
     <div
-      className="min-h-screen flex flex-col pt-20 relative overflow-hidden"
+      className="min-h-screen flex flex-col pt-5 relative overflow-hidden"
       style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
     >
       <main className="flex-grow w-full max-w-6xl mx-auto px-6 py-12 flex flex-col justify-center">
@@ -242,7 +242,7 @@ function StageImageInputQuestion({ question }: { question: CurrentQuestion }) {
         {/* Image */}
         <div className="w-fit max-w-5xl rounded-3xl overflow-hidden border-4 border-white shadow-2xl bg-transparent flex items-center justify-center mx-auto">
           {question.image_url ? (
-            <img src={resolveStorageUrl(question.image_url) ?? ""} alt="Câu hỏi" className="max-w-full h-auto max-h-[60vh] block" />
+            <img src={resolveStorageUrl(question.image_url) ?? ""} alt="Câu hỏi" className="h-[50vh] w-auto max-w-full object-contain block" />
           ) : (
             <div className="py-24 text-gray-300 text-center">
               <span className="text-lg font-bold">Không tải được ảnh</span>
