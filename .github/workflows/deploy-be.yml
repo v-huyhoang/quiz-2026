@@ -10,6 +10,10 @@ on:
       - ".github/workflows/deploy-be.yml"
   workflow_dispatch:
 
+concurrency:
+  group: deploy-be-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy-dev:
     if: github.ref == 'refs/heads/develop'
@@ -31,6 +35,8 @@ jobs:
           file: ./quiz-be/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-be:dev
+          cache-from: type=gha,scope=quiz-be-dev
+          cache-to: type=gha,mode=max,scope=quiz-be-dev
 
       - name: Deploy dev
         uses: appleboy/ssh-action@v1.2.0
@@ -81,6 +87,8 @@ jobs:
           file: ./quiz-be/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-be:latest
+          cache-from: type=gha,scope=quiz-be-prod
+          cache-to: type=gha,mode=max,scope=quiz-be-prod
 
       - name: Ensure production directory
         uses: appleboy/ssh-action@v1.2.0

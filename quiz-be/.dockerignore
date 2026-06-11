@@ -40,8 +40,16 @@ yarn-error.log
 
 # Testing
 .phpunit.result.cache
+tests
+phpunit.xml
 
 docker-compose*.yml
 Dockerfile
 .dockerignore
 README.md
+
+# Local/frontend-only files not needed in the backend production image
+.editorconfig
+package-lock.json
+package.json
+vite.config.js
