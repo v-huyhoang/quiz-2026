@@ -183,7 +183,7 @@ export default function StageGame() {
 
   return (
     <div
-      className="min-h-screen flex flex-col pt-20 relative overflow-hidden"
+      className="min-h-screen flex flex-col relative overflow-hidden"
       style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
     >
       <main className="flex-grow w-full max-w-6xl mx-auto px-6 py-12 flex flex-col justify-center">
@@ -242,7 +242,7 @@ function StageImageInputQuestion({ question }: { question: CurrentQuestion }) {
         {/* Image */}
         <div className="w-fit max-w-5xl rounded-3xl overflow-hidden border-4 border-white shadow-2xl bg-transparent flex items-center justify-center mx-auto">
           {question.image_url ? (
-            <img src={resolveStorageUrl(question.image_url) ?? ""} alt="Câu hỏi" className="max-w-full h-auto max-h-[60vh] block" />
+            <img src={resolveStorageUrl(question.image_url) ?? ""} alt="Câu hỏi" className="h-[50vh] w-auto max-w-full object-contain block" />
           ) : (
             <div className="py-24 text-gray-300 text-center">
               <span className="text-lg font-bold">Không tải được ảnh</span>
@@ -262,7 +262,7 @@ function StageImageInputQuestion({ question }: { question: CurrentQuestion }) {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.5 }}
-            className="w-full max-w-2xl rounded-3xl border-4 border-green-400 bg-green-50 px-10 py-8 text-center shadow-xl"
+            className="w-full max-w-2xl rounded-3xl border-4 border-green-400 bg-green-50 px-8 py-4 text-center shadow-xl"
           >
             <p className="text-sm font-black text-green-500 uppercase tracking-widest mb-3">Đáp án đúng</p>
             <p className="text-5xl md:text-6xl font-black text-green-800 leading-tight">{correctAns.content}</p>

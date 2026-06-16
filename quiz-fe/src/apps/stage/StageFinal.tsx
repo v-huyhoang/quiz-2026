@@ -3,7 +3,7 @@ import { Trophy, Loader2, Timer, CheckCircle2, Zap } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
-import { getPublicRoundResults, getGameResult, type RoundResult, type RoundResultEntry } from "../../services/gameService";
+import { getPublicGameState, getPublicRoundResults, getGameResult, type RoundResult, type RoundResultEntry } from "../../services/gameService";
 import { useGameSocket } from "../../hooks/useGameSocket";
 import backgroundImage from "../../assets/background.png";
 import waveImage from "../../assets/wave.png";
@@ -194,10 +194,11 @@ function RoundSection({ round, index, }: {
 }
 
 function PodiumCard({ entry, delay, pos, }: {
-  entry: RoundResultEntry;
+  entry?: RoundResultEntry;
   delay: number;
   pos: 1 | 2 | 3;
 }) {
+  if (!entry) return null;
   const isChampion = pos === 1;
   const isSecond = pos === 2;
   const cardSize = isChampion ? "podium-card champion-card" : "podium-card";
@@ -511,21 +512,27 @@ function GameFinal({ round, index, championRevealed }: {
         ) : (
           <div className="honor-layout">
             {/* TOP 2 */}
-            <div className="podium-column podium-second">
-              <PodiumCard entry={top3[1]} delay={5} pos={2} />
-            </div>
+            {top3[1] && (
+              <div className="podium-column podium-second">
+                <PodiumCard entry={top3[1]} delay={5} pos={2} />
+              </div>
+            )}
 
             {/* TOP 1 — only renders after champion.revealed */}
-            <div className="podium-column podium-first">
-              {championRevealed
-                ? <PodiumCard entry={top3[0]} delay={1.4} pos={1} />
-                : <div style={{ width: 290, minHeight: 390 }} />}
-            </div>
+            {top3[0] && (
+              <div className="podium-column podium-first">
+                {championRevealed
+                  ? <PodiumCard entry={top3[0]} delay={1.4} pos={1} />
+                  : <div style={{ width: 290, minHeight: 390 }} />}
+              </div>
+            )}
 
             {/* TOP 3 */}
-            <div className="podium-column podium-third">
-              <PodiumCard entry={top3[2]} delay={10} pos={3} />
-            </div>
+            {top3[2] && (
+              <div className="podium-column podium-third">
+                <PodiumCard entry={top3[2]} delay={10} pos={3} />
+              </div>
+            )}
           </div>
         )}
       </motion.div>
@@ -547,9 +554,22 @@ export default function StageFinal() {
     if (!gameId) return;
 
     setLoading(true);
-    // By default show per-round results. When admin publishes, a socket event will trigger total leaderboard.
-    getPublicRoundResults(gameId)
-      .then((r) => setRounds(r.data.data ?? []))
+    getPublicGameState(Number(gameId))
+      .then(async (res) => {
+        const state = res.data.data;
+        if (state.status === "finished" && state.results_published) {
+          setPublished(true);
+          if (state.champion_revealed) {
+            setChampionRevealed(true);
+          }
+          const resultRes = await getGameResult(gameId);
+          setTotalTop(resultRes.data.data?.top_teams ?? []);
+          setRounds([]);
+        } else {
+          const roundsRes = await getPublicRoundResults(gameId);
+          setRounds(roundsRes.data.data ?? []);
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [gameId]);

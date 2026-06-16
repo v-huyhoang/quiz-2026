@@ -31,8 +31,13 @@ export interface QuestionsResponse {
   };
 }
 
-export const getQuestions = async () => {
-  const response = await api.get<QuestionsResponse>("/admin/questions");
+export const getQuestions = async (params?: {
+  page?: number;
+  search?: string;
+}) => {
+  const response = await api.get<QuestionsResponse>("/admin/questions", {
+    params,
+  });
 
   return response.data.data;
 };

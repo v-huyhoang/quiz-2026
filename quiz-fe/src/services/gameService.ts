@@ -59,12 +59,12 @@ export const getGameResult = (id: number | string) =>
   api.get<ApiResponse<{ total_rounds: number; top_teams: RoundResultEntry[] }>>(`/games/${id}/game-result`);
 
 export const publishResults = (id: number | string) =>
-  api.post<ApiResponse<null>>(`/admin/games/${id}/publish-result`);
+  api.post<ApiResponse<GameState>>(`/admin/games/${id}/publish-result`);
 export const revealScreen = (id: number) =>
   api.post<ApiResponse<null>>(`/admin/games/${id}/reveal`);
 
 export const revealChampion = (id: number) =>
-  api.post<ApiResponse<null>>(`/admin/games/${id}/reveal-champion`);
+  api.post<ApiResponse<GameState>>(`/admin/games/${id}/reveal-champion`);
 
 export const startGame = (id: number) =>
   api.post<ApiResponse<GameState>>(`/admin/games/${id}/start`);

@@ -20,6 +20,7 @@ import {
   Medal,
   Timer,
   X,
+  Search,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import AdminRoomDetail from "./AdminRoomDetail";
@@ -54,6 +55,11 @@ export const AdminRoom = () => {
   const [fetching, setFetching] = useState(true);
   const [questionBank, setQuestionBank] = useState<any[]>([]);
   const [fetchingQuestions, setFetchingQuestions] = useState(false);
+  const [loadingMoreQuestions, setLoadingMoreQuestions] = useState(false);
+  const [questionSearch, setQuestionSearch] = useState("");
+  const [questionPage, setQuestionPage] = useState(1);
+  const [questionLastPage, setQuestionLastPage] = useState(1);
+  const questionListRef = useRef<HTMLDivElement>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [createError, setCreateError] = useState("");
 
@@ -69,12 +75,17 @@ export const AdminRoom = () => {
 
   useEffect(() => {
     fetchRooms();
-    fetchQuestions();
   }, []);
 
+  // Fetch question bank when modal opens; debounce while typing in search
   useEffect(() => {
-    if (isOpen) fetchQuestions();
-  }, [isOpen]);
+    if (!isOpen) return;
+    const timer = setTimeout(
+      () => fetchQuestions(1, questionSearch),
+      questionSearch ? 400 : 0,
+    );
+    return () => clearTimeout(timer);
+  }, [isOpen, questionSearch]);
 
   const fetchRooms = async () => {
     try {
@@ -99,21 +110,43 @@ export const AdminRoom = () => {
     }
   };
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = async (page = 1, search = "", append = false) => {
     try {
-      setFetchingQuestions(true);
-      const { data } = await getQuestions();
+      if (append) setLoadingMoreQuestions(true);
+      else setFetchingQuestions(true);
+      const { data, meta } = await getQuestions({
+        page,
+        search: search.trim() || undefined,
+      });
       const questionsData = data.map((q) => ({
         id: q.id,
         text: q.text,
         type: q.type,
       }));
-      setQuestionBank(questionsData);
+      setQuestionBank((prev) =>
+        append ? [...prev, ...questionsData] : questionsData,
+      );
+      setQuestionPage(meta.currentPage);
+      setQuestionLastPage(meta.lastPage);
     } catch (error) {
       console.error("Failed to fetch questions:", error);
-      setQuestionBank([]);
+      if (!append) setQuestionBank([]);
     } finally {
       setFetchingQuestions(false);
+      setLoadingMoreQuestions(false);
+    }
+  };
+
+  const loadMoreQuestions = () => {
+    if (fetchingQuestions || loadingMoreQuestions) return;
+    if (questionPage >= questionLastPage) return;
+    fetchQuestions(questionPage + 1, questionSearch, true);
+  };
+
+  const handleQuestionListScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 80) {
+      loadMoreQuestions();
     }
   };
 
@@ -173,6 +206,23 @@ export const AdminRoom = () => {
       }
     });
   };
+
+  // Hide questions already assigned to other rounds to prevent duplicates
+  const questionIdsInOtherRounds = new Set(
+    Object.entries(manualSelection)
+      .filter(([round]) => Number(round) !== activeRoundTab)
+      .flatMap(([, ids]) => ids),
+  );
+  const visibleQuestions = questionBank.filter(
+    (q) => !questionIdsInOtherRounds.has(q.id),
+  );
+
+  // If filtering leaves the list too short to scroll, fetch the next page
+  useEffect(() => {
+    const el = questionListRef.current;
+    if (!el) return;
+    if (el.scrollHeight <= el.clientHeight) loadMoreQuestions();
+  }, [questionBank, manualSelection, activeRoundTab]);
 
   const handleCreate = async () => {
     setLoading(true);
@@ -292,6 +342,7 @@ export const AdminRoom = () => {
     setManualSelection({});
     setCreateError("");
     setSelectedRoomId(null);
+    setQuestionSearch("");
   };
 
   return (
@@ -714,12 +765,31 @@ export const AdminRoom = () => {
 
                           {/* Question list picker */}
                           <div className="w-2/3 border border-gray-200 rounded-xl bg-gray-50 overflow-hidden flex flex-col h-[300px]">
-                            <div className="p-3 border-b border-gray-200 bg-white">
+                            <div className="p-3 border-b border-gray-200 bg-white flex flex-col gap-2">
                               <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
                                 Ngân hàng câu hỏi
                               </p>
+                              <div className="relative">
+                                <Search
+                                  size={14}
+                                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                                />
+                                <input
+                                  type="text"
+                                  value={questionSearch}
+                                  onChange={(e) =>
+                                    setQuestionSearch(e.target.value)
+                                  }
+                                  placeholder="Tìm câu hỏi theo tên..."
+                                  className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+                                />
+                              </div>
                             </div>
-                            <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+                            <div
+                              ref={questionListRef}
+                              onScroll={handleQuestionListScroll}
+                              className="flex-1 overflow-y-auto p-3 flex flex-col gap-2"
+                            >
                               {fetchingQuestions ? (
                                 <div className="flex items-center justify-center py-8">
                                   <Loader2
@@ -727,12 +797,14 @@ export const AdminRoom = () => {
                                     size={24}
                                   />
                                 </div>
-                              ) : questionBank.length === 0 ? (
+                              ) : visibleQuestions.length === 0 ? (
                                 <div className="text-center py-8 text-gray-400 text-sm">
-                                  Không có câu hỏi nào
+                                  {questionSearch.trim()
+                                    ? "Không tìm thấy câu hỏi nào"
+                                    : "Không có câu hỏi nào"}
                                 </div>
                               ) : (
-                                questionBank.map((q) => {
+                                visibleQuestions.map((q) => {
                                   const isSelected = manualSelection[
                                     activeRoundTab
                                   ]?.includes(q.id);
@@ -764,6 +836,14 @@ export const AdminRoom = () => {
                                     </div>
                                   );
                                 })
+                              )}
+                              {loadingMoreQuestions && (
+                                <div className="flex items-center justify-center py-3">
+                                  <Loader2
+                                    className="animate-spin text-primary"
+                                    size={18}
+                                  />
+                                </div>
                               )}
                             </div>
                           </div>
