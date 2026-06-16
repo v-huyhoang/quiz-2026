@@ -2,7 +2,7 @@ import axios from "axios";
 import { useAuthStore } from "../store/authStore";
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api",
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
@@ -23,9 +23,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      useAuthStore.getState().clearAuth();
-      // Redirect based on role
       const role = useAuthStore.getState().role;
+      useAuthStore.getState().clearAuth();
       window.location.href = role === "admin" ? "/admin/login" : "/join";
     }
     return Promise.reject(error);

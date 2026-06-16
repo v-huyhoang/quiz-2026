@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Navbar } from "./parts/Navbar";
-import { LayoutDashboard, BookOpen, Layers, Play } from "lucide-react";
+import { LayoutDashboard, BookOpen, Layers } from "lucide-react";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -41,13 +41,6 @@ export default function AdminLayout() {
 
           {/* Quick launch */}
           <div className="mt-auto flex flex-col gap-3">
-            <button
-              onClick={() => navigate("/admin/game-control")}
-              className="flex items-center gap-2 w-full bg-primary text-white px-4 py-3 rounded-xl font-bold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
-            >
-              <Play size={16} />
-              Điều khiển trò chơi
-            </button>
 
             <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
               <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">

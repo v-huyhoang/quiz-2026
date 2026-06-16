@@ -1,0 +1,41 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: quiz-be-local
+    ports:
+      - "8000:80"
+      - "8080:8080"
+    volumes:
+      - .:/var/www/html
+    env_file:
+      - .env
+    depends_on:
+      - mysql
+      - redis
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: quiz-mysql-local
+    environment:
+      MYSQL_DATABASE: quiz
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: quiz_user
+      MYSQL_PASSWORD: THK@admin123
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data_local:/var/lib/mysql
+    restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    container_name: quiz-redis-local
+    ports:
+      - "6380:6380"
+    restart: unless-stopped
+
+volumes:
+  mysql_data_local:

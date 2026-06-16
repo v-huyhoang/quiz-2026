@@ -1,0 +1,102 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - "quiz-fe/**"
+      - ".github/workflows/deploy-fe.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy-dev:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push dev image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./quiz-fe
+          file: ./quiz-fe/Dockerfile
+          target: prod
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-fe:dev
+          build-args: |
+            VITE_APP_URL=${{ secrets.DEV_APP_URL}}
+            VITE_API_BASE_URL=${{ vars.DEV_FE_API_BASE_URL || format('http://{0}:8000/api', secrets.DEV_SERVER_HOST) }}
+            VITE_REVERB_APP_KEY=${{ secrets.DEV_REVERB_APP_KEY || vars.DEV_REVERB_APP_KEY || 'quiz_app_key_dev' }}
+            VITE_REVERB_HOST=${{ vars.DEV_REVERB_HOST || secrets.DEV_SERVER_HOST }}
+            VITE_REVERB_PORT=${{ vars.DEV_REVERB_PORT || '8080' }}
+            VITE_REVERB_SCHEME=${{ vars.DEV_REVERB_SCHEME || 'http' }}
+
+      - name: Deploy dev
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEV_SERVER_HOST }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SERVER_SSH_KEY }}
+          port: ${{ secrets.DEV_SERVER_PORT }}
+          script: |
+            set -e
+            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            cd /var/www/quiz-fe-dev
+            docker compose -f docker-compose.dev.yml pull
+            docker compose -f docker-compose.dev.yml up -d --force-recreate --remove-orphans
+            docker image prune -f
+
+  deploy-prod:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push production image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./quiz-fe
+          file: ./quiz-fe/Dockerfile
+          target: prod
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-fe:latest
+          build-args: |
+            VITE_APP_URL=${{ secrets.PROD_APP_URL }}
+            VITE_API_BASE_URL=${{ vars.PROD_FE_API_BASE_URL }}
+            VITE_REVERB_APP_KEY=${{ secrets.PROD_REVERB_APP_KEY || vars.PROD_REVERB_APP_KEY }}
+            VITE_REVERB_HOST=${{ vars.PROD_REVERB_HOST }}
+            VITE_REVERB_PORT=${{ vars.PROD_REVERB_PORT || '443' }}
+            VITE_REVERB_SCHEME=${{ vars.PROD_REVERB_SCHEME || 'https' }}
+
+      - name: Deploy production
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SERVER_SSH_KEY }}
+          port: ${{ secrets.PROD_SERVER_PORT }}
+          script: |
+            set -e
+            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            cd /var/www/quiz-fe-prod
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans
+            docker image prune -f

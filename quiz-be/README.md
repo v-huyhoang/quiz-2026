@@ -1,66 +1,181 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Quiz Stack — Backend
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel 12 backend cho hệ thống thi quiz real-time. Cung cấp REST API và WebSocket broadcasting qua Laravel Reverb.
 
-## About Laravel
+## Yêu cầu
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- PHP 8.2+
+- Composer
+- MySQL 8.0
+- Redis
+- Docker (khuyến nghị)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Setup
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Với Docker (từ root project)
 
-## Learning Laravel
+```bash
+# Từ thư mục gốc quiz-2026/
+make setup   # Lần đầu: build + migrate + seed
+make up      # Các lần sau
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### Không Docker
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+```bash
+cd quiz-be
+cp .env.example .env
+composer install
+php artisan key:generate
+php artisan migrate --seed
+php artisan serve          # http://localhost:8000
+php artisan queue:listen --tries=1
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Cấu hình môi trường (`.env`)
 
-## Laravel Sponsors
+| Biến | Mô tả | Giá trị mặc định |
+|---|---|---|
+| `DB_CONNECTION` | Driver database | `mysql` |
+| `DB_HOST` | MySQL host | `127.0.0.1` |
+| `DB_PORT` | MySQL port | `3306` (Docker: `3307` ngoài) |
+| `DB_DATABASE` | Tên database | `quiz` |
+| `DB_USERNAME` | MySQL user | `quiz_user` |
+| `DB_PASSWORD` | MySQL password | `THK@admin123` |
+| `BROADCAST_CONNECTION` | WebSocket driver | `reverb` |
+| `QUEUE_CONNECTION` | Queue driver | `database` |
+| `SESSION_DRIVER` | Session driver | `database` |
+| `REVERB_APP_KEY` | Reverb app key | — |
+| `REVERB_PORT` | Reverb port | `8080` |
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## API Routes
 
-### Premium Partners
+### Auth (Public)
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+| Method | Endpoint | Mô tả |
+|---|---|---|
+| `POST` | `/api/admin/login` | Admin đăng nhập, trả về Sanctum token |
 
-## Contributing
+### Admin (yêu cầu Bearer token)
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+| Method | Endpoint | Mô tả |
+|---|---|---|
+| `POST` | `/api/admin/logout` | Xoá token hiện tại |
+| `GET` | `/api/admin/questions` | Danh sách câu hỏi (20/trang) |
+| `POST` | `/api/admin/questions` | Tạo câu hỏi mới |
+| `DELETE` | `/api/admin/questions/{id}` | Xoá câu hỏi |
+| `POST` | `/api/admin/questions/import` | Import hàng loạt từ CSV hoặc XLSX |
 
-## Code of Conduct
+### API Response Shape
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Tất cả endpoints đều trả về cùng một cấu trúc:
 
-## Security Vulnerabilities
+```json
+{
+  "success": true,
+  "code": 200,
+  "message": "...",
+  "data": { ... }
+}
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Import CSV/XLSX
 
-## License
+File CSV cần có các cột theo thứ tự:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```
+question, total_time, A, B, C, D, correct_answer
+```
+
+- `total_time`: số giây (integer)
+- `correct_answer`: giá trị `A`, `B`, `C`, hoặc `D`
+- Giới hạn: **500 dòng/lần import**
+- XLSX được parse native (không cần thư viện ngoài)
+
+## Cấu trúc thư mục
+
+```
+quiz-be/
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/
+│   │   │   ├── AuthController.php
+│   │   │   └── QuestionController.php
+│   │   └── Requests/
+│   ├── Models/
+│   │   ├── Admin.php
+│   │   ├── Question.php
+│   │   └── ...
+│   ├── Services/
+│   │   ├── QuestionService.php
+│   │   └── QuestionImportService.php
+│   ├── Repositories/
+│   └── Traits/
+│       └── ApiResponseTrait.php
+├── database/
+│   ├── migrations/
+│   └── seeders/
+│       └── AdminSeeder.php    # admin@quiz.com / password
+├── routes/
+│   └── api.php
+├── docker-compose.local.yml
+├── docker-compose.dev.yml
+└── docker-compose.prod.yml
+```
+
+## Database Schema
+
+```
+admins           → admin accounts
+games            → game sessions
+teams            → teams linked to a game
+rounds           → UNIQUE(game_id, round_number)
+questions        → question bank
+answers          → answer options (A/B/C/D) per question
+round_questions  → UNIQUE(round_id, question_id), UNIQUE(round_id, order_number)
+submissions      → UNIQUE(team_id, round_question_id)  ← chống duplicate submit
+round_results    → kết quả mỗi đội mỗi vòng
+game_results     → kết quả tổng mỗi đội
+```
+
+## Architecture Pattern
+
+```
+routes/api.php
+  └─ Controller
+       └─ Service
+            └─ Repository
+                 └─ Eloquent Model
+```
+
+- `ApiResponseTrait`: chuẩn hoá response JSON cho tất cả controllers
+- `Form Requests`: validate + authorize mỗi endpoint
+- `CreateQuestionRequest`: `afterValidator` đảm bảo đúng 1 đáp án đúng
+- Submissions chạy trong `DB::transaction()` để đảm bảo tính nhất quán
+
+## Chạy Tests
+
+```bash
+cd quiz-be
+php artisan test                         # Toàn bộ
+php artisan test tests/Feature           # Feature tests
+php artisan test tests/Unit              # Unit tests
+php artisan test --filter MethodName     # Test cụ thể
+./vendor/bin/phpunit                     # PHPUnit trực tiếp
+```
+
+Tests chạy với in-memory drivers (không cần database thật).
+
+## Code Style
+
+```bash
+./vendor/bin/pint   # Format theo PSR-12 (Laravel Pint)
+```
+
+## Docker Services (local)
+
+| Container | Image | Port ngoài |
+|---|---|---|
+| `quiz-be-local` | PHP 8.3-fpm + nginx + supervisor | 8000 (HTTP), 8080 (Reverb) |
+| `quiz-mysql-local` | mysql:8.0 | 3307 |
+| `quiz-redis-local` | redis:alpine | 6379 |

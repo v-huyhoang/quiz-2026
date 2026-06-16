@@ -8,35 +8,49 @@ use Illuminate\Validation\Validator;
 
 class CreateQuestionRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
-     * Get the validation rules that apply to the request.
-     *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
-        return [
-            'text' => 'required|string',
+        $type = $this->input('type', 'single_choice');
+
+        $base = [
+            'type'      => 'required|string|in:single_choice,image_input',
             'totalTime' => 'required|integer|min:5|max:300',
-            'options' => 'required|array|size:4',
-            'options.*.text' => 'required|string',
-            'options.*.isCorrect' => 'required|boolean',
         ];
+
+        if ($type === 'image_input') {
+            return array_merge($base, [
+                'image'       => 'required|file|image|max:5120',
+                'answer_text' => 'required|string|min:1|max:500',
+                'text'        => 'nullable|string',
+            ]);
+        }
+
+        // single_choice (default)
+        return array_merge($base, [
+            'text'              => 'required|string',
+            'options'           => 'required|array|size:4',
+            'options.*.text'    => 'required|string',
+            'options.*.isCorrect' => 'required|boolean',
+        ]);
     }
 
     public function withValidator(Validator $validator): void
     {
+        if ($this->input('type', 'single_choice') !== 'single_choice') {
+            return;
+        }
+
         $validator->after(function (Validator $validator) {
             $correctAnswers = collect($this->input('options', []))
-                ->filter(fn ($option) => is_array($option) && (bool) ($option['isCorrect'] ?? false))
+                ->filter(fn($option) => is_array($option) && (bool) ($option['isCorrect'] ?? false))
                 ->count();
 
             if ($correctAnswers !== 1) {

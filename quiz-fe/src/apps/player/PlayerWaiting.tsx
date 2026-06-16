@@ -1,73 +1,130 @@
-import { useEffect } from "react";
-import { Group, UserPlus, Clock } from "lucide-react";
+import { useEffect, useState, memo } from "react";
+import { useNavigate } from "react-router-dom";
+import { UserPlus, Group, Clock } from "lucide-react";
 import { motion } from "motion/react";
+import { useGameStore } from "../../store/gameStore";
 import { useAuthStore } from "../../store/authStore";
-
-// Mock teams for Phase 2 (Phase 6 will use Reverb presence channel)
-const MOCK_TEAMS = [
-  { id: 1, name: "Alpha Team" },
-  { id: 2, name: "Neon Knights" },
-  { id: 3, name: "Cyber Punks" },
-  { id: 4, name: "Data Miners" },
-];
-const MAX_TEAMS = 16;
+import { getPublicGameState, type GameTeam } from "../../services/gameService";
+import backgroundImage from "../../assets/background.png";
+import logoImage from "../../assets/logo.png";
+import { useGameSocket } from "../../hooks/useGameSocket";
 
 export default function PlayerWaiting() {
-  const { teamName, teamId } = useAuthStore();
+  const { teamName, teamId, gameId } = useAuthStore();
+  const { gameStatus, currentQuestion } = useGameStore();
+  const navigate = useNavigate();
 
-  // TODO Phase 6: subscribe to presence channel to get real team list
-  // usePresenceChannel(gameId) → set teams realtime
+  const [teams, setTeams] = useState<GameTeam[]>([]);
+  const [maxTeams, setMaxTeams] = useState(30);
 
-  // TODO Phase 6: listen to game.started event → navigate("/player/game")
+  // ── Initial state fetch and visibility refresh ─────────────────────────────
   useEffect(() => {
-    // echo.channel(`game.${gameId}`).listen("GameStarted", () => {
-    //   navigate("/player/game");
-    // });
-  }, []);
+    if (!gameId) return;
 
-  const teams = MOCK_TEAMS;
-  const emptySlots = MAX_TEAMS - teams.length;
+    let active = true;
+    const refreshState = () => {
+      getPublicGameState(gameId)
+        .then((res) => {
+          if (!active) return;
+          setTeams(res.data.data.teams);
+          setMaxTeams(res.data.data.max_teams ?? 30);
+          if (res.data.data.status !== "pending") {
+            navigate("/player/game", { replace: true });
+          }
+        })
+        .catch(() => {});
+    };
+
+    refreshState();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshState();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      active = false;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [gameId, navigate]);
+
+  // ── WebSocket subscription ─────────────────────────────────────────────────
+  useGameSocket(gameId, {
+    ".team.joined": (data: { team: GameTeam }) => {
+      setTeams((prev) =>
+        prev.some((t) => t.id === data.team.id) ? prev : [...prev, data.team]
+      );
+    },
+    ".team.left": (data: { team: GameTeam }) => {
+      setTeams((prev) => prev.filter((t) => t.id !== data.team.id));
+    },
+    ".game.started": () => {
+      navigate("/player/game", { replace: true });
+    },
+  });
+
+  useEffect(() => {
+    if (gameStatus === "active" || currentQuestion) {
+      navigate("/player/game");
+    }
+  }, [currentQuestion, gameStatus, navigate]);
+
+  const emptySlots = maxTeams - teams.length;
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col pt-20">
-      <main className="flex-grow w-full max-w-5xl mx-auto px-6 py-12 flex flex-col items-center">
-
+    <div 
+      className="min-h-screen flex flex-col pt-4"
+      style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+    >
+      <img
+        src={logoImage}
+        alt="Logo"
+        className="h-12 sm:h-16 w-auto object-contain drop-shadow-md"
+      />
+      <main className="grow w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-12 flex flex-col items-center">
         {/* Status banner */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white border border-gray-200 p-8 rounded-xl flex flex-col items-center gap-4 mb-12 w-full text-center relative overflow-hidden shadow-sm"
+          className="bg-white border border-gray-200 p-6 sm:p-8 rounded-xl flex flex-col items-center gap-4 mb-8 sm:mb-12 w-full text-center relative overflow-hidden shadow-sm"
         >
           <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
 
           <div className="relative z-10 flex items-center justify-center gap-3 mb-1">
-            <div className="w-3 h-3 rounded-full bg-primary animate-ping" />
-            <h1 className="text-2xl font-bold text-primary uppercase tracking-widest">
-              Đã kết nối
+            <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full ${
+              gameStatus === "active" ? "bg-green-500 animate-pulse" : "bg-primary animate-ping"
+            }`} />
+            <h1 className={`text-xl sm:text-2xl font-bold uppercase tracking-widest ${
+              gameStatus === "active" ? "text-green-600" : "text-primary"
+            }`}>
+              {gameStatus === "active" ? "Game has started" : "Đã kết nối"}
             </h1>
           </div>
 
-          {/* Tên team từ authStore */}
           <div className="relative z-10 flex flex-col items-center gap-1">
-            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
-              Đội của bạn
-            </p>
-            <p className="text-2xl font-black text-gray-900">
-              {teamName ?? "Unknown Team"}
-            </p>
-            <p className="text-xs text-gray-400 font-mono">#{teamId}</p>
+            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Đội của bạn</p>
+            <p className="text-xl sm:text-2xl uppercase truncate font-black text-gray-900">{teamName ?? "Unknown Team"}</p>
+            <p className="text-[10px] text-gray-400 font-mono">#{teamId}</p>
           </div>
 
-          <div className="relative z-10 flex items-center gap-2 text-gray-500 mt-2">
-            <Clock size={14} className="animate-pulse" />
-            <p className="font-medium text-sm">Chờ Host bắt đầu...</p>
+          <div className="relative z-10 flex items-center gap-2 mt-1 sm:mt-2">
+            <Clock
+              size={14}
+              className={gameStatus === "active" ? "animate-pulse text-green-600" : "animate-pulse text-gray-500"}
+            />
+            <p
+              className={`font-medium text-xs sm:text-sm ${gameStatus === "active" ? "text-green-600" : "text-gray-500"}`}
+            >
+              {gameStatus === "active"
+                ? "Vui lòng đợi câu hỏi tiếp theo..."
+                : "Đợi chủ phòng bắt đầu..."}
+            </p>
           </div>
 
-          {/* Progress bar */}
-          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden z-10">
+          <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden z-10">
             <motion.div
-              initial={{ width: "0%" }}
-              animate={{ width: `${(teams.length / MAX_TEAMS) * 100}%` }}
+              animate={{ width: `${(teams.length / maxTeams) * 100}%` }}
               transition={{ duration: 0.5 }}
               className="h-full bg-primary rounded-full"
             />
@@ -75,68 +132,72 @@ export default function PlayerWaiting() {
         </motion.div>
 
         {/* Team list */}
-        <div className="w-full flex flex-col gap-6">
+        <div className="w-full flex flex-col gap-4 sm:gap-6">
           <div className="flex justify-between items-end">
-            <h2 className="text-2xl font-bold text-gray-900">Sảnh chờ</h2>
-            <div className="text-4xl font-black text-primary">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Sảnh chờ</h2>
+            <div className="text-3xl sm:text-4xl font-black text-primary">
               {teams.length}
-              <span className="text-xl text-gray-300">/{MAX_TEAMS}</span>
+              <span className="text-lg sm:text-xl text-gray-300">/{maxTeams}</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Teams đã join */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {teams.map((team, index) => (
-              <motion.div
-                key={team.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.08 }}
-                className={`bg-white border-2 p-4 rounded-xl flex items-center gap-3 shadow-sm ${
-                  team.id === teamId
-                    ? "border-primary shadow-primary/20"
-                    : "border-primary/30"
-                }`}
-              >
-                <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shrink-0 text-sm font-black">
-                  {team.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="overflow-hidden">
-                  <p className="text-xs font-black text-gray-900 truncate uppercase tracking-wide">
-                    {team.name}
-                  </p>
-                  {team.id === teamId && (
-                    <p className="text-[10px] text-primary font-bold">Bạn</p>
-                  )}
-                </div>
-              </motion.div>
+              <TeamCard key={team.id} team={team} index={index} isMe={team.id === teamId} />
             ))}
-
-            {/* Empty slots */}
             {Array.from({ length: emptySlots }).map((_, i) => (
-              <div
-                key={`empty-${i}`}
-                className="border-2 border-dashed border-gray-200 bg-gray-50/50 p-4 rounded-xl flex items-center gap-3 opacity-40"
-              >
-                <div className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-300">
-                  <UserPlus size={16} />
-                </div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  Trống
-                </p>
-              </div>
+              <EmptySlot key={`empty-${i}`} />
             ))}
           </div>
         </div>
 
-        {/* Hint */}
-        <div className="mt-12 flex items-center gap-2 text-gray-400">
-          <Group size={14} />
-          <p className="text-xs font-medium">
-            Game sẽ bắt đầu khi Host ra lệnh
-          </p>
+        <div className="mt-8 sm:mt-12 flex items-center gap-2 text-gray-400">
+          <Group size={16} />
+          <p className="text-[10px] sm:text-xs font-medium">Game sẽ bắt đầu khi Chủ phòng khởi động</p>
         </div>
       </main>
     </div>
   );
 }
+
+// ── Pure sub-components ───────────────────────────────────────────────────────
+
+const TeamCard = memo(function TeamCard({
+  team,
+  index,
+  isMe,
+}: {
+  team: GameTeam;
+  index: number;
+  isMe: boolean;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.05 }}
+      className={`bg-white border-2 p-4 rounded-xl flex items-center gap-3 shadow-sm ${
+        isMe ? "border-primary shadow-primary/20" : "border-primary/30"
+      }`}
+    >
+      <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shrink-0 text-sm font-black">
+        {team.name.charAt(0).toUpperCase()}
+      </div>
+      <div className="overflow-hidden">
+        <p className="text-xs font-black text-gray-900 truncate uppercase tracking-wide">{team.name}</p>
+        {isMe && <p className="text-[10px] text-primary font-bold">Bạn</p>}
+      </div>
+    </motion.div>
+  );
+});
+
+const EmptySlot = memo(function EmptySlot() {
+  return (
+    <div className="border-2 border-dashed border-gray-400 bg-gray-50/50 p-4 rounded-xl flex items-center gap-3 opacity-40">
+      <div className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center text-gray-600">
+        <UserPlus size={16} />
+      </div>
+      <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Trống</p>
+    </div>
+  );
+});

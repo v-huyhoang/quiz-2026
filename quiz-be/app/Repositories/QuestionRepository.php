@@ -7,9 +7,12 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class QuestionRepository
 {
-    public function paginateWithAnswers(int $perPage): LengthAwarePaginator
+    public function paginateWithAnswers(int $perPage, ?string $search = null): LengthAwarePaginator
     {
-        return Question::with('answers')->orderBy('created_at', 'desc')->paginate($perPage);
+        return Question::with('answers')
+            ->when($search, fn($query) => $query->where('content', 'like', '%' . $search . '%'))
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
     }
 
     public function createWithAnswers(array $data): Question
