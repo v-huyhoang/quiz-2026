@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${DOCKERHUB_USERNAME}/quiz-be:latest
+    image: ${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME is required}/quiz-be:latest
     container_name: quiz-be-prod
     restart: unless-stopped
     ports:

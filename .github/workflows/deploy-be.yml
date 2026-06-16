@@ -53,7 +53,18 @@ jobs:
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
             cd /var/www/quiz-be-dev
             mkdir -p storage-public-dev
-            docker compose --env-file .env.dev -f docker-compose.dev.yml pull
+            for i in $(seq 1 3); do
+              if docker compose --env-file .env.dev -f docker-compose.dev.yml pull; then
+                break
+              fi
+
+              if [ "$i" -eq 3 ]; then
+                exit 1
+              fi
+
+              echo "Docker pull failed, retrying... attempt $i/3"
+              sleep 10
+            done
             docker compose --env-file .env.dev -f docker-compose.dev.yml up -d --remove-orphans
             docker exec quiz-be-dev chown -R www-data:www-data /var/www/html/storage/app/public
             for i in $(seq 1 30); do
@@ -137,7 +148,18 @@ jobs:
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
             cd /var/www/quiz-be-prod
             mkdir -p storage-public
-            docker compose --env-file .env -f docker-compose.prod.yml pull
+            for i in $(seq 1 3); do
+              if docker compose --env-file .env -f docker-compose.prod.yml pull; then
+                break
+              fi
+
+              if [ "$i" -eq 3 ]; then
+                exit 1
+              fi
+
+              echo "Docker pull failed, retrying... attempt $i/3"
+              sleep 10
+            done
             docker compose --env-file .env -f docker-compose.prod.yml up -d --remove-orphans
             docker exec quiz-be-prod chown -R www-data:www-data /var/www/html/storage/app/public
             for i in $(seq 1 30); do

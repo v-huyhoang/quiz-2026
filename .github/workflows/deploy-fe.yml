@@ -39,11 +39,11 @@ jobs:
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-fe:dev
           build-args: |
             VITE_APP_URL=${{ secrets.DEV_APP_URL}}
-            VITE_API_BASE_URL=${{ vars.DEV_FE_API_BASE_URL || format('http://{0}:8000/api', secrets.DEV_SERVER_HOST) }}
-            VITE_REVERB_APP_KEY=${{ secrets.DEV_REVERB_APP_KEY || vars.DEV_REVERB_APP_KEY || 'quiz_app_key_dev' }}
-            VITE_REVERB_HOST=${{ vars.DEV_REVERB_HOST || secrets.DEV_SERVER_HOST }}
-            VITE_REVERB_PORT=${{ vars.DEV_REVERB_PORT || '8080' }}
-            VITE_REVERB_SCHEME=${{ vars.DEV_REVERB_SCHEME || 'http' }}
+            VITE_API_BASE_URL=${{ secrets.DEV_FE_API_BASE_URL || format('http://{0}:8000/api', secrets.DEV_SERVER_HOST) }}
+            VITE_REVERB_APP_KEY=${{ secrets.DEV_REVERB_APP_KEY || secrets.DEV_REVERB_APP_KEY || 'quiz_app_key_dev' }}
+            VITE_REVERB_HOST=${{ secrets.DEV_REVERB_HOST || secrets.DEV_SERVER_HOST }}
+            VITE_REVERB_PORT=${{ secrets.DEV_REVERB_PORT || '8080' }}
+            VITE_REVERB_SCHEME=${{ secrets.DEV_REVERB_SCHEME || 'http' }}
 
       - name: Deploy dev
         uses: appleboy/ssh-action@v1.2.0
@@ -107,11 +107,11 @@ jobs:
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-fe:latest
           build-args: |
             VITE_APP_URL=${{ secrets.PROD_APP_URL }}
-            VITE_API_BASE_URL=${{ vars.PROD_FE_API_BASE_URL }}
-            VITE_REVERB_APP_KEY=${{ secrets.PROD_REVERB_APP_KEY || vars.PROD_REVERB_APP_KEY }}
-            VITE_REVERB_HOST=${{ vars.PROD_REVERB_HOST }}
-            VITE_REVERB_PORT=${{ vars.PROD_REVERB_PORT || '443' }}
-            VITE_REVERB_SCHEME=${{ vars.PROD_REVERB_SCHEME || 'https' }}
+            VITE_API_BASE_URL=${{ secrets.PROD_FE_API_BASE_URL }}
+            VITE_REVERB_APP_KEY=${{ secrets.PROD_REVERB_APP_KEY || secrets.PROD_REVERB_APP_KEY }}
+            VITE_REVERB_HOST=${{ secrets.PROD_REVERB_HOST }}
+            VITE_REVERB_PORT=${{ secrets.PROD_REVERB_PORT || '443' }}
+            VITE_REVERB_SCHEME=${{ secrets.PROD_REVERB_SCHEME || 'https' }}
 
       - name: Deploy production
         uses: appleboy/ssh-action@v1.2.0

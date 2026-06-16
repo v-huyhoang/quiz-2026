@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${DOCKERHUB_USERNAME}/quiz-be:dev
+    image: ${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME is required}/quiz-be:dev
     container_name: quiz-be-dev
     ports:
       - "8000:80"
