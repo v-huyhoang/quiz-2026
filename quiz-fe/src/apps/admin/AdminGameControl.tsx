@@ -264,7 +264,7 @@ export default function AdminGameControl() {
                     {canCloseQ      && <CtrlBtn color="bg-red-500"    icon={<Pause size={16} />}       label="Đóng câu hỏi"   loading={actionLoading} onClick={() => act(() => closeQuestion(id))} />}
                     {canOpenNext    && <CtrlBtn color="bg-blue-500"   icon={<SkipForward size={16} />} label="Câu tiếp theo"  loading={actionLoading} onClick={() => act(() => openQuestion(id))} />}
                     {canFinishRound && <CtrlBtn color="bg-gray-800"   icon={<Trophy size={16} />}      label="Kết thúc vòng"  loading={actionLoading} onClick={() => act(() => finishRound(id))} />}
-                    {canFinishGame  && <CtrlBtn color="bg-secondary"  icon={<Trophy size={16} />}      label="Kết thúc game"  loading={actionLoading} onClick={() => act(() => finishGame(id))} />}
+                    {canFinishGame  && <div className="ml-auto"><CtrlBtn color="bg-secondary"  icon={<Trophy size={16} />}    label="Kết thúc game"  loading={actionLoading} onClick={() => act(() => finishGame(id))} /></div>}
                     {gameState.status === "finished" && !gameState.results_published && (
                       <div className="flex items-center gap-3">
                         <CtrlBtn
