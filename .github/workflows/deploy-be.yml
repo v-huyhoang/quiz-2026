@@ -19,6 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
       - name: Login Docker Hub
         uses: docker/login-action@v3
         with:
@@ -32,6 +37,8 @@ jobs:
           file: ./quiz-be/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-be:dev
+          cache-from: type=gha,scope=quiz-be-dev
+          cache-to: type=gha,mode=max,scope=quiz-be-dev
 
       - name: Deploy dev
         uses: appleboy/ssh-action@v1.2.0
@@ -70,6 +77,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
 
       - name: Login Docker Hub
         uses: docker/login-action@v3
