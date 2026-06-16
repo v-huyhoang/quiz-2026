@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - develop
+      - deploy
       - main
     paths:
       - "quiz-be/**"
@@ -44,8 +45,10 @@ jobs:
             export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
             cd /var/www/quiz-be-dev
+            mkdir -p storage-public-dev
             docker compose --env-file .env.dev -f docker-compose.dev.yml pull
             docker compose --env-file .env.dev -f docker-compose.dev.yml up -d --remove-orphans
+            docker exec quiz-be-dev chown -R www-data:www-data /var/www/html/storage/app/public
             for i in $(seq 1 30); do
               if docker exec quiz-be-dev php artisan migrate --force; then
                 break
@@ -62,7 +65,7 @@ jobs:
             docker exec quiz-be-dev php artisan optimize:clear
 
   deploy-prod:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/deploy' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
@@ -81,6 +84,32 @@ jobs:
           file: ./quiz-be/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-be:latest
+          cache-from: type=gha,scope=quiz-be-prod
+          cache-to: type=gha,mode=max,scope=quiz-be-prod
+
+      - name: Ensure production directory
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SERVER_SSH_KEY }}
+          password: ${{ secrets.PROD_SERVER_PASSWORD }}
+          port: ${{ secrets.PROD_SERVER_PORT }}
+          script: |
+            set -e
+            mkdir -p /var/www/quiz-be-prod/storage-public
+
+      - name: Sync production compose
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SERVER_SSH_KEY }}
+          password: ${{ secrets.PROD_SERVER_PASSWORD }}
+          port: ${{ secrets.PROD_SERVER_PORT }}
+          source: "quiz-be/docker-compose.prod.yml"
+          target: "/var/www/quiz-be-prod"
+          strip_components: 1
 
       - name: Deploy production
         uses: appleboy/ssh-action@v1.2.0
@@ -94,8 +123,10 @@ jobs:
             export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
             cd /var/www/quiz-be-prod
+            mkdir -p storage-public
             docker compose --env-file .env -f docker-compose.prod.yml pull
             docker compose --env-file .env -f docker-compose.prod.yml up -d --remove-orphans
+            docker exec quiz-be-prod chown -R www-data:www-data /var/www/html/storage/app/public
             for i in $(seq 1 30); do
               if docker exec quiz-be-prod php artisan migrate --force; then
                 break
@@ -109,4 +140,4 @@ jobs:
               sleep 5
             done
             docker exec quiz-be-prod php artisan storage:link --force
-            docker exec quiz-be-prod php artisan optimize
+            docker exec quiz-be-prod php artisan optimize:clear
