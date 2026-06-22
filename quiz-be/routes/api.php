@@ -33,6 +33,7 @@ Route::group(['prefix' => 'admin'], function () {
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [\App\Http\Controllers\AuthController::class, 'adminLogout']);
+        Route::post('/change-password', [\App\Http\Controllers\AuthController::class, 'changePassword']);
 
         // Questions
         Route::post('/questions/import', [\App\Http\Controllers\QuestionController::class, 'import']);
