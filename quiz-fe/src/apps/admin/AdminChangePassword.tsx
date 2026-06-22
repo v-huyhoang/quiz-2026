@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Lock,
@@ -13,7 +12,6 @@ import {
 import { changePassword } from "../../services/authService";
 
 export default function AdminChangePassword() {
-  const navigate = useNavigate();
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
