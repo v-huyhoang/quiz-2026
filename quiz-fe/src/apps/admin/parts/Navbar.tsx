@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, ChevronDown, Gamepad2 } from "lucide-react";
+import { LogOut, ChevronDown, Gamepad2, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuthStore } from "../../../store/authStore";
 // TODO Phase 5: uncomment when BE is ready
@@ -70,30 +70,49 @@ export function Navbar() {
           </button>
 
           <AnimatePresence>
-            {dropdownOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -8, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -8, scale: 0.95 }}
-                transition={{ duration: 0.15 }}
-                className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden"
+          {dropdownOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden"
+            >
+              <div className="px-4 py-3 border-b border-gray-100">
+                <p className="text-xs font-black text-gray-900">
+                  Admin
+                </p>
+                <p className="text-xs text-gray-400 truncate">
+                  quiz@admin.com
+                </p>
+              </div>
+
+              {/* Change-password */}
+              <button
+                onClick={() => {
+                  setDropdownOpen(false);
+                  navigate("/admin/change-password");
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-xs font-black text-gray-900">Admin</p>
-                  <p className="text-xs text-gray-400 truncate">
-                    quiz@admin.com
-                  </p>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  <LogOut size={15} />
-                  Đăng xuất
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <Lock className="w-4 h-4" />
+                Đổi mật khẩu
+              </button>
+
+              {/* Divider */}
+              <div className="border-t border-gray-100" />
+
+              {/* Logout */}
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Đăng xuất
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
         </div>
       </div>
     </header>

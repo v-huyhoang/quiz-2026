@@ -16,3 +16,10 @@ export const adminLogin = (email: string, password: string) =>
 
 export const adminLogout = () =>
   api.post<ApiResponse<null>>("/admin/logout");
+
+export const changePassword = (currentPassword: string, newPassword: string, confirmPassword: string) =>
+  api.post<ApiResponse<null>>("/admin/change-password", {
+    current_password: currentPassword,
+    new_password: newPassword,
+    confirm_password: confirmPassword,
+  });
