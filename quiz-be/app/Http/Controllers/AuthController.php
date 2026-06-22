@@ -41,4 +41,26 @@ class AuthController extends Controller
 
         return $this->successResponse(null, 'Logged out successfully');
     }
+
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required',
+            'new_password' => 'required|min:6',
+            'confirm_password' => 'required|same:new_password',
+        ]);
+
+        $admin = $request->user();
+
+        if (! Hash::check($request->current_password, $admin->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => ['Mật khẩu hiện tại không chính xác.'],
+            ]);
+        }
+
+        $admin->password = Hash::make($request->new_password);
+        $admin->save();
+
+        return $this->successResponse(null, 'Đổi mật khẩu thành công');
+    }
 }
