@@ -52,7 +52,14 @@ export default function AdminGameControl() {
       });
     },
     ".game.started": () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => { }),
-    ".question.started": () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => { }),
+    ".question.started": (data: any) => {
+      // Calculate and store server offset globally
+      if (data.server_timestamp) {
+        const serverOffset = data.server_timestamp - Date.now();
+        (window as any).serverOffset = serverOffset;
+      }
+      getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => { });
+    },
     ".question.closed": () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => { }),
     ".game.finished": () => getAdminGameState(id).then((res) => setGameState(res.data.data)).catch(() => { }),
   });
@@ -83,7 +90,12 @@ export default function AdminGameControl() {
     const q = gameState?.current_round?.current_question;
     if (!q || q.status !== "open" || !q.opened_at) return;
 
-    const remaining = new Date(q.opened_at).getTime() + q.time_limit_seconds * 1000 - Date.now();
+    const getServerNow = () => {
+      const offset = (window as any).serverOffset ?? 0;
+      return Date.now() + offset;
+    };
+
+    const remaining = new Date(q.opened_at).getTime() + q.time_limit_seconds * 1000 - getServerNow();
     if (remaining <= 0) { act(() => closeQuestion(id)); return; }
 
     const timer = setTimeout(() => act(() => closeQuestion(id)), remaining);

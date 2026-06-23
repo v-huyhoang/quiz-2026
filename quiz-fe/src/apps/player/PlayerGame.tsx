@@ -24,6 +24,7 @@ interface QuestionStartedEvent {
   round_number: number;
   total_questions: number;
   opened_at: string;
+  server_timestamp: number;
   question: {
     type: "single_choice" | "image_input";
     content: string | null;
@@ -159,6 +160,11 @@ export default function PlayerGame() {
       );
     },
     ".question.started": (data: QuestionStartedEvent) => {
+      // Calculate and store server offset globally
+      if (data.server_timestamp) {
+        const serverOffset = data.server_timestamp - Date.now();
+        (window as any).serverOffset = serverOffset;
+      }
       setSelectedId(null);
       setTextInput("");
       setSubmitError("");
