@@ -9,11 +9,16 @@ export function useCountdown({
   openedAt,
   duration = 0,
 }: UseCountdownProps) {
+  const getServerNow = () => {
+    const offset = (window as any).serverOffset ?? 0;
+    return Date.now() + offset;
+  };
+
   const calculateState = () => {
     if (!openedAt || !duration) return { timeLeft: 0, progress: 0 };
 
     const start = new Date(openedAt).getTime();
-    const elapsedMs = Date.now() - start;
+    const elapsedMs = getServerNow() - start;
     const remainingMs = Math.max(duration * 1000 - elapsedMs, 0);
 
     return {

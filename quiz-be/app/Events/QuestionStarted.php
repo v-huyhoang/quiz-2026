@@ -68,6 +68,7 @@ class QuestionStarted implements ShouldBroadcastNow
             'question' => $this->questionData,
             'time_limit_seconds' => $this->questionData['time_limit_seconds'],
             'opened_at' => $this->roundQuestion->opened_at?->toISOString(),
+            'server_timestamp' => now()->timestamp * 1000, // milliseconds
         ];
     }
 }
